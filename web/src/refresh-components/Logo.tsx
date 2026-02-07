@@ -47,7 +47,7 @@ export default function Logo({ folded, size, className }: LogoProps) {
       ) : (
         <OnyxIcon
           size={foldedSize}
-          className={cn("flex-shrink-0", className)}
+          className={cn("flex-shrink-0 text-theme-blue-05", className)}
         />
       ),
     [className, foldedSize, settings.enterpriseSettings?.use_custom_logo]
@@ -77,7 +77,7 @@ export default function Logo({ folded, size, className }: LogoProps) {
             )}
             nowrap
           >
-            Powered by Onyx
+            Powered by ChatVSP
           </Text>
         )}
       </div>
@@ -98,8 +98,14 @@ export default function Logo({ folded, size, className }: LogoProps) {
   return applicationName ? (
     renderNameAndPoweredBy({ includeLogo: true, includeName: true })
   ) : folded ? (
-    <OnyxIcon size={foldedSize} className={cn("flex-shrink-0", className)} />
+    <OnyxIcon
+      size={foldedSize}
+      className={cn("flex-shrink-0 text-theme-blue-05", className)}
+    />
   ) : (
-    <OnyxLogoTypeIcon size={unfoldedSize} className={className} />
+    <OnyxLogoTypeIcon
+      size={unfoldedSize}
+      className={cn("text-theme-blue-05", className)}
+    />
   );
 }

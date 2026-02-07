@@ -21,10 +21,14 @@ import {
   SvgLogOut,
   SvgUser,
   SvgNotificationBubble,
+  SvgMoon,
+  SvgSun,
 } from "@opal/icons";
 import { Section } from "@/layouts/general-layouts";
 import { usePopup } from "@/components/admin/connectors/Popup";
 import useAppFocus from "@/hooks/useAppFocus";
+import { useTheme } from "next-themes";
+import { ThemePreference } from "@/lib/types";
 
 function getDisplayName(email?: string, personalName?: string): string {
   // Prioritize custom personal name if set
@@ -49,7 +53,8 @@ function SettingsPopover({
   onUserSettingsClick,
   onOpenNotifications,
 }: SettingsPopoverProps) {
-  const { user } = useUser();
+  const { user, updateUserThemePreference } = useUser();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const { data: notifications } = useSWR<Notification[]>(
     "/api/notifications",
     errorHandlingFetcher,
@@ -66,6 +71,18 @@ function SettingsPopover({
     user?.is_anonymous_user || checkUserIsNoAuthUser(user?.id ?? "");
   const showLogout = user && !isAnonymousUser && !LOGOUT_DISABLED;
   const showLogin = isAnonymousUser;
+  const activeTheme = resolvedTheme ?? theme;
+  const isDarkTheme = activeTheme === "dark";
+
+  const handleThemeToggle = () => {
+    const nextTheme = isDarkTheme ? "light" : "dark";
+    setTheme(nextTheme);
+    updateUserThemePreference(
+      nextTheme === "dark" ? ThemePreference.DARK : ThemePreference.LIGHT
+    ).catch(() => {
+      // Best effort; UI theme already updated.
+    });
+  };
 
   const handleLogin = () => {
     const currentUrl = `${pathname}${
@@ -110,6 +127,13 @@ function SettingsPopover({
               User Settings
             </LineItem>
           </div>,
+          <LineItem
+            key="theme-toggle"
+            icon={isDarkTheme ? SvgMoon : SvgSun}
+            onClick={handleThemeToggle}
+          >
+            {`Switch to ${isDarkTheme ? "light" : "dark"} mode`}
+          </LineItem>,
           <LineItem
             key="notifications"
             icon={SvgBell}

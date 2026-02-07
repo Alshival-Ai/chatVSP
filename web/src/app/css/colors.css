@@ -67,19 +67,19 @@
   --alpha-grey-00-05: #ffffff0d;
   --alpha-grey-00-00: #ffffff00;
 
-  /* Blue Scale */
-  --blue-95: #040e25;
-  --blue-90: #091938;
-  --blue-85: #11254e;
-  --blue-80: #173268;
-  --blue-60: #3363c3;
-  --blue-50: #286df8;
-  --blue-45: #397bff;
-  --blue-40: #508afb;
-  --blue-20: #9bbeff;
-  --blue-10: #cddfff;
-  --blue-05: #e7effc;
-  --blue-01: #f8fafe;
+  /* Blue Scale - VSP Blue Theme */
+  --blue-95: #0a1433;
+  --blue-90: #141f4d;
+  --blue-85: #1f2d66;
+  --blue-80: #2a3b80;
+  --blue-60: #3558c0;
+  --blue-50: #4169e1;
+  --blue-45: #5277e3;
+  --blue-40: #6485e5;
+  --blue-20: #a0b3ef;
+  --blue-10: #d0d9f7;
+  --blue-05: #e7ecfb;
+  --blue-01: #f8f9fe;
 
   /* Green Scale */
   --green-95: #001503;
@@ -249,9 +249,9 @@
   --text-dark-05: var(--grey-100);
 
   /* Background / Neutral */
-  --background-neutral-00: var(--grey-00);
-  --background-neutral-01: var(--grey-02);
-  --background-neutral-02: var(--grey-06);
+  --background-neutral-00: var(--blue-01);
+  --background-neutral-01: var(--blue-05);
+  --background-neutral-02: var(--blue-10);
   --background-neutral-03: var(--grey-10);
   --background-neutral-04: var(--grey-20);
   --background-neutral-inverted-04: var(--grey-75);
@@ -264,9 +264,9 @@
   --background-neutral-dark-03: var(--grey-80);
 
   /* Background / Tint */
-  --background-tint-00: var(--grey-00);
-  --background-tint-01: var(--tint-02);
-  --background-tint-02: var(--tint-05);
+  --background-tint-00: var(--blue-01);
+  --background-tint-01: var(--blue-05);
+  --background-tint-02: var(--blue-10);
   --background-tint-03: var(--tint-10);
   --background-tint-04: var(--tint-20);
   --background-tint-inverted-04: var(--tint-80);
@@ -290,9 +290,9 @@
   --border-inverted-01: var(--grey-80);
 
   /* Theme */
-  --theme-primary-06: var(--onyx-ink-100);
-  --theme-primary-05: var(--onyx-ink-95);
-  --theme-primary-04: var(--onyx-ink-90);
+  --theme-primary-06: var(--blue-60);
+  --theme-primary-05: var(--blue-50);
+  --theme-primary-04: var(--blue-40);
 
   /* Theme / Gradient */
   --theme-gradient-05: var(--tint-50);
@@ -491,9 +491,9 @@
   --border-inverted-01: var(--grey-10);
 
   /* Theme */
-  --theme-primary-06: var(--onyx-chrome-00);
-  --theme-primary-05: var(--onyx-chrome-10);
-  --theme-primary-04: var(--onyx-chrome-20);
+  --theme-primary-06: var(--blue-45);
+  --theme-primary-05: var(--blue-40);
+  --theme-primary-04: var(--blue-20);
 
   /* Theme / Gradient */
   --theme-gradient-05: var(--grey-100);
