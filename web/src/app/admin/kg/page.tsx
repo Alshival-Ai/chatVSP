@@ -272,7 +272,7 @@ function Main() {
             </div>
             <Text as="p" text03>
               (To use Knowledge Graph queries, you&apos;ll need a dedicated
-              Assistant configured in a specific way. Please contact the Onyx
+              Assistant configured in a specific way. Please contact the ChatVSP
               team for setup instructions.)
             </Text>
           </div>

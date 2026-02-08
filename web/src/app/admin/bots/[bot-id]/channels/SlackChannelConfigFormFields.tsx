@@ -187,9 +187,9 @@ export function SlackChannelConfigFormFields({
                 labelClassName="text-text"
               />
               <p className="mt-2 text-sm italic">
-                Warning: Disabling the default configuration means OnyxBot
+                Warning: Disabling the default configuration means ChatVSPBot
                 won&apos;t respond in Slack channels unless they are explicitly
-                configured. Additionally, OnyxBot will not respond to DMs.
+                configured. Additionally, ChatVSPBot will not respond to DMs.
               </p>
             </div>
           </>
@@ -217,7 +217,7 @@ export function SlackChannelConfigFormFields({
               value="all_public"
               id="all_public"
               label="All Public Knowledge"
-              sublabel="Let OnyxBot respond based on information from all public connectors"
+              sublabel="Let ChatVSPBot respond based on information from all public connectors"
             />
             {selectableSets.length + unselectableSets.length > 0 && (
               <RadioGroupItemField
@@ -246,7 +246,7 @@ export function SlackChannelConfigFormFields({
             <div className="mt-4">
               <SubLabel>
                 <>
-                  Select the document sets OnyxBot will use while answering
+                  Select the document sets ChatVSPBot will use while answering
                   questions in Slack.
                   <br />
                   {unselectableSets.length > 0 ? (
@@ -312,7 +312,7 @@ export function SlackChannelConfigFormFields({
                               key={documentSet.id}
                               documentSet={documentSet}
                               disabled
-                              disabledTooltip="Unable to use this document set because it contains a connector with auto-sync permissions. OnyxBot's responses in this channel are visible to all Slack users, so mirroring the asker's permissions could inadvertently expose private information."
+                              disabledTooltip="Unable to use this document set because it contains a connector with auto-sync permissions. ChatVSPBot's responses in this channel are visible to all Slack users, so mirroring the asker's permissions could inadvertently expose private information."
                               isSelected={false}
                             />
                           ))}
@@ -333,7 +333,7 @@ export function SlackChannelConfigFormFields({
           <div className="mt-4">
             <SubLabel>
               <>
-                Select the search-enabled assistant OnyxBot will use while
+                Select the search-enabled assistant ChatVSPBot will use while
                 answering questions in Slack.
                 {syncEnabledAssistants.length > 0 && (
                   <>
@@ -400,7 +400,7 @@ export function SlackChannelConfigFormFields({
           <div className="mt-4">
             <SubLabel>
               <>
-                Select the non-search assistant OnyxBot will use while answering
+                Select the non-search assistant ChatVSPBot will use while answering
                 questions in Slack.
                 {syncEnabledAssistants.length > 0 && (
                   <>
@@ -453,7 +453,7 @@ export function SlackChannelConfigFormFields({
                   <SelectorFormField
                     name="response_type"
                     label="Answer Type"
-                    tooltip="Controls the format of OnyxBot's responses."
+                    tooltip="Controls the format of ChatVSPBot's responses."
                     options={[
                       { name: "Standard", value: "citations" },
                       { name: "Detailed", value: "quotes" },
@@ -477,7 +477,7 @@ export function SlackChannelConfigFormFields({
               <CheckboxField
                 name="show_continue_in_web_ui"
                 label="Show Continue in Web UI button"
-                tooltip="If set, will show a button at the bottom of the response that allows the user to continue the conversation in the Onyx Web UI"
+                tooltip="If set, will show a button at the bottom of the response that allows the user to continue the conversation in the ChatVSP Web UI"
               />
 
               <CheckboxField
@@ -489,7 +489,7 @@ export function SlackChannelConfigFormFields({
                   }
                 }}
                 label={'Give a "Still need help?" button'}
-                tooltip={`OnyxBot's response will include a button at the bottom
+                tooltip={`ChatVSPBot's response will include a button at the bottom
                       of the response that asks the user if they still need help.`}
               />
               {values.still_need_help_enabled && (
@@ -514,22 +514,22 @@ export function SlackChannelConfigFormFields({
               <CheckboxField
                 name="questionmark_prefilter_enabled"
                 label="Only respond to questions"
-                tooltip="If set, OnyxBot will only respond to messages that contain a question mark"
+                tooltip="If set, ChatVSPBot will only respond to messages that contain a question mark"
               />
               <CheckboxField
                 name="respond_tag_only"
-                label="Respond to @OnyxBot Only"
-                tooltip="If set, OnyxBot will only respond when directly tagged"
+                label="Respond to @ChatVSPBot Only"
+                tooltip="If set, ChatVSPBot will only respond when directly tagged"
               />
               <CheckboxField
                 name="respond_to_bots"
                 label="Respond to Bot messages"
-                tooltip="If not set, OnyxBot will always ignore messages from Bots"
+                tooltip="If not set, ChatVSPBot will always ignore messages from Bots"
               />
               <CheckboxField
                 name="is_ephemeral"
                 label="Respond to user in a private (ephemeral) message"
-                tooltip="If set, OnyxBot will respond only to the user in a private (ephemeral) message. If you also
+                tooltip="If set, ChatVSPBot will respond only to the user in a private (ephemeral) message. If you also
                 chose 'Search' Assistant above, selecting this option will make documents that are private to the user
                 available for their queries."
               />
@@ -538,7 +538,7 @@ export function SlackChannelConfigFormFields({
                 name="respond_member_group_list"
                 label="(Optional) Respond to Certain Users / Groups"
                 subtext={
-                  "If specified, OnyxBot responses will only " +
+                  "If specified, ChatVSPBot responses will only " +
                   "be visible to the members or groups in this list."
                 }
                 values={values}

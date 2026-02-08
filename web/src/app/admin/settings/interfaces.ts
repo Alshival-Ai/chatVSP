@@ -40,7 +40,7 @@ export interface Settings {
   // Default Assistant settings
   disable_default_assistant?: boolean;
 
-  // Onyx Craft (Build Mode) feature flag
+  // ChatVSP Craft (Build Mode) feature flag
   onyx_craft_enabled?: boolean;
 
   // Enterprise features flag - controlled by license enforcement at runtime

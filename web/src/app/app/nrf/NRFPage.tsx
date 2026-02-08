@@ -191,7 +191,7 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
     setSettingsOpen((prev) => !prev);
   };
 
-  // If user toggles the "Use Onyx" switch to off, prompt a modal
+  // If user toggles the "Use ChatVSP" switch to off, prompt a modal
   const handleUseOnyxToggle = (checked: boolean) => {
     if (!checked) {
       setShowTurnOffModal(true);
@@ -332,7 +332,7 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
             rightIcon={SvgExternalLink}
             onClick={handleOpenInOnyx}
           >
-            Open in Onyx
+            Open in ChatVSP
           </Button>
         </header>
       )}
@@ -473,8 +473,8 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
             <Modal.Content width="sm">
               <Modal.Header
                 icon={SvgAlertTriangle}
-                title="Turn off Onyx new tab page?"
-                description="You'll see your browser's default new tab page instead. You can turn it back on anytime in your Onyx settings."
+                title="Turn off ChatVSP new tab page?"
+                description="You'll see your browser's default new tab page instead. You can turn it back on anytime in your ChatVSP settings."
                 onClose={() => setShowTurnOffModal(false)}
               />
               <Modal.Footer>
@@ -493,7 +493,7 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
       {!user && (
         <Modal open onOpenChange={() => {}}>
           <Modal.Content width="sm" height="sm">
-            <Modal.Header icon={SvgUser} title="Welcome to Onyx" />
+            <Modal.Header icon={SvgUser} title="Welcome to ChatVSP" />
             <Modal.Body>
               {authTypeMetadata.authType === AuthType.BASIC ? (
                 <LoginPage

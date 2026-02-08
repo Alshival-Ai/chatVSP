@@ -68,14 +68,14 @@ export default function AccessRestricted() {
       </div>
 
       <Text text03>
-        Your access to Onyx has been temporarily suspended due to a lapse in
+        Your access to ChatVSP has been temporarily suspended due to a lapse in
         your subscription.
       </Text>
 
       {NEXT_PUBLIC_CLOUD_ENABLED ? (
         <>
           <Text text03>
-            To reinstate your access and continue benefiting from Onyx&apos;s
+            To reinstate your access and continue benefiting from ChatVSP&apos;s
             powerful features, please update your payment information.
           </Text>
 
@@ -105,7 +105,7 @@ export default function AccessRestricted() {
       ) : (
         <>
           <Text text03>
-            To reinstate your access and continue using Onyx, please contact
+            To reinstate your access and continue using ChatVSP, please contact
             your system administrator to renew your license.
           </Text>
 
