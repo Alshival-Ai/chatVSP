@@ -460,7 +460,7 @@ function Footer() {
 
   const customFooterContent =
     settings?.enterpriseSettings?.custom_lower_disclaimer_content ||
-    `[Onyx ${
+    `[chatVSP ${
       settings?.webVersion || "dev"
     }](https://www.onyx.app/) - ${APP_SLOGAN}`;
 

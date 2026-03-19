@@ -86,7 +86,7 @@ export function CancelInviteModal({
         <Text as="span" text05>
           {email}
         </Text>{" "}
-        will no longer be able to join Onyx with this invite.
+        will no longer be able to join chatVSP with this invite.
       </Text>
     </ConfirmationModalLayout>
   );
@@ -141,7 +141,7 @@ export function DeactivateUserModal({
         <Text as="span" text05>
           {email}
         </Text>{" "}
-        will immediately lose access to Onyx. Their sessions and agents will be
+        will immediately lose access to chatVSP. Their sessions and agents will be
         preserved. Their license seat will be freed. You can reactivate this
         account later.
       </Text>
@@ -195,7 +195,7 @@ export function ActivateUserModal({
         <Text as="span" text05>
           {email}
         </Text>{" "}
-        will regain access to Onyx.
+        will regain access to chatVSP.
       </Text>
     </ConfirmationModalLayout>
   );
@@ -250,7 +250,7 @@ export function DeleteUserModal({
         <Text as="span" text05>
           {email}
         </Text>{" "}
-        will be permanently removed from Onyx. All of their session history will
+        will be permanently removed from chatVSP. All of their session history will
         be deleted. Deletion cannot be undone.
       </Text>
     </ConfirmationModalLayout>

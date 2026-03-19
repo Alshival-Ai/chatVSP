@@ -93,6 +93,7 @@ services:
         - NEXT_PUBLIC_DISABLE_LOGOUT=${NEXT_PUBLIC_DISABLE_LOGOUT:-}
         - NEXT_PUBLIC_THEME=${NEXT_PUBLIC_THEME:-}
         - NEXT_PUBLIC_FORGOT_PASSWORD_ENABLED=${NEXT_PUBLIC_FORGOT_PASSWORD_ENABLED:-}
+        - NEXT_PUBLIC_ENABLE_PAID_EE_FEATURES=${NEXT_PUBLIC_ENABLE_PAID_EE_FEATURES:-}
     depends_on:
       - api_server
     restart: unless-stopped
@@ -287,8 +288,8 @@ services:
       - api_server
       - web_server
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HOST_PORT_80:-80}:80"
+      - "${HOST_PORT_443:-443}:443"
     volumes:
       - ../data/nginx:/etc/nginx/conf.d
       - ../data/certbot/conf:/etc/letsencrypt

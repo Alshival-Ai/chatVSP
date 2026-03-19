@@ -1,11 +1,9 @@
 "use client";
 
-import { OnyxIcon, OnyxLogoTypeIcon } from "@/components/icons/icons";
 import { useSettingsContext } from "@/providers/SettingsProvider";
 import Image from "next/image";
 import {
   LOGO_FOLDED_SIZE_PX,
-  LOGO_UNFOLDED_SIZE_PX,
   NEXT_PUBLIC_DO_NOT_USE_TOGGLE_OFF_DANSWER_POWERED,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -19,12 +17,14 @@ export interface LogoProps {
   className?: string;
 }
 
+const DEFAULT_APP_NAME = "chatVSP";
+
 export default function Logo({ folded, size, className }: LogoProps) {
   const foldedSize = size ?? LOGO_FOLDED_SIZE_PX;
-  const unfoldedSize = size ?? LOGO_UNFOLDED_SIZE_PX;
   const settings = useSettingsContext();
   const logoDisplayStyle = settings.enterpriseSettings?.logo_display_style;
-  const applicationName = settings.enterpriseSettings?.application_name;
+  const applicationName =
+    settings.enterpriseSettings?.application_name || DEFAULT_APP_NAME;
 
   const logo = useMemo(
     () =>
@@ -45,12 +45,20 @@ export default function Logo({ folded, size, className }: LogoProps) {
           />
         </div>
       ) : (
-        <OnyxIcon
-          size={foldedSize}
-          className={cn("flex-shrink-0", className)}
+        <Image
+          alt={`${applicationName} logo`}
+          src="/logo.png"
+          width={foldedSize}
+          height={foldedSize}
+          className={cn("object-contain flex-shrink-0", className)}
         />
       ),
-    [className, foldedSize, settings.enterpriseSettings?.use_custom_logo]
+    [
+      applicationName,
+      className,
+      foldedSize,
+      settings.enterpriseSettings?.use_custom_logo,
+    ]
   );
 
   const renderNameAndPoweredBy = (opts: {
@@ -73,7 +81,7 @@ export default function Logo({ folded, size, className }: LogoProps) {
                 className={"line-clamp-1 truncate"}
                 nowrap
               >
-                Powered by Onyx
+                Powered by chatVSP
               </Text>
             )}
           </div>
@@ -93,11 +101,5 @@ export default function Logo({ folded, size, className }: LogoProps) {
   }
 
   // Handle "logo_and_name" or default behavior
-  return applicationName ? (
-    renderNameAndPoweredBy({ includeLogo: true, includeName: true })
-  ) : folded ? (
-    <OnyxIcon size={foldedSize} className={cn("flex-shrink-0", className)} />
-  ) : (
-    <OnyxLogoTypeIcon size={unfoldedSize} className={className} />
-  );
+  return renderNameAndPoweredBy({ includeLogo: true, includeName: true });
 }

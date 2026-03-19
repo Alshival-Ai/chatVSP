@@ -32,7 +32,7 @@ export type OnyxSelectionState = "none" | "partial" | "all";
 // ---------------------------------------------------------------------------
 
 /**
- * Convert a TanStack sort direction to an Onyx sort direction string.
+ * Convert a TanStack sort direction to an chatVSP sort direction string.
  *
  * This is a **named export** (not on the return object) because it is used
  * statically inside JSX header loops, not tied to hook state.
@@ -126,7 +126,7 @@ interface UseDataTableReturn<TData extends RowData> {
   /** Full TanStack table instance for rendering. */
   table: Table<TData>;
 
-  // Pagination (1-based, matching Onyx Footer)
+  // Pagination (1-based, matching chatVSP Footer)
   /** Current page number (1-based). */
   currentPage: number;
   /** Total number of pages. */
@@ -140,7 +140,7 @@ interface UseDataTableReturn<TData extends RowData> {
   /** Whether pagination is active (pageSize is finite). */
   isPaginated: boolean;
 
-  // Selection (pre-computed for Onyx Footer)
+  // Selection (pre-computed for chatVSP Footer)
   /** Aggregate selection state for the current page. */
   selectionState: OnyxSelectionState;
   /** Number of selected rows. */
@@ -168,7 +168,7 @@ interface UseDataTableReturn<TData extends RowData> {
 // ---------------------------------------------------------------------------
 
 /**
- * Wraps TanStack `useReactTable` with Onyx-specific defaults and derived
+ * Wraps TanStack `useReactTable` with chatVSP-specific defaults and derived
  * state so that consumers only need to provide `data` + `columns`.
  *
  * @example

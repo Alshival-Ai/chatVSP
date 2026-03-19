@@ -507,7 +507,7 @@ export type StreamPacket =
   | CurrentModeUpdatePacket
   | PromptResponsePacket
   | ACPErrorPacket
-  // Custom Onyx packets
+  // Custom chatVSP packets
   | StepStartPacket
   | StepDeltaPacket
   | StepEndPacket
