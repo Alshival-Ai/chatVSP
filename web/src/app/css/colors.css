@@ -236,33 +236,47 @@
   --slate-10: #e4e6ea;
   --slate-05: #eef0f3;
   --slate-02: #f9fafb;
+
+  /* VSP-adjacent Blue Scale */
+  --vsp-blue-98: #07101c;
+  --vsp-blue-95: #0d1b2d;
+  --vsp-blue-90: #152844;
+  --vsp-blue-85: #1e3557;
+  --vsp-blue-80: #28456e;
+  --vsp-blue-60: #5577a4;
+  --vsp-blue-50: #6b8fbd;
+  --vsp-blue-40: #8fb1d4;
+  --vsp-blue-20: #c7daec;
+  --vsp-blue-10: #dfebf7;
+  --vsp-blue-05: #edf5fc;
+  --vsp-blue-02: #f7fbff;
 }
 
 /* Brand Colors */
 :root {
   /* chatVSP / Ink */
-  --onyx-ink-100: #000000;
-  --onyx-ink-95: #1c1c1c;
-  --onyx-ink-90: #333333;
+  --onyx-ink-100: #10233c;
+  --onyx-ink-95: #16304f;
+  --onyx-ink-90: #21466d;
 
   /* chatVSP / Chrome */
-  --onyx-chrome-20: #cacaca;
-  --onyx-chrome-10: #e9e9e9;
-  --onyx-chrome-00: #ffffff;
+  --onyx-chrome-20: #c7daec;
+  --onyx-chrome-10: #dfebf7;
+  --onyx-chrome-00: #f7fbff;
 
-  /* Tint (referencing Stone variables) */
-  --tint-98: var(--stone-98);
-  --tint-95: var(--stone-95);
-  --tint-90: var(--stone-90);
-  --tint-85: var(--stone-85);
-  --tint-80: var(--stone-80);
-  --tint-60: var(--stone-60);
-  --tint-50: var(--stone-50);
-  --tint-40: var(--stone-40);
-  --tint-20: var(--stone-20);
-  --tint-10: var(--stone-10);
-  --tint-05: var(--stone-05);
-  --tint-02: var(--stone-02);
+  /* Tint */
+  --tint-98: var(--vsp-blue-98);
+  --tint-95: var(--vsp-blue-95);
+  --tint-90: var(--vsp-blue-90);
+  --tint-85: var(--vsp-blue-85);
+  --tint-80: var(--vsp-blue-80);
+  --tint-60: var(--vsp-blue-60);
+  --tint-50: var(--vsp-blue-50);
+  --tint-40: var(--vsp-blue-40);
+  --tint-20: var(--vsp-blue-20);
+  --tint-10: var(--vsp-blue-10);
+  --tint-05: var(--vsp-blue-05);
+  --tint-02: var(--vsp-blue-02);
 }
 
 /* Light Colors */
@@ -335,7 +349,7 @@
 
   /* Theme / Gradient */
   --theme-gradient-05: var(--tint-50);
-  --theme-gradient-00: var(--grey-100);
+  --theme-gradient-00: var(--tint-95);
 
   /* Theme / Red */
   --theme-red-05: var(--red-50);
@@ -538,8 +552,8 @@
   --theme-primary-04: var(--onyx-chrome-20);
 
   /* Theme / Gradient */
-  --theme-gradient-05: var(--grey-100);
-  --theme-gradient-00: var(--grey-00);
+  --theme-gradient-05: var(--tint-95);
+  --theme-gradient-00: var(--tint-10);
 
   /* Theme / Red */
   --theme-red-05: var(--red-45);

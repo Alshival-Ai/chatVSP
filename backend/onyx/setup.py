@@ -71,7 +71,8 @@ def setup_onyx(
 
     The Tenant Service calls the tenants/create endpoint which runs this.
     """
-    check_and_perform_index_swap(db_session=db_session)
+    if not DISABLE_VECTOR_DB:
+        check_and_perform_index_swap(db_session=db_session)
 
     active_search_settings = get_active_search_settings(db_session)
     search_settings = active_search_settings.primary

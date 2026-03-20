@@ -60,7 +60,7 @@ from onyx.db.user_preferences import get_latest_access_token_for_user
 from onyx.db.user_preferences import update_assistant_preferences
 from onyx.db.user_preferences import update_user_assistant_visibility
 from onyx.db.user_preferences import update_user_auto_scroll
-from onyx.db.user_preferences import update_user_chat_background
+from onyx.db.user_preferences import update_user_chat_backgrounds
 from onyx.db.user_preferences import update_user_default_app_mode
 from onyx.db.user_preferences import update_user_default_model
 from onyx.db.user_preferences import update_user_personalization
@@ -908,7 +908,16 @@ def update_user_chat_background_api(
     user: User = Depends(current_user),
     db_session: Session = Depends(get_session),
 ) -> None:
-    update_user_chat_background(user.id, request.chat_background, db_session)
+    update_fields = {}
+    for field_name in (
+        "chat_background",
+        "light_chat_background",
+        "dark_chat_background",
+    ):
+        if field_name in request.model_fields_set:
+            update_fields[field_name] = getattr(request, field_name)
+
+    update_user_chat_backgrounds(user.id, db_session, **update_fields)
 
 
 @router.patch("/user/default-app-mode")

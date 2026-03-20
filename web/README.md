@@ -18,6 +18,26 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 _Note:_ if you are having problems accessing the ^, try setting the `WEB_DOMAIN` env variable to
 `http://127.0.0.1:3000` and accessing it there.
 
+Voice mode also relies on authenticated WebSockets. In proxied or production
+deployments, make sure `WEB_DOMAIN` matches the public browser origin, or that
+your proxy forwards `X-Forwarded-Host` and `X-Forwarded-Proto`, otherwise the
+voice microphone/transcription connection can fail during WebSocket auth.
+
+If voice transcription or TTS still fails at the WebSocket connect step behind
+nginx, also verify that every proxy layer in front of `/api/voice/*` forwards
+WebSocket upgrade headers:
+
+```nginx
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+```
+
+For Docker Compose deployments, avoid starting the API before Vespa/OpenSearch
+are actually ready. Container start order alone is not enough; the API can boot
+loop and briefly surface `502 Bad Gateway` through nginx until the search
+backends are healthy.
+
 > [!TIP]
 > Packages are installed automatically when switching branches after `package.json` changes with [pre-commit](https://github.com/onyx-dot-app/onyx/blob/main/CONTRIBUTING.md#formatting-and-linting) configured.
 

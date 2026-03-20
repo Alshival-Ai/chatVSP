@@ -1701,6 +1701,49 @@ def _is_same_origin(actual: str, expected: str) -> bool:
     return actual_port == expected_port
 
 
+def _build_origin(scheme: str, host: str) -> str | None:
+    """Construct an origin string from trusted request components."""
+    scheme = scheme.strip().lower()
+    host = host.strip()
+    if not scheme or not host:
+        return None
+    return f"{scheme}://{host}"
+
+
+def _get_allowed_websocket_origins(websocket: WebSocket) -> list[str]:
+    """Return origins that should be accepted for WS same-origin checks.
+
+    `WEB_DOMAIN` is the primary trusted origin. In proxied deployments, that env
+    var may lag behind the actual public URL, so we also accept the runtime
+    forwarded/public origin presented by the reverse proxy.
+    """
+    allowed_origins = [WEB_DOMAIN]
+
+    forwarded_proto = websocket.headers.get("x-forwarded-proto")
+    forwarded_host = websocket.headers.get("x-forwarded-host")
+    if forwarded_proto and forwarded_host:
+        forwarded_origin = _build_origin(
+            scheme=forwarded_proto.split(",", 1)[0],
+            host=forwarded_host.split(",", 1)[0],
+        )
+        if forwarded_origin:
+            allowed_origins.append(forwarded_origin)
+
+    # Fallback for direct deployments without proxy headers.
+    host = websocket.headers.get("host")
+    if host:
+        request_scheme = "https" if websocket.url.scheme == "wss" else "http"
+        direct_origin = _build_origin(scheme=request_scheme, host=host)
+        if direct_origin:
+            allowed_origins.append(direct_origin)
+
+    deduped: list[str] = []
+    for origin in allowed_origins:
+        if origin not in deduped:
+            deduped.append(origin)
+    return deduped
+
+
 async def current_user_from_websocket(
     websocket: WebSocket,
     token: str = Query(..., description="WebSocket authentication token"),
@@ -1727,8 +1770,12 @@ async def current_user_from_websocket(
         logger.warning("WS auth: missing Origin header")
         raise BasicAuthenticationError(detail="Access denied. Missing origin.")
 
-    if not _is_same_origin(origin, WEB_DOMAIN):
-        logger.warning(f"WS auth: origin mismatch. Expected {WEB_DOMAIN}, got {origin}")
+    allowed_origins = _get_allowed_websocket_origins(websocket)
+    if not any(_is_same_origin(origin, allowed) for allowed in allowed_origins):
+        logger.warning(
+            "WS auth: origin mismatch. "
+            f"Expected one of {allowed_origins}, got {origin}"
+        )
         raise BasicAuthenticationError(detail="Access denied. Invalid origin.")
 
     # Validate WS token in Redis (single-use, deleted after retrieval)

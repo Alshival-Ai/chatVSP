@@ -83,6 +83,8 @@ class UserPreferences(BaseModel):
     temperature_override_enabled: bool | None = None
     theme_preference: ThemePreference | None = None
     chat_background: str | None = None
+    light_chat_background: str | None = None
+    dark_chat_background: str | None = None
     default_app_mode: DefaultAppMode = DefaultAppMode.CHAT
 
     # Voice preferences
@@ -168,6 +170,8 @@ class UserInfo(BaseModel):
                     temperature_override_enabled=user.temperature_override_enabled,
                     theme_preference=user.theme_preference,
                     chat_background=user.chat_background,
+                    light_chat_background=user.light_chat_background,
+                    dark_chat_background=user.dark_chat_background,
                     default_app_mode=user.default_app_mode,
                     voice_auto_send=user.voice_auto_send,
                     voice_auto_playback=user.voice_auto_playback,
@@ -250,7 +254,9 @@ class DefaultAppModeRequest(BaseModel):
 
 
 class ChatBackgroundRequest(BaseModel):
-    chat_background: str | None
+    chat_background: str | None = None
+    light_chat_background: str | None = None
+    dark_chat_background: str | None = None
 
 
 class VoiceSettingsUpdateRequest(BaseModel):

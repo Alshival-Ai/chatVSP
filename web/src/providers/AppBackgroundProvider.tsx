@@ -1,7 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useUser } from "@/providers/UserProvider";
+import { useTheme } from "next-themes";
 import {
   CHAT_BACKGROUND_NONE,
   getBackgroundById,
@@ -27,9 +34,26 @@ export function AppBackgroundProvider({
   children: React.ReactNode;
 }) {
   const { user } = useUser();
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const value = useMemo(() => {
-    const chatBackgroundId = user?.preferences?.chat_background;
+    const hasThemeSpecificBackgrounds =
+      user?.preferences?.light_chat_background !== null ||
+      user?.preferences?.dark_chat_background !== null;
+    const chatBackgroundId = mounted
+      ? resolvedTheme === "dark"
+        ? hasThemeSpecificBackgrounds
+          ? user?.preferences?.dark_chat_background
+          : user?.preferences?.chat_background
+        : hasThemeSpecificBackgrounds
+          ? user?.preferences?.light_chat_background
+          : user?.preferences?.chat_background
+      : user?.preferences?.chat_background;
     const appBackground = getBackgroundById(chatBackgroundId ?? null);
     const hasBackground =
       !!appBackground && appBackground.src !== CHAT_BACKGROUND_NONE;
@@ -40,7 +64,13 @@ export function AppBackgroundProvider({
       appBackgroundUrl,
       hasBackground,
     };
-  }, [user?.preferences?.chat_background]);
+  }, [
+    mounted,
+    resolvedTheme,
+    user?.preferences?.chat_background,
+    user?.preferences?.dark_chat_background,
+    user?.preferences?.light_chat_background,
+  ]);
 
   return (
     <AppBackgroundContext.Provider value={value}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Switch from "@/refresh-components/inputs/Switch";
 import { useNRFPreferences } from "@/components/context/NRFPreferencesContext";
 import Text from "@/refresh-components/texts/Text";
@@ -94,19 +95,41 @@ export const SettingsPanel = ({
   handleUseOnyxToggle: (checked: boolean) => void;
 }) => {
   const { useOnyxAsNewTab } = useNRFPreferences();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const { user, updateUserChatBackground } = useUser();
+  const [mounted, setMounted] = useState(false);
 
-  const currentBackgroundId = user?.preferences?.chat_background ?? "none";
-  const isDark = theme === "dark";
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const hasThemeSpecificBackgrounds =
+    user?.preferences?.light_chat_background !== null ||
+    user?.preferences?.dark_chat_background !== null;
+  const isDark = mounted ? resolvedTheme === "dark" : theme === "dark";
+  const currentBackgroundId = mounted
+    ? isDark
+      ? (hasThemeSpecificBackgrounds
+          ? user?.preferences?.dark_chat_background
+          : user?.preferences?.chat_background) ??
+        "none"
+      : (hasThemeSpecificBackgrounds
+          ? user?.preferences?.light_chat_background
+          : user?.preferences?.chat_background) ??
+        "none"
+    : (user?.preferences?.chat_background ?? "none");
 
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark");
   };
 
   const handleBackgroundChange = (backgroundId: string) => {
+    const nextBackground =
+      backgroundId === CHAT_BACKGROUND_NONE ? null : backgroundId;
     updateUserChatBackground(
-      backgroundId === CHAT_BACKGROUND_NONE ? null : backgroundId
+      isDark
+        ? { darkChatBackground: nextBackground }
+        : { lightChatBackground: nextBackground }
     );
   };
 

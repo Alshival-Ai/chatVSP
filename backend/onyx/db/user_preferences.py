@@ -21,6 +21,7 @@ from onyx.utils.logger import setup_logger
 
 
 logger = setup_logger()
+_UNSET = object()
 
 
 def update_user_role(
@@ -141,16 +142,30 @@ def update_user_theme_preference(
     db_session.commit()
 
 
-def update_user_chat_background(
+def update_user_chat_backgrounds(
     user_id: UUID,
-    chat_background: str | None,
     db_session: Session,
+    *,
+    chat_background: str | None | object = _UNSET,
+    light_chat_background: str | None | object = _UNSET,
+    dark_chat_background: str | None | object = _UNSET,
 ) -> None:
-    """Update user's chat background setting."""
+    """Update user's chat background settings."""
+    update_values: dict[str, str | None] = {}
+    if chat_background is not _UNSET:
+        update_values["chat_background"] = chat_background
+    if light_chat_background is not _UNSET:
+        update_values["light_chat_background"] = light_chat_background
+    if dark_chat_background is not _UNSET:
+        update_values["dark_chat_background"] = dark_chat_background
+
+    if not update_values:
+        return
+
     db_session.execute(
         update(User)
         .where(User.id == user_id)  # type: ignore
-        .values(chat_background=chat_background)
+        .values(**update_values)
     )
     db_session.commit()
 

@@ -189,6 +189,17 @@ function GeneralSettings() {
   const pathname = usePathname();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const hasThemeSpecificBackgrounds =
+    user?.preferences?.light_chat_background !== null ||
+    user?.preferences?.dark_chat_background !== null;
+  const lightChatBackgroundId =
+    (hasThemeSpecificBackgrounds
+      ? user?.preferences?.light_chat_background
+      : user?.preferences?.chat_background) ?? "none";
+  const darkChatBackgroundId =
+    (hasThemeSpecificBackgrounds
+      ? user?.preferences?.dark_chat_background
+      : user?.preferences?.chat_background) ?? "none";
 
   const {
     personalizationValues,
@@ -374,12 +385,10 @@ function GeneralSettings() {
                 </InputSelect.Content>
               </InputSelect>
             </InputLayouts.Horizontal>
-            <InputLayouts.Vertical title="Chat Background">
+            <InputLayouts.Vertical title="Light Mode Chat Background">
               <div className="flex flex-wrap gap-2">
                 {CHAT_BACKGROUND_OPTIONS.map((bg) => {
-                  const currentBackgroundId =
-                    user?.preferences?.chat_background ?? "none";
-                  const isSelected = currentBackgroundId === bg.id;
+                  const isSelected = lightChatBackgroundId === bg.id;
                   const isNone = bg.src === CHAT_BACKGROUND_NONE;
 
                   return (
@@ -387,12 +396,64 @@ function GeneralSettings() {
                       key={bg.id}
                       onClick={() =>
                         updateUserChatBackground(
-                          bg.id === CHAT_BACKGROUND_NONE ? null : bg.id
+                          {
+                            lightChatBackground:
+                              bg.id === CHAT_BACKGROUND_NONE ? null : bg.id,
+                          }
                         )
                       }
                       className="relative overflow-hidden rounded-lg transition-all w-[90px] h-[68px] cursor-pointer border-none p-0 bg-transparent group"
                       title={bg.label}
                       aria-label={`${bg.label} background${
+                        isSelected ? " (selected)" : ""
+                      }`}
+                    >
+                      {isNone ? (
+                        <div className="absolute inset-0 bg-background flex items-center justify-center">
+                          <span className="text-xs text-text-02">None</span>
+                        </div>
+                      ) : (
+                        <div
+                          className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
+                          style={{ backgroundImage: `url(${bg.thumbnail})` }}
+                        />
+                      )}
+                      <div
+                        className={cn(
+                          "absolute inset-0 transition-all rounded-lg",
+                          isSelected
+                            ? "ring-2 ring-inset ring-theme-primary-05"
+                            : "ring-1 ring-inset ring-border-02 group-hover:ring-border-03"
+                        )}
+                      />
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-theme-primary-05 flex items-center justify-center">
+                          <SvgCheck className="w-2.5 h-2.5 stroke-text-inverted-05" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </InputLayouts.Vertical>
+            <InputLayouts.Vertical title="Dark Mode Chat Background">
+              <div className="flex flex-wrap gap-2">
+                {CHAT_BACKGROUND_OPTIONS.map((bg) => {
+                  const isSelected = darkChatBackgroundId === bg.id;
+                  const isNone = bg.src === CHAT_BACKGROUND_NONE;
+
+                  return (
+                    <button
+                      key={`dark-${bg.id}`}
+                      onClick={() =>
+                        updateUserChatBackground({
+                          darkChatBackground:
+                            bg.id === CHAT_BACKGROUND_NONE ? null : bg.id,
+                        })
+                      }
+                      className="relative overflow-hidden rounded-lg transition-all w-[90px] h-[68px] cursor-pointer border-none p-0 bg-transparent group"
+                      title={bg.label}
+                      aria-label={`${bg.label} dark mode background${
                         isSelected ? " (selected)" : ""
                       }`}
                     >

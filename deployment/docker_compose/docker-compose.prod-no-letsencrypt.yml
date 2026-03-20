@@ -11,11 +11,18 @@ services:
       echo \"Starting Onyx Api Server\" &&
       uvicorn onyx.main:app --host 0.0.0.0 --port 8080"
     depends_on:
-      - relational_db
-      - index
-      - cache
-      - inference_model_server
-      - minio
+      relational_db:
+        condition: service_healthy
+      index:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      cache:
+        condition: service_started
+      inference_model_server:
+        condition: service_started
+      minio:
+        condition: service_healthy
     restart: unless-stopped
     environment:
       - AUTH_TYPE=${AUTH_TYPE:-oidc}
@@ -62,11 +69,18 @@ services:
       dockerfile: Dockerfile
     command: /app/scripts/supervisord_entrypoint.sh
     depends_on:
-      - relational_db
-      - index
-      - cache
-      - inference_model_server
-      - indexing_model_server
+      relational_db:
+        condition: service_healthy
+      index:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      cache:
+        condition: service_started
+      inference_model_server:
+        condition: service_started
+      indexing_model_server:
+        condition: service_started
     restart: unless-stopped
     environment:
       - AUTH_TYPE=${AUTH_TYPE:-oidc}
@@ -258,6 +272,14 @@ services:
       options:
         max-size: "50m"
         max-file: "6"
+    healthcheck:
+      # We use 19071 because the application server at 8081 is not ready until
+      # it is activated/configured by the application.
+      test: ["CMD-SHELL", "curl -sf http://localhost:19071/state/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   opensearch:
     image: opensearchproject/opensearch:3.4.0
@@ -302,6 +324,16 @@ services:
       options:
         max-size: "50m"
         max-file: "6"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -skf -u admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-StrongPassword123!} 'https://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s' >/dev/null",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
 
   nginx:
     image: nginx:1.25.5-alpine

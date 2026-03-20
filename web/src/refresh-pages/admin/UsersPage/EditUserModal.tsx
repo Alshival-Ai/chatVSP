@@ -355,7 +355,7 @@ export default function EditUserModal({
 
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex flex-col gap-1">
-                    <Text as="p" mainUiBody weight="medium">
+                    <Text as="p" mainUiBody className="font-medium">
                       Code Interpreter Access
                     </Text>
                     <Text as="p" secondaryBody text03>

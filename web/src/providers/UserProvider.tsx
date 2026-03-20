@@ -43,7 +43,11 @@ interface UserContextType {
   updateUserThemePreference: (
     themePreference: ThemePreference
   ) => Promise<void>;
-  updateUserChatBackground: (chatBackground: string | null) => Promise<void>;
+  updateUserChatBackground: (backgrounds: {
+    chatBackground?: string | null;
+    lightChatBackground?: string | null;
+    darkChatBackground?: string | null;
+  }) => Promise<void>;
   updateUserDefaultModel: (defaultModel: string | null) => Promise<void>;
   updateUserDefaultAppMode: (mode: "CHAT" | "SEARCH") => Promise<void>;
   updateUserVoiceSettings: (settings: {
@@ -366,7 +370,15 @@ export function UserProvider({
     }
   };
 
-  const updateUserChatBackground = async (chatBackground: string | null) => {
+  const updateUserChatBackground = async ({
+    chatBackground,
+    lightChatBackground,
+    darkChatBackground,
+  }: {
+    chatBackground?: string | null;
+    lightChatBackground?: string | null;
+    darkChatBackground?: string | null;
+  }) => {
     try {
       setUpToDateUser((prevUser) => {
         if (prevUser) {
@@ -374,7 +386,15 @@ export function UserProvider({
             ...prevUser,
             preferences: {
               ...prevUser.preferences,
-              chat_background: chatBackground,
+              ...(chatBackground !== undefined
+                ? { chat_background: chatBackground }
+                : {}),
+              ...(lightChatBackground !== undefined
+                ? { light_chat_background: lightChatBackground }
+                : {}),
+              ...(darkChatBackground !== undefined
+                ? { dark_chat_background: darkChatBackground }
+                : {}),
             },
           };
         }
@@ -386,7 +406,17 @@ export function UserProvider({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ chat_background: chatBackground }),
+        body: JSON.stringify({
+          ...(chatBackground !== undefined
+            ? { chat_background: chatBackground }
+            : {}),
+          ...(lightChatBackground !== undefined
+            ? { light_chat_background: lightChatBackground }
+            : {}),
+          ...(darkChatBackground !== undefined
+            ? { dark_chat_background: darkChatBackground }
+            : {}),
+        }),
       });
 
       if (!response.ok) {
