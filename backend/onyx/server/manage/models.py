@@ -214,6 +214,11 @@ class UserRoleResponse(BaseModel):
     role: str
 
 
+class UserCodeInterpreterAccessUpdateRequest(BaseModel):
+    user_email: str
+    enable_code_interpreter: bool
+
+
 class BoostDoc(BaseModel):
     document_id: str
     semantic_id: str

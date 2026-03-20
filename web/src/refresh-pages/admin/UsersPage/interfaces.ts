@@ -12,6 +12,7 @@ export interface UserRow {
   status: UserStatus;
   is_active: boolean;
   is_scim_synced: boolean;
+  enable_code_interpreter: boolean;
   personal_name: string | null;
   created_at: string | null;
   updated_at: string | null;

@@ -59,6 +59,28 @@ export async function setUserRole(
   }
 }
 
+export async function setUserCodeInterpreterAccess(
+  email: string,
+  enableCodeInterpreter: boolean
+): Promise<void> {
+  const res = await fetch("/api/manage/admin/code-interpreter-access", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_email: email,
+      enable_code_interpreter: enableCodeInterpreter,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorDetail(
+        res,
+        "Failed to update Code Interpreter access"
+      )
+    );
+  }
+}
+
 export async function addUserToGroup(
   groupId: number,
   userId: string

@@ -245,6 +245,13 @@ def construct_tools(
 
             # Handle Python/Code Interpreter Tool
             elif tool_cls.__name__ == PythonTool.__name__:
+                if not user.enable_code_interpreter:
+                    logger.debug(
+                        "Skipping tool %s because user %s does not have Code Interpreter access",
+                        tool_cls.__name__,
+                        user.email,
+                    )
+                    continue
                 tool_dict[db_tool_model.id] = [
                     PythonTool(tool_id=db_tool_model.id, emitter=emitter)
                 ]

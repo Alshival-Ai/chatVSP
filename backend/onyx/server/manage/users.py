@@ -64,6 +64,7 @@ from onyx.db.user_preferences import update_user_chat_background
 from onyx.db.user_preferences import update_user_default_app_mode
 from onyx.db.user_preferences import update_user_default_model
 from onyx.db.user_preferences import update_user_personalization
+from onyx.db.user_preferences import update_user_code_interpreter_access
 from onyx.db.user_preferences import update_user_pinned_assistants
 from onyx.db.user_preferences import update_user_role
 from onyx.db.user_preferences import update_user_shortcut_enabled
@@ -94,6 +95,7 @@ from onyx.server.manage.models import TenantInfo
 from onyx.server.manage.models import TenantSnapshot
 from onyx.server.manage.models import ThemePreferenceRequest
 from onyx.server.manage.models import UserByEmail
+from onyx.server.manage.models import UserCodeInterpreterAccessUpdateRequest
 from onyx.server.manage.models import UserInfo
 from onyx.server.manage.models import UserPreferences
 from onyx.server.manage.models import UserRoleResponse
@@ -648,6 +650,23 @@ def activate_user_api(
         fetch_ee_implementation_or_noop(
             "onyx.db.license", "invalidate_license_cache", None
         )()
+
+
+@router.patch("/manage/admin/code-interpreter-access", tags=PUBLIC_API_TAGS)
+def update_user_code_interpreter_access_api(
+    request: UserCodeInterpreterAccessUpdateRequest,
+    _: User = Depends(current_admin_user),
+    db_session: Session = Depends(get_session),
+) -> None:
+    user_to_update = get_user_by_email(email=request.user_email, db_session=db_session)
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_user_code_interpreter_access(
+        user_id=user_to_update.id,
+        enable_code_interpreter=request.enable_code_interpreter,
+        db_session=db_session,
+    )
 
 
 @router.get("/manage/admin/valid-domains")

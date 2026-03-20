@@ -26,6 +26,7 @@ interface FullUserSnapshot {
   updated_at: string;
   groups: UserGroupInfo[];
   is_scim_synced: boolean;
+  enable_code_interpreter: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,6 +41,7 @@ function toUserRow(snapshot: FullUserSnapshot): UserRow {
     status: snapshot.is_active ? UserStatus.ACTIVE : UserStatus.INACTIVE,
     is_active: snapshot.is_active,
     is_scim_synced: snapshot.is_scim_synced,
+    enable_code_interpreter: snapshot.enable_code_interpreter,
     personal_name: snapshot.personal_name,
     created_at: snapshot.created_at,
     updated_at: snapshot.updated_at,
@@ -58,6 +60,7 @@ function emailToUserRow(
     status,
     is_active: false,
     is_scim_synced: false,
+    enable_code_interpreter: false,
     personal_name: null,
     created_at: null,
     updated_at: null,

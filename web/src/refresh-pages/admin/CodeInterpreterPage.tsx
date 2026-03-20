@@ -169,7 +169,7 @@ export default function CodeInterpreterPage() {
       <SettingsLayouts.Header
         icon={route.icon}
         title={route.title}
-        description="Safe and sandboxed Python runtime available to your LLM. See docs for more details."
+        description="Safe and sandboxed Python runtime available to your LLM. Connection is managed here, and per-user access is managed from the Users page."
         separator
       />
 

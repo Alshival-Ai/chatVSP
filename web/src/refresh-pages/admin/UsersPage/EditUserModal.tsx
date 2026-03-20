@@ -10,15 +10,22 @@ import InputTypeIn from "@/refresh-components/inputs/InputTypeIn";
 import InputSelect from "@/refresh-components/inputs/InputSelect";
 import Popover from "@/refresh-components/Popover";
 import LineItem from "@/refresh-components/buttons/LineItem";
+import Checkbox from "@/refresh-components/inputs/Checkbox";
 import Separator from "@/refresh-components/Separator";
 import ShadowDiv from "@/refresh-components/ShadowDiv";
 import SimpleTooltip from "@/refresh-components/SimpleTooltip";
+import Text from "@/refresh-components/texts/Text";
 import { Section } from "@/layouts/general-layouts";
 import { toast } from "@/hooks/useToast";
 import { UserRole, USER_ROLE_LABELS } from "@/lib/types";
 import { usePaidEnterpriseFeaturesEnabled } from "@/components/settings/usePaidEnterpriseFeaturesEnabled";
 import useGroups from "@/hooks/useGroups";
-import { addUserToGroup, removeUserFromGroup, setUserRole } from "./svc";
+import {
+  addUserToGroup,
+  removeUserFromGroup,
+  setUserCodeInterpreterAccess,
+  setUserRole,
+} from "./svc";
 import type { UserRow } from "./interfaces";
 import { cn } from "../../../lib/utils";
 
@@ -59,6 +66,9 @@ export default function EditUserModal({
   const [selectedRole, setSelectedRole] = useState<UserRole | "">(
     user.role ?? ""
   );
+  const [codeInterpreterEnabled, setCodeInterpreterEnabled] = useState(
+    user.enable_code_interpreter
+  );
 
   const initialMemberGroupIds = useMemo(
     () => new Set(user.groups.map((g) => g.id)),
@@ -95,7 +105,10 @@ export default function EditUserModal({
 
   const hasRoleChange =
     user.role !== null && selectedRole !== "" && selectedRole !== user.role;
-  const hasChanges = hasGroupChanges || hasRoleChange;
+  const hasCodeInterpreterChange =
+    codeInterpreterEnabled !== user.enable_code_interpreter;
+  const hasChanges =
+    hasGroupChanges || hasRoleChange || hasCodeInterpreterChange;
 
   const toggleGroup = (groupId: number) => {
     setMemberGroupIds((prev) => {
@@ -144,6 +157,10 @@ export default function EditUserModal({
         selectedRole !== user.role
       ) {
         await setUserRole(user.email, selectedRole);
+      }
+
+      if (hasCodeInterpreterChange) {
+        await setUserCodeInterpreterAccess(user.email, codeInterpreterEnabled);
       }
 
       onMutate();
@@ -329,6 +346,29 @@ export default function EditUserModal({
                     </InputSelect>
                   }
                 />
+              </>
+            )}
+
+            {user.role && (
+              <>
+                <Separator noPadding />
+
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <Text as="p" mainUiBody weight="medium">
+                      Code Interpreter Access
+                    </Text>
+                    <Text as="p" secondaryBody text03>
+                      Disabled by default. Enable it only for users approved to
+                      use Code Interpreter.
+                    </Text>
+                  </div>
+                  <Checkbox
+                    checked={codeInterpreterEnabled}
+                    onCheckedChange={setCodeInterpreterEnabled}
+                    aria-label="Enable Code Interpreter access"
+                  />
+                </div>
               </>
             )}
           </Section>

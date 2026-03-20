@@ -51,7 +51,7 @@ Onyx comes loaded with advanced features like Agents, Web Search, RAG, MCP, Deep
 - **🔄 Connectors:** Pull knowledge, metadata, and access information from over 40 applications.
 - **🔬 Deep Research:** Get in depth answers with an agentic multi-step search.
 - **▶️ Actions & MCP:** Give AI Agents the ability to interact with external systems.
-- **💻 Code Interpreter:** Execute code to analyze data, render graphs and create files.
+- **💻 Code Interpreter:** Execute code to analyze data, render graphs and create files, with admin-controlled per-user access.
 - **🎨 Image Generation:** Generate images based on user prompts.
 - **👥 Collaboration:** Chat sharing, feedback gathering, user management, usage analytics, and more.
 

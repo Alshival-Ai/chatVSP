@@ -225,6 +225,19 @@ def update_user_personalization(
     db_session.commit()
 
 
+def update_user_code_interpreter_access(
+    user_id: UUID,
+    enable_code_interpreter: bool,
+    db_session: Session,
+) -> None:
+    db_session.execute(
+        update(User)
+        .where(User.id == user_id)  # type: ignore
+        .values(enable_code_interpreter=enable_code_interpreter)
+    )
+    db_session.commit()
+
+
 def get_memories_for_user(
     user_id: UUID,
     db_session: Session,

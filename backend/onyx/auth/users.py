@@ -1557,6 +1557,7 @@ def get_anonymous_user() -> User:
         role=UserRole.LIMITED,
         use_memories=False,
         enable_memory_tool=False,
+        enable_code_interpreter=False,
     )
     return user
 

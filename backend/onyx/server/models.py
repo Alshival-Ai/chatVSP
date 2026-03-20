@@ -48,6 +48,7 @@ class FullUserSnapshot(BaseModel):
     updated_at: datetime.datetime
     groups: list[UserGroupInfo]
     is_scim_synced: bool
+    enable_code_interpreter: bool
 
     @classmethod
     def from_user_model(
@@ -67,6 +68,7 @@ class FullUserSnapshot(BaseModel):
             updated_at=user.updated_at,
             groups=groups or [],
             is_scim_synced=is_scim_synced,
+            enable_code_interpreter=user.enable_code_interpreter,
         )
 
 
