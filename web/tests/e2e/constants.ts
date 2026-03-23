@@ -8,6 +8,11 @@ export const TEST_ADMIN2_CREDENTIALS = {
   password: "TestPassword123!",
 };
 
+export const TEST_DEMO_ADMIN_CREDENTIALS = {
+  email: "admin@demo.com",
+  password: "s3cure123",
+};
+
 /**
  * Number of distinct worker users provisioned during global setup.
  * Must be >= the max concurrent workers in playwright.config.ts.

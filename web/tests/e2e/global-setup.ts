@@ -2,6 +2,7 @@ import { FullConfig, request } from "@playwright/test";
 import {
   TEST_ADMIN_CREDENTIALS,
   TEST_ADMIN2_CREDENTIALS,
+  TEST_DEMO_ADMIN_CREDENTIALS,
   WORKER_USER_POOL_SIZE,
   workerUserCredentials,
 } from "@tests/e2e/constants";
@@ -185,6 +186,11 @@ async function globalSetup(config: FullConfig) {
     TEST_ADMIN2_CREDENTIALS.email,
     TEST_ADMIN2_CREDENTIALS.password
   );
+  await ensureUserExists(
+    baseURL,
+    TEST_DEMO_ADMIN_CREDENTIALS.email,
+    TEST_DEMO_ADMIN_CREDENTIALS.password
+  );
 
   for (let i = 0; i < WORKER_USER_POOL_SIZE; i++) {
     const { email, password } = workerUserCredentials(i);
@@ -204,6 +210,11 @@ async function globalSetup(config: FullConfig) {
     baseURL,
     "admin_auth.json",
     TEST_ADMIN2_CREDENTIALS.email
+  );
+  await promoteToAdmin(
+    baseURL,
+    "admin_auth.json",
+    TEST_DEMO_ADMIN_CREDENTIALS.email
   );
 
   await apiLoginAndSaveState(

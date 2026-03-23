@@ -5,8 +5,8 @@
  * inline role editing, row actions, invite modal, and group management.
  *
  * Read-only tests (layout, search, filters, sorting, pagination) run against
- * whatever users already exist in the database (at minimum 10 from global-setup:
- * 2 admins + 8 workers). Mutation tests create their own ephemeral users.
+ * whatever users already exist in the database (at minimum 11 from global-setup:
+ * 3 admins + 8 workers). Mutation tests create their own ephemeral users.
  */
 
 import { test, expect } from "./fixtures";
