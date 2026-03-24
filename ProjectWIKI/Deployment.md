@@ -53,6 +53,29 @@ sudo docker compose -f docker-compose.prod.yml build web_server api_server backg
 sudo docker compose -f docker-compose.prod.yml up -d --no-deps web_server api_server background nginx
 ```
 
+
+## Enterprise Feature Toggle (Applied 2026-03-24)
+
+To force enterprise features visible in this self-hosted environment, set these in `deployment/docker_compose/.env`:
+
+- `ENABLE_PAID_ENTERPRISE_EDITION_FEATURES=true`
+- `LICENSE_ENFORCEMENT_ENABLED=false`
+- `NEXT_PUBLIC_ENABLE_PAID_EE_FEATURES=true`
+
+Then apply:
+
+```bash
+cd deployment/docker_compose
+sudo docker compose -f docker-compose.prod.yml build web_server
+sudo docker compose -f docker-compose.prod.yml up -d --no-deps api_server background web_server nginx
+sudo docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
+```
+
+Verification:
+
+- `https://chatvsp.vsp-app-aws-us-west-2.com/api/health` returns `200`
+- API logs show `/enterprise-settings` returning `200`
+
 ## Note on TLS
 
 TLS is terminated at ALB via ACM. Instance nginx should run HTTP template mode for upstream routing.
