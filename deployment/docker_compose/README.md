@@ -45,3 +45,11 @@ downloaded during the initial setup. Feel free to edit the .env file to customiz
 located near the top of the file.
 
 IMAGE_TAG is the version of Onyx to run. It is recommended to leave it as latest to get all updates with each redeployment.
+
+### Important for custom ChatVSP forks
+If this repository contains custom UI or backend changes, avoid relying only on pulled upstream images (`onyxdotapp/*`) in production, or your deployment can appear as stock Onyx.
+
+Recommended pattern for custom forks:
+1. Build custom services from local source (`web_server`, `api_server`, `background`).
+2. Restart those services after build.
+3. Use `docker compose pull` only when intentionally updating to upstream images.
