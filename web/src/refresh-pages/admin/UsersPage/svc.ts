@@ -81,6 +81,25 @@ export async function setUserCodeInterpreterAccess(
   }
 }
 
+export async function setUserCodexLabsAccess(
+  email: string,
+  enableCodexLabs: boolean
+): Promise<void> {
+  const res = await fetch("/api/manage/admin/codex-labs-access", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_email: email,
+      enable_codex_labs: enableCodexLabs,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorDetail(res, "Failed to update Codex Labs access")
+    );
+  }
+}
+
 export async function addUserToGroup(
   groupId: number,
   userId: string

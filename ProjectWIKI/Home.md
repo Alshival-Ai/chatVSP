@@ -20,3 +20,19 @@ This folder is the local copy of operational documentation for chatVSP.
 ## Important Rule
 
 If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*` images. Build from this repository for `web_server` and backend services.
+
+## Codex Labs Status
+
+- Codex Labs is being ported in as a contained feature, not a full WardGPT fork merge.
+- Current live slice includes:
+  - `enable_codex_labs` on users
+  - admin toggle support
+  - gated `/codex-labs` route
+  - compose/runtime flag `ENABLE_CODEX_LABS`
+- Current deployment requirement:
+  - `ENABLE_CODEX_LABS=true` in `deployment/docker_compose/.env`
+  - per-user access enabled from Admin Users
+- Still pending:
+  - terminal/session manager
+  - file browser and previews
+  - MCP/Codex provisioning layer

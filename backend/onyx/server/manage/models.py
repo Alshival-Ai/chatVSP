@@ -137,6 +137,7 @@ class UserInfo(BaseModel):
     is_anonymous_user: bool | None = None
     password_configured: bool | None = None
     tenant_info: TenantInfo | None = None
+    enable_codex_labs: bool = False
 
     @classmethod
     def from_model(
@@ -188,6 +189,7 @@ class UserInfo(BaseModel):
             current_token_created_at=current_token_created_at,
             current_token_expiry_length=expiry_length,
             is_cloud_superuser=is_cloud_superuser,
+            enable_codex_labs=user.enable_codex_labs,
             is_anonymous_user=is_anonymous_user,
             tenant_info=tenant_info,
             personalization=UserPersonalization(
@@ -221,6 +223,11 @@ class UserRoleResponse(BaseModel):
 class UserCodeInterpreterAccessUpdateRequest(BaseModel):
     user_email: str
     enable_code_interpreter: bool
+
+
+class UserCodexLabsAccessUpdateRequest(BaseModel):
+    user_email: str
+    enable_codex_labs: bool
 
 
 class BoostDoc(BaseModel):

@@ -108,6 +108,9 @@ SANDBOX_FILE_SYNC_SERVICE_ACCOUNT = os.environ.get(
 )
 
 ENABLE_CRAFT = os.environ.get("ENABLE_CRAFT", "false").lower() == "true"
+ENABLE_CODEX_LABS = (
+    os.environ.get("ENABLE_CODEX_LABS", "false").lower() == "true"
+)
 
 # ============================================================================
 # SSE Streaming Configuration

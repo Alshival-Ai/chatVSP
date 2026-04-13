@@ -53,6 +53,22 @@ sudo docker compose -f docker-compose.prod.yml build web_server api_server backg
 sudo docker compose -f docker-compose.prod.yml up -d --no-deps web_server api_server background nginx
 ```
 
+## Codex Labs rollout
+
+Codex Labs is behind both a global runtime flag and a per-user access flag.
+
+- Global flag: set `ENABLE_CODEX_LABS=true` in `deployment/docker_compose/.env`
+- User flag: enable Codex Labs access for the target user from the Admin Users page
+- Rebuild/restart the app services after code changes:
+
+```bash
+cd deployment/docker_compose
+sudo docker compose -f docker-compose.prod.yml build api_server background web_server
+sudo docker compose -f docker-compose.prod.yml up -d --no-deps api_server background web_server nginx
+```
+
+Current scope is only the first integration slice. The WardGPT terminal/file-management layer is not fully ported yet.
+
 
 ## Enterprise Feature Toggle (Applied 2026-03-24)
 

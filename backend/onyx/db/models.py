@@ -338,6 +338,9 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     enable_code_interpreter: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
+    enable_codex_labs: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
     user_preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     chosen_assistants: Mapped[list[int] | None] = mapped_column(

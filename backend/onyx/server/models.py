@@ -49,6 +49,7 @@ class FullUserSnapshot(BaseModel):
     groups: list[UserGroupInfo]
     is_scim_synced: bool
     enable_code_interpreter: bool
+    enable_codex_labs: bool
 
     @classmethod
     def from_user_model(
@@ -69,6 +70,7 @@ class FullUserSnapshot(BaseModel):
             groups=groups or [],
             is_scim_synced=is_scim_synced,
             enable_code_interpreter=user.enable_code_interpreter,
+            enable_codex_labs=user.enable_codex_labs,
         )
 
 

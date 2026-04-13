@@ -11,7 +11,14 @@ const FASTAPI_USERS_AUTH_COOKIE_NAME = "fastapiusersauth";
 const ANONYMOUS_USER_COOKIE_NAME = "onyx_anonymous_user";
 
 // Protected route prefixes (require authentication)
-const PROTECTED_ROUTES = ["/app", "/admin", "/agents", "/connector"];
+const PROTECTED_ROUTES = [
+  "/app",
+  "/admin",
+  "/agents",
+  "/connector",
+  "/craft",
+  "/codex-labs",
+];
 
 // Public route prefixes (no authentication required)
 const PUBLIC_ROUTES = ["/auth", "/anonymous", "/_next", "/api"];
@@ -25,6 +32,8 @@ export const config = {
     "/admin/:path*",
     "/agents/:path*",
     "/connector/:path*",
+    "/craft/:path*",
+    "/codex-labs/:path*",
 
     // Enterprise Edition routes (for /ee rewriting)
     // These are ONLY the EE-specific routes that should be rewritten

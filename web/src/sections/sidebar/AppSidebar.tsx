@@ -259,6 +259,8 @@ const MemoizedAppSidebarInner = memo(
     // Only explicit true enables the feature; false or undefined = disabled
     const isOnyxCraftEnabled =
       combinedSettings?.settings?.onyx_craft_enabled === true;
+    const isCodexLabsEnabled =
+      combinedSettings?.settings?.codex_labs_enabled === true;
 
     // Find build_mode feature announcement notification (only if chatVSP Craft is enabled)
     const buildModeNotification = isOnyxCraftEnabled
@@ -537,6 +539,17 @@ const MemoizedAppSidebarInner = memo(
       [folded, posthog]
     );
 
+    const codexLabsButton = useMemo(
+      () => (
+        <div data-testid="AppSidebar/codex-labs">
+          <SidebarTab icon={SvgDevKit} folded={folded} href="/codex-labs">
+            Codex Labs
+          </SidebarTab>
+        </div>
+      ),
+      [folded]
+    );
+
     const searchChatsButton = useMemo(
       () => (
         <ChatSearchCommandMenu
@@ -694,6 +707,7 @@ const MemoizedAppSidebarInner = memo(
                 {newSessionButton}
                 {searchChatsButton}
                 {isOnyxCraftEnabled && buildButton}
+                {isCodexLabsEnabled && codexLabsButton}
               </div>
             }
           >

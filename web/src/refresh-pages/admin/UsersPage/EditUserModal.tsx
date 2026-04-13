@@ -23,6 +23,7 @@ import useGroups from "@/hooks/useGroups";
 import {
   addUserToGroup,
   removeUserFromGroup,
+  setUserCodexLabsAccess,
   setUserCodeInterpreterAccess,
   setUserRole,
 } from "./svc";
@@ -69,6 +70,9 @@ export default function EditUserModal({
   const [codeInterpreterEnabled, setCodeInterpreterEnabled] = useState(
     user.enable_code_interpreter
   );
+  const [codexLabsEnabled, setCodexLabsEnabled] = useState(
+    user.enable_codex_labs
+  );
 
   const initialMemberGroupIds = useMemo(
     () => new Set(user.groups.map((g) => g.id)),
@@ -107,8 +111,12 @@ export default function EditUserModal({
     user.role !== null && selectedRole !== "" && selectedRole !== user.role;
   const hasCodeInterpreterChange =
     codeInterpreterEnabled !== user.enable_code_interpreter;
+  const hasCodexLabsChange = codexLabsEnabled !== user.enable_codex_labs;
   const hasChanges =
-    hasGroupChanges || hasRoleChange || hasCodeInterpreterChange;
+    hasGroupChanges ||
+    hasRoleChange ||
+    hasCodeInterpreterChange ||
+    hasCodexLabsChange;
 
   const toggleGroup = (groupId: number) => {
     setMemberGroupIds((prev) => {
@@ -161,6 +169,10 @@ export default function EditUserModal({
 
       if (hasCodeInterpreterChange) {
         await setUserCodeInterpreterAccess(user.email, codeInterpreterEnabled);
+      }
+
+      if (hasCodexLabsChange) {
+        await setUserCodexLabsAccess(user.email, codexLabsEnabled);
       }
 
       onMutate();
@@ -367,6 +379,28 @@ export default function EditUserModal({
                     checked={codeInterpreterEnabled}
                     onCheckedChange={setCodeInterpreterEnabled}
                     aria-label="Enable Code Interpreter access"
+                  />
+                </div>
+              </>
+            )}
+
+            {user.role && (
+              <>
+                <Separator noPadding />
+
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <Text as="p" mainUiBody className="font-medium">
+                      Codex Labs Access
+                    </Text>
+                    <Text as="p" secondaryBody text03>
+                      Enables the gated Codex Labs workspace for this user.
+                    </Text>
+                  </div>
+                  <Checkbox
+                    checked={codexLabsEnabled}
+                    onCheckedChange={setCodexLabsEnabled}
+                    aria-label="Enable Codex Labs access"
                   />
                 </div>
               </>

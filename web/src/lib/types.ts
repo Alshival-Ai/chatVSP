@@ -118,6 +118,7 @@ export interface User {
   // we don't want to show them things like the reset password
   // functionality
   password_configured?: boolean;
+  enable_codex_labs?: boolean;
   tenant_info?: TenantInfo | null;
   personalization?: UserPersonalization;
 }

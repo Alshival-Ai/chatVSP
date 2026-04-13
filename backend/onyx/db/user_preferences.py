@@ -253,6 +253,19 @@ def update_user_code_interpreter_access(
     db_session.commit()
 
 
+def update_user_codex_labs_access(
+    user_id: UUID,
+    enable_codex_labs: bool,
+    db_session: Session,
+) -> None:
+    db_session.execute(
+        update(User)
+        .where(User.id == user_id)  # type: ignore
+        .values(enable_codex_labs=enable_codex_labs)
+    )
+    db_session.commit()
+
+
 def get_memories_for_user(
     user_id: UUID,
     db_session: Session,

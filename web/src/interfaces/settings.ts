@@ -46,6 +46,7 @@ export interface Settings {
 
   // chatVSP Craft (Build Mode) feature flag
   onyx_craft_enabled?: boolean;
+  codex_labs_enabled?: boolean;
 
   // Whether EE features are unlocked (user has a valid enterprise license).
   // Controls UI visibility of EE features like user groups, analytics, RBAC.
