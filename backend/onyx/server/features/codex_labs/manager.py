@@ -1,8 +1,8 @@
+from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 import mimetypes
 import shutil
-from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,7 @@ class WorkspaceEntry:
     is_directory: bool
     mime_type: str | None
     size: int | None
+    modified_at: datetime | None
 
 
 @dataclass
@@ -79,6 +80,20 @@ class CodexLabsSessionManager:
             raise ValueError("Invalid path: potential path traversal detected") from e
         return resolved_candidate
 
+    def _normalize_relative_path(self, workspace_root: Path, target_path: Path) -> str:
+        normalized_path = target_path.relative_to(workspace_root).as_posix()
+        return "" if normalized_path == "." else normalized_path
+
+    def _sanitize_name(self, name: str) -> str:
+        cleaned = name.strip().strip("/\\")
+        if not cleaned:
+            raise ValueError("Name cannot be empty")
+        if cleaned in {".", ".."}:
+            raise ValueError("Invalid name")
+        if "/" in cleaned or "\\" in cleaned:
+            raise ValueError("Name cannot contain path separators")
+        return cleaned
+
     def list_directory(self, workspace_root: Path, path: str) -> DirectoryListing:
         target_dir = self._resolve_path(workspace_root, path)
         if not target_dir.exists():
@@ -100,13 +115,16 @@ class CodexLabsSessionManager:
                     is_directory=item.is_dir(),
                     mime_type=mime_type,
                     size=None if item.is_dir() else item.stat().st_size,
+                    modified_at=datetime.fromtimestamp(
+                        item.stat().st_mtime
+                    ),
                 )
             )
 
-        normalized_path = target_dir.relative_to(workspace_root).as_posix()
-        if normalized_path == ".":
-            normalized_path = ""
-        return DirectoryListing(path=normalized_path, entries=entries)
+        return DirectoryListing(
+            path=self._normalize_relative_path(workspace_root, target_dir),
+            entries=entries,
+        )
 
     def read_file(self, workspace_root: Path, path: str) -> tuple[bytes, str, str]:
         file_path = self._resolve_path(workspace_root, path)
@@ -130,6 +148,94 @@ class CodexLabsSessionManager:
         target_file.parent.mkdir(parents=True, exist_ok=True)
         target_file.write_bytes(content)
         return target_file.relative_to(workspace_root).as_posix(), len(content)
+
+    def create_directory(
+        self,
+        workspace_root: Path,
+        parent_path: str,
+        name: str,
+    ) -> str:
+        safe_name = self._sanitize_name(name)
+        parent_dir = self._resolve_path(workspace_root, parent_path)
+        parent_dir.mkdir(parents=True, exist_ok=True)
+        if not parent_dir.is_dir():
+            raise ValueError("Parent path is not a directory")
+
+        new_dir = self._resolve_path(workspace_root, f"{parent_path}/{safe_name}")
+        new_dir.mkdir(parents=False, exist_ok=False)
+        return self._normalize_relative_path(workspace_root, new_dir)
+
+    def rename_path(
+        self,
+        workspace_root: Path,
+        path: str,
+        new_name: str,
+    ) -> str:
+        source_path = self._resolve_path(workspace_root, path)
+        if not source_path.exists():
+            raise ValueError("Path not found")
+
+        safe_name = self._sanitize_name(new_name)
+        destination_path = source_path.with_name(safe_name)
+        destination_path = self._resolve_path(
+            workspace_root,
+            self._normalize_relative_path(workspace_root, destination_path),
+        )
+        if destination_path.exists():
+            raise ValueError("Destination already exists")
+
+        source_path.rename(destination_path)
+        return self._normalize_relative_path(workspace_root, destination_path)
+
+    def move_path(
+        self,
+        workspace_root: Path,
+        path: str,
+        destination_parent_path: str,
+        new_name: str | None = None,
+    ) -> str:
+        source_path = self._resolve_path(workspace_root, path)
+        if not source_path.exists():
+            raise ValueError("Path not found")
+
+        destination_parent = self._resolve_path(workspace_root, destination_parent_path)
+        destination_parent.mkdir(parents=True, exist_ok=True)
+        if not destination_parent.is_dir():
+            raise ValueError("Destination parent is not a directory")
+
+        final_name = self._sanitize_name(new_name) if new_name else source_path.name
+        destination_path = destination_parent / final_name
+        destination_path = self._resolve_path(
+            workspace_root,
+            self._normalize_relative_path(workspace_root, destination_path),
+        )
+        if destination_path.exists():
+            raise ValueError("Destination already exists")
+
+        if source_path.is_dir():
+            resolved_source = source_path.resolve()
+            resolved_destination_parent = destination_parent.resolve()
+            if resolved_destination_parent == resolved_source or resolved_destination_parent.is_relative_to(
+                resolved_source
+            ):
+                raise ValueError("Cannot move a directory into itself")
+
+        source_path.rename(destination_path)
+        return self._normalize_relative_path(workspace_root, destination_path)
+
+    def update_text_file(
+        self,
+        workspace_root: Path,
+        path: str,
+        content: str,
+    ) -> str:
+        file_path = self._resolve_path(workspace_root, path)
+        if file_path.exists() and file_path.is_dir():
+            raise ValueError("Path is a directory")
+
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(content, encoding="utf-8")
+        return self._normalize_relative_path(workspace_root, file_path)
 
     def delete_file(self, workspace_root: Path, path: str) -> bool:
         target_path = self._resolve_path(workspace_root, path)

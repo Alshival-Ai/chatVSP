@@ -30,12 +30,13 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - gated `/codex-labs` route
   - compose/runtime flag `ENABLE_CODEX_LABS`
   - per-user persistent workspace rooted under the shared `file-system` volume
-  - backend workspace APIs for warmup, file listing, file read, upload, and delete
+  - backend workspace APIs for warmup, file listing, file read, upload, folder create, rename, move, text save, and delete
+  - web UI for browsing folders and previewing common file types
 - Current deployment requirement:
   - `ENABLE_CODEX_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users
 - Still pending:
   - terminal/session manager
-  - richer file browser UI and previews
-  - directory create/rename/move flows
+  - richer multi-window previews
+  - drag/drop move flows
   - MCP/Codex provisioning layer

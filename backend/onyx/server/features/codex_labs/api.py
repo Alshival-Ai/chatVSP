@@ -14,10 +14,14 @@ from onyx.db.models import User
 from onyx.server.features.build.configs import ENABLE_CODEX_LABS
 from onyx.server.features.build.utils import sanitize_filename
 from onyx.server.features.codex_labs.manager import CodexLabsSessionManager
+from onyx.server.features.codex_labs.models import CreateDirectoryRequest
 from onyx.server.features.codex_labs.models import DeletePathResponse
 from onyx.server.features.codex_labs.models import DirectoryResponse
 from onyx.server.features.codex_labs.models import FileEntry
+from onyx.server.features.codex_labs.models import MovePathRequest
 from onyx.server.features.codex_labs.models import PathResponse
+from onyx.server.features.codex_labs.models import RenamePathRequest
+from onyx.server.features.codex_labs.models import UpdateFileContentRequest
 from onyx.server.features.codex_labs.models import WarmupResponse
 
 
@@ -74,6 +78,7 @@ def list_files(
                 is_directory=entry.is_directory,
                 mime_type=entry.mime_type,
                 size=entry.size,
+                modified_at=entry.modified_at,
             )
             for entry in listing.entries
         ],
@@ -130,6 +135,93 @@ async def upload_file(
             filename=safe_filename,
             content=content,
             parent_path=path,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return PathResponse(session_id=session.id, path=relative_path)
+
+
+@router.post("/directories", response_model=PathResponse)
+def create_directory(
+    request: CreateDirectoryRequest,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> PathResponse:
+    manager = _get_manager(db_session)
+    session = manager.ensure_workspace_session(user)
+    try:
+        relative_path = manager.create_directory(
+            workspace_root=session.root,
+            parent_path=request.parent_path,
+            name=sanitize_filename(request.name),
+        )
+    except FileExistsError:
+        raise HTTPException(status_code=409, detail="Directory already exists")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return PathResponse(session_id=session.id, path=relative_path)
+
+
+@router.patch("/files/rename", response_model=PathResponse)
+def rename_path(
+    request: RenamePathRequest,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> PathResponse:
+    manager = _get_manager(db_session)
+    session = manager.ensure_workspace_session(user)
+    try:
+        relative_path = manager.rename_path(
+            workspace_root=session.root,
+            path=request.path,
+            new_name=sanitize_filename(request.new_name),
+        )
+    except ValueError as e:
+        if "already exists" in str(e).lower():
+            raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return PathResponse(session_id=session.id, path=relative_path)
+
+
+@router.patch("/files/move", response_model=PathResponse)
+def move_path(
+    request: MovePathRequest,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> PathResponse:
+    manager = _get_manager(db_session)
+    session = manager.ensure_workspace_session(user)
+    try:
+        relative_path = manager.move_path(
+            workspace_root=session.root,
+            path=request.path,
+            destination_parent_path=request.destination_parent_path,
+            new_name=sanitize_filename(request.new_name) if request.new_name else None,
+        )
+    except ValueError as e:
+        if "already exists" in str(e).lower():
+            raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return PathResponse(session_id=session.id, path=relative_path)
+
+
+@router.put("/files/content", response_model=PathResponse)
+def update_file_content(
+    request: UpdateFileContentRequest,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> PathResponse:
+    manager = _get_manager(db_session)
+    session = manager.ensure_workspace_session(user)
+    try:
+        relative_path = manager.update_text_file(
+            workspace_root=session.root,
+            path=request.path,
+            content=request.content,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

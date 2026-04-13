@@ -71,12 +71,13 @@ Current live scope is the first functional Codex Labs slice:
 
 - gated `/codex-labs` access
 - per-user persistent workspaces on the shared `file-system` volume
-- backend APIs for warmup, list, read, upload, and delete
+- backend APIs for warmup, list, read, upload, folder create, rename, move, text save, and delete
+- browser UI for folder navigation plus text, image, PDF, and HTML previews
 
 Still not ported:
 
 - terminal / PTY session management
-- rich file browser interactions and previews
+- richer multi-window preview interactions
 - MCP / Codex provisioning
 
 Operational note:
