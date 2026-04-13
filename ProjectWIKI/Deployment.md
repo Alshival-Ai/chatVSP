@@ -67,7 +67,26 @@ sudo docker compose -f docker-compose.prod.yml build api_server background web_s
 sudo docker compose -f docker-compose.prod.yml up -d --no-deps api_server background web_server nginx
 ```
 
-Current scope is only the first integration slice. The WardGPT terminal/file-management layer is not fully ported yet.
+Current live scope is the first functional Codex Labs slice:
+
+- gated `/codex-labs` access
+- per-user persistent workspaces on the shared `file-system` volume
+- backend APIs for warmup, list, read, upload, and delete
+
+Still not ported:
+
+- terminal / PTY session management
+- rich file browser interactions and previews
+- MCP / Codex provisioning
+
+Operational note:
+
+- after recreating `api_server`, restart `nginx` as well so it refreshes the upstream container IP:
+
+```bash
+cd deployment/docker_compose
+sudo docker compose -f docker-compose.prod.yml restart nginx
+```
 
 
 ## Enterprise Feature Toggle (Applied 2026-03-24)
