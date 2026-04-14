@@ -13,7 +13,7 @@ usage() {
 Usage: tools/bake.sh [options] [services...]
 
 Options:
-  --profile <dev|default|multitenant>
+  --profile <dev|default|multitenant|prod|prod-cloud|prod-no-letsencrypt>
   --down-first
   --no-cache
   --pull
@@ -88,11 +88,30 @@ case "$profile" in
   multitenant)
     compose_args+=(-f docker-compose.multitenant-dev.yml)
     ;;
+  prod)
+    compose_args+=(-f docker-compose.prod.yml)
+    ;;
+  prod-cloud)
+    compose_args+=(-f docker-compose.prod-cloud.yml)
+    ;;
+  prod-no-letsencrypt)
+    compose_args+=(-f docker-compose.prod-no-letsencrypt.yml)
+    ;;
   *)
     echo "Invalid profile: $profile" >&2
     exit 1
     ;;
 esac
+
+# For production profiles, default to rebuilding the app services only.
+# This includes Codex Labs web/backend changes while avoiding full-stack rebuild pressure.
+if ((${#services[@]} == 0)); then
+  case "$profile" in
+    prod|prod-cloud|prod-no-letsencrypt)
+      services=(web_server api_server background)
+      ;;
+  esac
+fi
 
 cd "$compose_dir"
 

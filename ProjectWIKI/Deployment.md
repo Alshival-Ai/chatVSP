@@ -53,6 +53,21 @@ sudo docker compose -f docker-compose.prod.yml build web_server api_server backg
 sudo docker compose -f docker-compose.prod.yml up -d --no-deps web_server api_server background nginx
 ```
 
+You can run the same flow with the helper script:
+
+```bash
+cd /home/ubuntu/chatVSP
+./tools/bake.sh --profile prod
+```
+
+`tools/bake.sh --profile prod` now defaults to rebuilding and recreating:
+
+- `web_server`
+- `api_server`
+- `background`
+
+This default is intended to include Codex Labs frontend/backend code updates without forcing a full-stack rebuild.
+
 ## Codex Labs rollout
 
 Codex Labs is behind both a global runtime flag and a per-user access flag.
