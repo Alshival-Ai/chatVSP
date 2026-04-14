@@ -120,6 +120,7 @@ const DEFAULT_NAVIGATOR_WIDTH_PX = 420;
 const MIN_NAVIGATOR_WIDTH_PX = 260;
 const MAX_NAVIGATOR_WIDTH_PX = 860;
 const MAX_NAVIGATOR_WIDTH_RATIO = 0.7;
+const COLLAPSED_NAVIGATOR_RAIL_PX = 52;
 const TEXT_PREVIEW_EXTENSIONS = new Set([
   ".txt",
   ".toml",
@@ -2073,34 +2074,6 @@ export default function NeuralLabsPage() {
             isResizingNavigator ? "cursor-col-resize select-none" : ""
           }`}
         >
-          {isDesktopLayout && isNavigatorCollapsed ? (
-            <div className="pointer-events-none absolute left-1 top-2 z-20 hidden md:flex">
-              <Button
-                tertiary
-                size="md"
-                className="pointer-events-auto"
-                title="Expand file navigator"
-                onClick={() => setIsNavigatorCollapsed(false)}
-              >
-                <SvgChevronRight className="h-4 w-4 stroke-text-03" />
-              </Button>
-            </div>
-          ) : null}
-
-          {isDesktopLayout && isTerminalNavigatorCollapsed ? (
-            <div className="pointer-events-none absolute right-1 top-2 z-20 hidden md:flex">
-              <Button
-                tertiary
-                size="md"
-                className="pointer-events-auto"
-                title="Expand terminal navigator"
-                onClick={() => setIsTerminalNavigatorCollapsed(false)}
-              >
-                <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
-              </Button>
-            </div>
-          ) : null}
-
           {isNavigatorVisible ? (
             <aside
               className="flex min-h-0 w-full md:w-auto md:shrink-0 flex-col border-b border-border-01 md:border-b-0"
@@ -2199,6 +2172,55 @@ export default function NeuralLabsPage() {
               />
             </div>
             </aside>
+          ) : isDesktopLayout ? (
+            <aside
+              className="hidden md:flex md:shrink-0 flex-col items-center gap-2 border-r border-border-01 bg-background-neutral-01 px-2 py-2"
+              style={{ width: `${COLLAPSED_NAVIGATOR_RAIL_PX}px` }}
+            >
+              <Button
+                tertiary
+                size="md"
+                title="Expand file navigator"
+                aria-label="Expand file navigator"
+                onClick={() => setIsNavigatorCollapsed(false)}
+              >
+                <SvgChevronRight className="h-4 w-4 stroke-text-03" />
+              </Button>
+              <SvgFolder className="h-4 w-4 shrink-0 stroke-text-03" />
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgChevronLeft}
+                title="Up"
+                aria-label="Up"
+                disabled={!currentPath}
+                onClick={() => void navigateUp()}
+              />
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgFolderPlus}
+                title="New folder"
+                aria-label="New folder"
+                onClick={() => void createFolder()}
+              />
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgUploadCloud}
+                title="Upload files"
+                aria-label="Upload files"
+                onClick={triggerUpload}
+              />
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgRefreshCw}
+                title="Refresh directory"
+                aria-label="Refresh directory"
+                onClick={() => void refreshDirectory()}
+              />
+            </aside>
           ) : null}
 
           {isNavigatorVisible ? (
@@ -2219,9 +2241,7 @@ export default function NeuralLabsPage() {
                 }`}
               />
             </div>
-          ) : (
-            <div className="hidden md:block w-2 shrink-0" />
-          )}
+          ) : null}
 
           <section className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="flex items-center justify-between p-2 border-b border-border-01 bg-background-neutral-01 gap-2">
@@ -2415,6 +2435,22 @@ export default function NeuralLabsPage() {
                       })}
                     </div>
                   </div>
+                </aside>
+              ) : isDesktopLayout ? (
+                <aside
+                  className="hidden md:flex md:shrink-0 flex-col items-center gap-2 border-l border-border-01 bg-background-neutral-01 px-2 py-2"
+                  style={{ width: `${COLLAPSED_NAVIGATOR_RAIL_PX}px` }}
+                >
+                  <Button
+                    tertiary
+                    size="md"
+                    title="Expand terminal navigator"
+                    aria-label="Expand terminal navigator"
+                    onClick={() => setIsTerminalNavigatorCollapsed(false)}
+                  >
+                    <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
+                  </Button>
+                  <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
                 </aside>
               ) : null}
             </div>
