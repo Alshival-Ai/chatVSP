@@ -113,7 +113,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')",
+          "import urllib.request; import urllib.error; urls=('http://localhost:8080/health','http://localhost:8080/api/health'); ok=False\nfor u in urls:\n    try:\n        urllib.request.urlopen(u, timeout=5); ok=True; break\n    except Exception:\n        pass\nraise SystemExit(0 if ok else 1)",
         ]
       interval: 30s
       timeout: 20s
