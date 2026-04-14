@@ -36,7 +36,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - file list/content/download/upload/create directory/rename/move/edit/delete
   - modular web UI with:
     - tree-based file navigator (expand/collapse, context menu, drag/drop move, hidden file toggle)
-    - multi-terminal tabs with split panes
+    - independently collapsible file navigator and terminal navigator
+    - multi-terminal tabs with split panes and navigator grouping that mirrors split orientation
     - floating preview windows (snap/drag/resize) for text, image, PDF, HTML, KMZ, and XLSX
   - terminal websocket auth aligned for prod (`/api/neural-labs/terminal/ws?token=...&terminal_token=...`)
   - managed shell banner and login profile initialization

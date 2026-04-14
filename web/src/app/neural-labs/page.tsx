@@ -31,6 +31,7 @@ import {
   SvgFolderPlus,
   SvgRefreshCw,
   SvgTerminal,
+  SvgUploadCloud,
   SvgX,
 } from "@opal/icons";
 import { Terminal } from "@xterm/xterm";
@@ -112,6 +113,8 @@ const TREE_STATE_STORAGE_KEY = "neural-labs-tree-v1";
 const PREVIEW_WINDOWS_STORAGE_KEY = "neural-labs-previews-v1";
 const NAVIGATOR_WIDTH_STORAGE_KEY = "neural-labs-navigator-width-v1";
 const NAVIGATOR_COLLAPSED_STORAGE_KEY = "neural-labs-navigator-collapsed-v1";
+const TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY =
+  "neural-labs-terminal-navigator-collapsed-v1";
 const TREE_AUTO_SYNC_INTERVAL_MS = 1500;
 const DEFAULT_NAVIGATOR_WIDTH_PX = 420;
 const MIN_NAVIGATOR_WIDTH_PX = 260;
@@ -823,6 +826,7 @@ export default function NeuralLabsPage() {
   const [isDesktopLayout, setIsDesktopLayout] = useState(false);
   const [isResizingNavigator, setIsResizingNavigator] = useState(false);
   const [isNavigatorCollapsed, setIsNavigatorCollapsed] = useState(false);
+  const [isTerminalNavigatorCollapsed, setIsTerminalNavigatorCollapsed] = useState(false);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
   const fileUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -898,6 +902,24 @@ export default function NeuralLabsPage() {
   }, [isNavigatorCollapsed]);
 
   const isNavigatorVisible = !isDesktopLayout || !isNavigatorCollapsed;
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY);
+    if (raw === "1") {
+      setIsTerminalNavigatorCollapsed(true);
+    } else if (raw === "0") {
+      setIsTerminalNavigatorCollapsed(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY,
+      isTerminalNavigatorCollapsed ? "1" : "0"
+    );
+  }, [isTerminalNavigatorCollapsed]);
+
+  const isTerminalNavigatorVisible = !isDesktopLayout || !isTerminalNavigatorCollapsed;
 
   useEffect(() => {
     if (!isDesktopLayout) {
@@ -2051,24 +2073,30 @@ export default function NeuralLabsPage() {
             isResizingNavigator ? "cursor-col-resize select-none" : ""
           }`}
         >
-          {isDesktopLayout ? (
+          {isDesktopLayout && isNavigatorCollapsed ? (
             <div className="pointer-events-none absolute left-1 top-2 z-20 hidden md:flex">
               <Button
                 tertiary
                 size="md"
                 className="pointer-events-auto"
-                title={
-                  isNavigatorCollapsed
-                    ? "Expand file navigator"
-                    : "Collapse file navigator"
-                }
-                onClick={() => setIsNavigatorCollapsed((previousState) => !previousState)}
+                title="Expand file navigator"
+                onClick={() => setIsNavigatorCollapsed(false)}
               >
-                {isNavigatorCollapsed ? (
-                  <SvgChevronRight className="h-4 w-4 stroke-text-03" />
-                ) : (
-                  <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
-                )}
+                <SvgChevronRight className="h-4 w-4 stroke-text-03" />
+              </Button>
+            </div>
+          ) : null}
+
+          {isDesktopLayout && isTerminalNavigatorCollapsed ? (
+            <div className="pointer-events-none absolute right-1 top-2 z-20 hidden md:flex">
+              <Button
+                tertiary
+                size="md"
+                className="pointer-events-auto"
+                title="Expand terminal navigator"
+                onClick={() => setIsTerminalNavigatorCollapsed(false)}
+              >
+                <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
               </Button>
             </div>
           ) : null}
@@ -2079,18 +2107,30 @@ export default function NeuralLabsPage() {
               style={isDesktopLayout ? { width: `${navigatorWidth}px` } : undefined}
             >
             <div className="p-2 border-b border-border-01 bg-background-neutral-01">
-              <div className="flex items-center justify-between gap-2 md:pl-10">
+              <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0 flex items-center gap-1.5">
                   <SvgFolder className="w-4 h-4 stroke-text-03 shrink-0" />
                   <Text mainUiAction>File Navigator</Text>
                 </div>
-                <Text
-                  className="truncate max-w-[10rem] md:max-w-[14rem]"
-                  text03
-                  title={pathLabel}
-                >
-                  {pathLabel}
-                </Text>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Text
+                    className="truncate max-w-[10rem] md:max-w-[14rem]"
+                    text03
+                    title={pathLabel}
+                  >
+                    {pathLabel}
+                  </Text>
+                  {isDesktopLayout ? (
+                    <Button
+                      tertiary
+                      size="md"
+                      title="Collapse file navigator"
+                      onClick={() => setIsNavigatorCollapsed(true)}
+                    >
+                      <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <Button
@@ -2107,21 +2147,26 @@ export default function NeuralLabsPage() {
                     tertiary
                     size="md"
                     leftIcon={SvgFolderPlus}
+                    title="New folder"
+                    aria-label="New folder"
                     onClick={() => void createFolder()}
-                  >
-                    Folder
-                  </Button>
-                  <Button tertiary size="md" onClick={triggerUpload}>
-                    Upload
-                  </Button>
+                  />
+                  <Button
+                    tertiary
+                    size="md"
+                    leftIcon={SvgUploadCloud}
+                    title="Upload files"
+                    aria-label="Upload files"
+                    onClick={triggerUpload}
+                  />
                   <Button
                     tertiary
                     size="md"
                     leftIcon={SvgRefreshCw}
+                    title="Refresh directory"
+                    aria-label="Refresh directory"
                     onClick={() => void refreshDirectory()}
-                  >
-                    Refresh
-                  </Button>
+                  />
                 </div>
               </div>
             </div>
@@ -2294,101 +2339,84 @@ export default function NeuralLabsPage() {
                 />
               </div>
 
-              <aside className="hidden w-[248px] shrink-0 border-l border-border-01 bg-background-neutral-01 md:flex md:flex-col">
-                <div className="flex items-center justify-between border-b border-border-01 px-3 py-2">
-                  <Text mainUiAction>Terminal Navigator</Text>
-                  <Text text03 className="text-xs">
-                    {layout?.tabs.length ?? 0} open
-                  </Text>
-                </div>
-                <div className="min-h-0 flex-1 overflow-auto p-2">
-                  <div className="flex flex-col gap-2">
-                    {(layout?.tabs ?? []).map((tab, tabIndex) => {
-                      const isActiveTab = layout?.active_tab_id === tab.tab_id;
-                      const isSplitGroup = tab.panes.length > 1;
+              {isTerminalNavigatorVisible ? (
+                <aside className="hidden w-[248px] shrink-0 border-l border-border-01 bg-background-neutral-01 md:flex md:flex-col">
+                  <div className="flex items-center justify-between border-b border-border-01 px-3 py-2">
+                    <Text mainUiAction>Terminal Navigator</Text>
+                    <Button
+                      tertiary
+                      size="md"
+                      title="Collapse terminal navigator"
+                      onClick={() => setIsTerminalNavigatorCollapsed(true)}
+                    >
+                      <SvgChevronRight className="h-4 w-4 stroke-text-03" />
+                    </Button>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-auto p-2">
+                    <div className="flex flex-col gap-2">
+                      {(layout?.tabs ?? []).map((tab, tabIndex) => {
+                        const isActiveTab = layout?.active_tab_id === tab.tab_id;
+                        const paneLayoutClass =
+                          tab.split_mode === "horizontal"
+                            ? "grid grid-cols-2"
+                            : "flex flex-col";
 
-                      return (
-                        <div
-                          key={tab.tab_id}
-                          className={`rounded-12 border ${
-                            isActiveTab
-                              ? "border-border-04 bg-background-tint-03/60"
-                              : "border-border-01 bg-background-neutral-02"
-                          }`}
-                        >
-                          {isSplitGroup ? (
-                            <>
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-2 border-b border-border-01 px-3 py-2 text-left hover:bg-background-neutral-01/70"
-                                onClick={() => setActiveTab(tab.tab_id)}
-                              >
-                                <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
-                                <div className="min-w-0 flex-1">
-                                  <Text className="truncate">{tab.title}</Text>
-                                  <Text text03 className="truncate text-xs">
-                                    {getSplitModeLabel(tab.split_mode)} · {tab.panes.length} terminals
-                                  </Text>
-                                </div>
-                              </button>
-                              <div className="flex flex-col gap-1 p-1.5">
-                                {tab.panes.map((pane, paneIndex) => {
-                                  const isActivePane =
-                                    isActiveTab && tab.active_pane_id === pane.pane_id;
-
-                                  return (
-                                    <button
-                                      key={pane.pane_id}
-                                      type="button"
-                                      className={`flex w-full items-center gap-2 rounded-10 px-2 py-1.5 text-left ${
-                                        isActivePane
-                                          ? "bg-background-neutral-00 ring-1 ring-border-04"
-                                          : "hover:bg-background-neutral-01"
-                                      }`}
-                                      onClick={() => setActivePane(tab.tab_id, pane.pane_id)}
-                                    >
-                                      <span
-                                        className={`h-2 w-2 shrink-0 rounded-full ${
-                                          isActivePane ? "bg-green-500" : "bg-border-03"
-                                        }`}
-                                      />
-                                      <div className="min-w-0 flex-1">
-                                        <Text className="truncate">
-                                          Pane {paneIndex + 1}
-                                        </Text>
-                                        <Text text03 className="truncate text-xs">
-                                          Terminal {tabIndex + 1}.{paneIndex + 1}
-                                        </Text>
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </>
-                          ) : (
+                        return (
+                          <div
+                            key={tab.tab_id}
+                            className={`rounded-12 border ${
+                              isActiveTab
+                                ? "border-border-04 bg-background-tint-03/60"
+                                : "border-border-01 bg-background-neutral-02"
+                            }`}
+                          >
                             <button
                               type="button"
-                              className={`flex w-full items-center gap-2 px-3 py-2 text-left ${
-                                isActiveTab
-                                  ? "bg-background-neutral-00"
-                                  : "hover:bg-background-neutral-01"
-                              }`}
-                              onClick={() =>
-                                setActivePane(tab.tab_id, tab.panes[0]!.pane_id)
-                              }
+                              className="flex w-full items-center gap-2 border-b border-border-01 px-3 py-2 text-left hover:bg-background-neutral-01/70"
+                              onClick={() => setActiveTab(tab.tab_id)}
                             >
                               <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
-                              <Text className="min-w-0 flex-1 truncate">
-                                {tab.title}
-                              </Text>
+                              <Text className="truncate">Group {tabIndex + 1}</Text>
                             </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                            <div className={`gap-1 p-1.5 ${paneLayoutClass}`}>
+                              {tab.panes.map((pane, paneIndex) => {
+                                const isActivePane =
+                                  isActiveTab && tab.active_pane_id === pane.pane_id;
+
+                                return (
+                                  <button
+                                    key={pane.pane_id}
+                                    type="button"
+                                    className={`flex min-w-0 items-center gap-2 rounded-10 px-2 py-1.5 text-left ${
+                                      isActivePane
+                                        ? "bg-background-neutral-00 ring-1 ring-border-04"
+                                        : "hover:bg-background-neutral-01"
+                                    } ${
+                                      tab.split_mode === "horizontal"
+                                        ? "justify-center"
+                                        : "w-full"
+                                    }`}
+                                    onClick={() => setActivePane(tab.tab_id, pane.pane_id)}
+                                  >
+                                    <span
+                                      className={`h-2 w-2 shrink-0 rounded-full ${
+                                        isActivePane ? "bg-green-500" : "bg-border-03"
+                                      }`}
+                                    />
+                                    <Text className="min-w-0 truncate">
+                                      Terminal {paneIndex + 1}
+                                    </Text>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </aside>
+                </aside>
+              ) : null}
             </div>
           </section>
         </div>
