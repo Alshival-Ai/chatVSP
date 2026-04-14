@@ -265,6 +265,8 @@ class NeuralLabsManager:
                 "Files uploaded here are scoped to your account.\n",
                 encoding="utf-8",
             )
+        for seed_dir in ("downloads", "outputs"):
+            (home_dir / seed_dir).mkdir(parents=True, exist_ok=True)
         return home_dir
 
     def _resolve_path(self, workspace_root: Path, path: str) -> Path:

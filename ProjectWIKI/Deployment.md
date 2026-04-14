@@ -75,7 +75,7 @@ For prod profiles, `tools/bake.sh` now runs the recreate step with `--no-deps` w
 Neural Labs is behind both a global runtime flag and a per-user access flag.
 
 - Global flag: set `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
-- User flag: enable Neural Labs access for the target user from the Admin Users page
+- User flag: enable Neural Labs access for the target user from `Admin -> Users -> Edit user -> Neural Labs Access`
 - Rebuild/restart the app services after code changes:
 
 ```bash
@@ -97,6 +97,12 @@ Current live scope is the first functional Neural Labs slice:
 - Codex bootstrap config written to `~/.codex/config.toml`
 - OpenAI-only Codex provider bootstrap using Onyx LLM provider credentials
 - fixed Codex OpenAI endpoint (`https://api.openai.com/v1`)
+- backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
+  - `@openai/codex`
+  - `@anthropic-ai/claude-code`
+- Neural Labs shell sessions inject keys from configured providers:
+  - `OPENAI_API_KEY` from the OpenAI provider (required for Codex)
+  - `ANTHROPIC_API_KEY` from the Anthropic provider (optional, enables Claude CLI auth)
 
 Operational note:
 

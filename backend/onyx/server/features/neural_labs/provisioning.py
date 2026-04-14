@@ -16,6 +16,7 @@ logger = setup_logger()
 CODEX_CONFIG_DIR_NAME = ".codex"
 CODEX_CONFIG_FILE_NAME = "config.toml"
 OPENAI_ENV_KEY_NAME = "OPENAI_API_KEY"
+ANTHROPIC_ENV_KEY_NAME = "ANTHROPIC_API_KEY"
 OPENAI_STANDARD_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_OPENAI_CODEX_MODEL = "gpt-5.4"
 
@@ -33,8 +34,8 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
     _provision_shell_profile_banner(home_dir=home_dir)
     _provision_bash_profile(home_dir=home_dir)
 
-    model_name, api_key = _resolve_openai_codex_settings(db_session)
-    if not api_key:
+    model_name, openai_api_key = _resolve_openai_codex_settings(db_session)
+    if not openai_api_key:
         return {}
 
     config_text = _build_codex_config_toml(model_name=model_name)
@@ -42,7 +43,11 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
     codex_dir.mkdir(parents=True, exist_ok=True)
     (codex_dir / CODEX_CONFIG_FILE_NAME).write_text(config_text, encoding="utf-8")
 
-    return {OPENAI_ENV_KEY_NAME: api_key}
+    env_overrides = {OPENAI_ENV_KEY_NAME: openai_api_key}
+    anthropic_api_key = _resolve_anthropic_api_key(db_session)
+    if anthropic_api_key:
+        env_overrides[ANTHROPIC_ENV_KEY_NAME] = anthropic_api_key
+    return env_overrides
 
 
 def _resolve_openai_codex_settings(db_session: Session) -> tuple[str, str | None]:
@@ -87,6 +92,25 @@ def _fetch_openai_provider(db_session: Session) -> LLMProvider | None:
 
     return db_session.scalar(
         select(LLMProvider).where(LLMProvider.provider == str(LlmProviderNames.OPENAI))
+    )
+
+
+def _resolve_anthropic_api_key(db_session: Session) -> str | None:
+    provider = _fetch_provider_by_type(
+        db_session=db_session, provider_type=str(LlmProviderNames.ANTHROPIC)
+    )
+    if not provider or not provider.api_key:
+        return None
+    return provider.api_key.get_value(apply_mask=False)
+
+
+def _fetch_provider_by_type(db_session: Session, provider_type: str) -> LLMProvider | None:
+    build_mode_name = f"build-mode-{provider_type}"
+    provider = db_session.scalar(select(LLMProvider).where(LLMProvider.name == build_mode_name))
+    if provider:
+        return provider
+    return db_session.scalar(
+        select(LLMProvider).where(LLMProvider.provider == provider_type)
     )
 
 

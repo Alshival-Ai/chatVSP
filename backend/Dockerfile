@@ -10,6 +10,9 @@ founders@onyx.app for more information. Please visit https://github.com/onyx-dot
 # Build argument for Craft support (disabled by default)
 # Use --build-arg ENABLE_CRAFT=true to include Node.js and opencode CLI
 ARG ENABLE_CRAFT=false
+# Build argument for Neural Labs shell tooling.
+# When true, install Node.js and terminal CLIs needed by Neural Labs sessions.
+ARG ENABLE_NEURAL_LABS=false
 
 # DO_NOT_TRACK is used to disable telemetry for Unstructured
 ENV DANSWER_RUNNING_IN_DOCKER="true" \
@@ -54,21 +57,25 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
-# Conditionally install Node.js 20 for Craft (required for Next.js)
-# Only installed when ENABLE_CRAFT=true
-RUN if [ "$ENABLE_CRAFT" = "true" ]; then \
-        echo "Installing Node.js 20 for Craft support..." && \
+# Conditionally install Node.js 20 for Craft/Neural Labs shell tooling.
+# Installed when either ENABLE_CRAFT=true or ENABLE_NEURAL_LABS=true.
+RUN if [ "$ENABLE_CRAFT" = "true" ] || [ "$ENABLE_NEURAL_LABS" = "true" ]; then \
+        echo "Installing Node.js 20 for Craft/Neural Labs support..." && \
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
         apt-get install -y nodejs && \
         rm -rf /var/lib/apt/lists/*; \
     fi
 
-# Conditionally install opencode CLI for Craft agent functionality
-# Only installed when ENABLE_CRAFT=true
-# TODO: download a specific, versioned release of the opencode CLI
-RUN if [ "$ENABLE_CRAFT" = "true" ]; then \
-        echo "Installing opencode CLI for Craft support..." && \
-        curl -fsSL https://opencode.ai/install | bash; \
+# Conditionally install terminal CLIs.
+# - opencode is Craft-specific
+# - @openai/codex and @anthropic-ai/claude-code are used in Neural Labs
+RUN if [ "$ENABLE_CRAFT" = "true" ] || [ "$ENABLE_NEURAL_LABS" = "true" ]; then \
+        if [ "$ENABLE_CRAFT" = "true" ]; then \
+          echo "Installing opencode CLI for Craft support..." && \
+          curl -fsSL https://opencode.ai/install | bash; \
+        fi && \
+        echo "Installing OpenAI Codex and Claude Code CLIs for Neural Labs..." && \
+        npm install -g @openai/codex @anthropic-ai/claude-code; \
     fi
 ENV PATH="/root/.opencode/bin:${PATH}"
 

@@ -44,6 +44,7 @@ services:
       dockerfile: Dockerfile
       args:
         - ENABLE_CRAFT=${ENABLE_CRAFT:-false}
+        - ENABLE_NEURAL_LABS=${ENABLE_NEURAL_LABS:-false}
     command: >
       /bin/sh -c "alembic upgrade head &&
       echo \"Starting Onyx Api Server\" &&
@@ -132,6 +133,7 @@ services:
       dockerfile: Dockerfile
       args:
         - ENABLE_CRAFT=${ENABLE_CRAFT:-false}
+        - ENABLE_NEURAL_LABS=${ENABLE_NEURAL_LABS:-false}
     command: >
       /bin/sh -c "
       if [ -f /app/scripts/setup_craft_templates.sh ]; then
