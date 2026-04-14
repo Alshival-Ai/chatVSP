@@ -1,24 +1,33 @@
 import asyncio
+from datetime import datetime
+from datetime import timezone
 import json
-import secrets
 from pathlib import Path
+import secrets
+from typing import AsyncGenerator
 
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
+from fastapi import Request
 from fastapi import Response
 from fastapi import UploadFile
 from fastapi import WebSocket
 from fastapi import WebSocketDisconnect
 from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from onyx.auth.pat import hash_pat
 from onyx.auth.users import current_user
 from onyx.auth.users import current_user_from_websocket
 from onyx.db.engine.sql_engine import get_session
+from onyx.db.models import PersonalAccessToken
 from onyx.db.models import User
+from onyx.db.pat import create_pat
 from onyx.server.features.build.configs import ENABLE_NEURAL_LABS
 from onyx.server.features.build.utils import sanitize_filename
 from onyx.server.features.neural_labs.manager import NeuralLabsSessionManager
@@ -41,10 +50,19 @@ from onyx.server.features.neural_labs.models import TerminalWebSocketTokenReques
 from onyx.server.features.neural_labs.models import TerminalWebSocketTokenResponse
 from onyx.server.features.neural_labs.models import UpdateFileContentRequest
 from onyx.server.features.neural_labs.models import WarmupResponse
+from onyx.server.features.neural_labs.provisioning import (
+    NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR,
+)
+from onyx.server.features.neural_labs.provisioning import (
+    WARDGPT_MCP_BEARER_TOKEN_ENV_VAR,
+)
 from onyx.server.features.neural_labs.provisioning import provision_neural_labs_home
 from onyx.redis.redis_pool import store_ws_token
 from onyx.redis.redis_pool import WsTokenRateLimitExceeded
 from shared_configs.contextvars import get_current_tenant_id
+
+NEURAL_LABS_MCP_PAT_NAME = "neural-labs-mcp"
+NEURAL_LABS_MCP_PAT_FILE_RELATIVE_PATH = ".neural-labs/mcp_pat.token"
 
 
 def require_neural_labs_enabled(user: User = Depends(current_user)) -> User:
@@ -72,23 +90,146 @@ def _workspace_for_user(
     return get_current_tenant_id(), session.root
 
 
+def _extract_bearer_token_from_request(*, request: Request) -> str:
+    authorization = request.headers.get("authorization", "")
+    if not authorization:
+        return ""
+
+    prefix = "bearer "
+    if not authorization.lower().startswith(prefix):
+        return ""
+    return authorization[len(prefix) :].strip()
+
+
+def _is_valid_pat_for_user(*, token: str, user: User, db_session: Session) -> bool:
+    hashed_token = hash_pat(token)
+    now = datetime.now(timezone.utc)
+    existing = db_session.scalar(
+        select(PersonalAccessToken)
+        .where(PersonalAccessToken.user_id == user.id)
+        .where(PersonalAccessToken.hashed_token == hashed_token)
+        .where(PersonalAccessToken.is_revoked.is_(False))
+        .where(
+            or_(
+                PersonalAccessToken.expires_at.is_(None),
+                PersonalAccessToken.expires_at > now,
+            )
+        )
+    )
+    return existing is not None
+
+
+def _get_or_create_neural_labs_pat_token(
+    *,
+    user: User,
+    db_session: Session,
+    home_dir: Path,
+) -> str:
+    token_path = home_dir / NEURAL_LABS_MCP_PAT_FILE_RELATIVE_PATH
+
+    try:
+        existing_token = token_path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        existing_token = ""
+
+    if existing_token and _is_valid_pat_for_user(
+        token=existing_token, user=user, db_session=db_session
+    ):
+        return existing_token
+
+    _, raw_token = create_pat(
+        db_session=db_session,
+        user_id=user.id,
+        name=NEURAL_LABS_MCP_PAT_NAME,
+        expiration_days=None,
+    )
+
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    token_path.write_text(raw_token, encoding="utf-8")
+    try:
+        token_path.chmod(0o600)
+    except OSError:
+        pass
+
+    return raw_token
+
+
+def _inject_request_bearer_token_env_override(
+    *,
+    request: Request,
+    env_overrides: dict[str, str],
+    user: User,
+    db_session: Session,
+    home_dir: Path,
+) -> None:
+    token = _extract_bearer_token_from_request(request=request)
+    if not token:
+        token = _get_or_create_neural_labs_pat_token(
+            user=user, db_session=db_session, home_dir=home_dir
+        )
+
+    if not token:
+        return
+
+    # Set both names for compatibility with existing shell/tool configs.
+    env_overrides[NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR] = token
+    env_overrides[WARDGPT_MCP_BEARER_TOKEN_ENV_VAR] = token
+
+
+def _get_or_create_default_session(
+    *,
+    tenant_id: str,
+    user: User,
+    request: Request,
+    db_session: Session,
+) -> tuple[str, object]:
+    manager = get_neural_labs_manager()
+    home_dir = manager.get_user_home(tenant_id=tenant_id, user_id=user.id)
+    env_overrides = provision_neural_labs_home(home_dir=home_dir, db_session=db_session)
+    _inject_request_bearer_token_env_override(
+        request=request,
+        env_overrides=env_overrides,
+        user=user,
+        db_session=db_session,
+        home_dir=home_dir,
+    )
+
+    desired_token = env_overrides.get(NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR, "")
+    if desired_token:
+        for terminal_id, session in manager.list_sessions(tenant_id=tenant_id, user_id=user.id):
+            current_token = session.env_overrides.get(
+                NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR,
+                session.env_overrides.get(WARDGPT_MCP_BEARER_TOKEN_ENV_VAR, ""),
+            )
+            if current_token != desired_token:
+                manager.close_session(
+                    tenant_id=tenant_id,
+                    user_id=user.id,
+                    terminal_id=terminal_id,
+                )
+
+    return manager.ensure_default_session(
+        tenant_id=tenant_id,
+        user_id=user.id,
+        home_dir=home_dir,
+        env_overrides=env_overrides,
+    )
+
+
 @router.post("/warmup", response_model=WarmupResponse)
 def warmup(
+    request: Request,
     user: User = Depends(current_user),
     db_session: Session = Depends(get_session),
 ) -> WarmupResponse:
-    manager = _get_manager(db_session)
-    tenant_id, workspace_root = _workspace_for_user(manager, user)
-    env_overrides = provision_neural_labs_home(
-        home_dir=workspace_root, db_session=db_session
-    )
-    terminal_id, _session = get_neural_labs_manager().ensure_default_session(
+    tenant_id = get_current_tenant_id()
+    terminal_id, session = _get_or_create_default_session(
         tenant_id=tenant_id,
-        user_id=user.id,
-        home_dir=workspace_root,
-        env_overrides=env_overrides,
+        user=user,
+        request=request,
+        db_session=db_session,
     )
-    return WarmupResponse(home_dir=str(workspace_root), terminal_id=terminal_id)
+    return WarmupResponse(home_dir=str(session.home_dir), terminal_id=terminal_id)
 
 
 @router.get("/terminals", response_model=TerminalListResponse)
@@ -103,19 +244,27 @@ def list_terminals(user: User = Depends(current_user)) -> TerminalListResponse:
 
 @router.post("/terminals", response_model=TerminalDescriptor)
 def create_terminal(
+    request: Request,
     user: User = Depends(current_user),
     db_session: Session = Depends(get_session),
 ) -> TerminalDescriptor:
-    manager = _get_manager(db_session)
-    tenant_id, workspace_root = _workspace_for_user(manager, user)
-    env_overrides = provision_neural_labs_home(
-        home_dir=workspace_root, db_session=db_session
+    manager = get_neural_labs_manager()
+    tenant_id = get_current_tenant_id()
+    home_dir = manager.get_user_home(tenant_id=tenant_id, user_id=user.id)
+    env_overrides = provision_neural_labs_home(home_dir=home_dir, db_session=db_session)
+    _inject_request_bearer_token_env_override(
+        request=request,
+        env_overrides=env_overrides,
+        user=user,
+        db_session=db_session,
+        home_dir=home_dir,
     )
+
     try:
-        terminal_id, _session = get_neural_labs_manager().create_session(
+        terminal_id, _session = manager.create_session(
             tenant_id=tenant_id,
             user_id=user.id,
-            home_dir=workspace_root,
+            home_dir=home_dir,
             env_overrides=env_overrides,
         )
     except ValueError as e:
@@ -135,6 +284,22 @@ def close_terminal_by_id(
         terminal_id=terminal_id,
     )
     return Response(status_code=204)
+
+
+@router.post("/terminal/session", response_model=TerminalSessionResponse)
+def ensure_terminal_session(
+    request: Request,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> TerminalSessionResponse:
+    tenant_id = get_current_tenant_id()
+    terminal_id, _session = _get_or_create_default_session(
+        tenant_id=tenant_id,
+        user=user,
+        request=request,
+        db_session=db_session,
+    )
+    return TerminalSessionResponse(started=True, terminal_id=terminal_id)
 
 
 @router.get("/terminal/status", response_model=TerminalStatusResponse)
@@ -234,6 +399,7 @@ async def stream_terminal_ws(
     if user_id != _user.id or tenant_id != get_current_tenant_id():
         await websocket.close(code=4403, reason="Terminal stream token mismatch")
         return
+
     session = manager.get_session(
         tenant_id=tenant_id,
         user_id=user_id,
@@ -299,6 +465,61 @@ async def stream_terminal_ws(
         session.remove_subscriber(subscriber)
 
 
+@router.get("/terminal/stream")
+async def stream_terminal(
+    request: Request,
+    terminal_id: str,
+    user: User = Depends(current_user),
+) -> StreamingResponse:
+    tenant_id = get_current_tenant_id()
+    session = get_neural_labs_manager().get_session(
+        tenant_id=tenant_id,
+        user_id=user.id,
+        terminal_id=terminal_id,
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Terminal session not found")
+
+    queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=512)
+    subscriber = Subscriber(queue=queue, loop=asyncio.get_running_loop())
+    session.add_subscriber(subscriber)
+    if not session.has_output:
+        try:
+            session.write_input("\n")
+        except Exception:
+            pass
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        try:
+            yield f"data: {json.dumps({'type': 'status', 'message': 'connected'})}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    payload = await asyncio.wait_for(queue.get(), timeout=15.0)
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+                    continue
+
+                yield f"data: {json.dumps(payload)}\n\n"
+
+                if payload.get("type") == "exit":
+                    break
+        finally:
+            session.remove_subscriber(subscriber)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("/terminal/input")
 def send_terminal_input(
     request: TerminalInputRequest,
@@ -336,6 +557,13 @@ def resize_terminal(
     return Response(status_code=204)
 
 
+@router.post("/terminal/close")
+def close_terminal(user: User = Depends(current_user)) -> Response:
+    tenant_id = get_current_tenant_id()
+    get_neural_labs_manager().close_all_sessions(tenant_id=tenant_id, user_id=user.id)
+    return Response(status_code=204)
+
+
 @router.get("/files", response_model=DirectoryResponse)
 def list_files(
     path: str = "",
@@ -363,6 +591,15 @@ def list_files(
             for entry in listing.entries
         ],
     )
+
+
+@router.get("/files/download")
+def download_file(
+    path: str,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> Response:
+    return get_file_content(path=path, download=True, user=user, db_session=db_session)
 
 
 @router.get("/files/content")
@@ -393,13 +630,15 @@ def get_file_content(
 @router.post("/files/upload", response_model=PathResponse)
 async def upload_file(
     file: UploadFile = File(...),
-    path: str = Form(default="", alias="_path"),
+    path: str = Form(default=""),
+    _path: str | None = Form(default=None),
     user: User = Depends(current_user),
     db_session: Session = Depends(get_session),
 ) -> PathResponse:
     manager = _get_manager(db_session)
     _tenant_id, workspace_root = _workspace_for_user(manager, user)
 
+    destination = _path if _path is not None else path
     safe_filename = sanitize_filename(file.filename or "upload.bin")
     content = await file.read()
 
@@ -408,7 +647,7 @@ async def upload_file(
             workspace_root=workspace_root,
             filename=safe_filename,
             content=content,
-            parent_path=path,
+            parent_path=destination,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -417,6 +656,7 @@ async def upload_file(
 
 
 @router.post("/directories", response_model=PathResponse)
+@router.post("/files/directory", response_model=PathResponse)
 def create_directory(
     request: CreateDirectoryRequest,
     user: User = Depends(current_user),
@@ -461,6 +701,7 @@ def rename_path(
 
 
 @router.patch("/files/move", response_model=PathResponse)
+@router.post("/files/move", response_model=PathResponse)
 def move_path(
     request: MovePathRequest,
     user: User = Depends(current_user),

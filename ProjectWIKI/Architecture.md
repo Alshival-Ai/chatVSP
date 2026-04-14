@@ -23,6 +23,15 @@
 - `inference_model_server` / `indexing_model_server`
 - `background` (Celery workers)
 
+## Neural Labs Runtime Path
+
+- Web route: `/neural-labs`
+- API prefix: `/api/neural-labs/*`
+- Terminal websocket path returned by token API:
+  - `/api/neural-labs/terminal/ws?token=<auth_token>&terminal_token=<terminal_ticket>`
+- Per-user workspace root:
+  - `${PERSISTENT_DOCUMENT_STORAGE_PATH}/${tenant_id}/neural-labs/${user_id}`
+
 ## SSH Path
 
 - `ssh-chatvsp.vsp-app-aws-us-west-2.com` resolves to NLB

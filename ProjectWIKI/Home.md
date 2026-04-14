@@ -23,22 +23,28 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
 
 ## Neural Labs Status
 
-- Neural Labs is being ported in as a contained feature, not a full WardGPT fork merge.
-- Current live slice includes:
+- Neural Labs now runs a WardGPT Codex-Labs parity implementation under Neural Labs route/branding.
+- Current live scope includes:
   - `enable_neural_labs` on users
   - admin toggle support
   - gated `/neural-labs` route
   - compose/runtime flag `ENABLE_NEURAL_LABS`
   - per-user persistent workspace rooted under the shared `file-system` volume
-  - backend workspace APIs for warmup, file listing, file read, upload, folder create, rename, move, text save, and delete
-  - web UI for browsing folders and previewing common file types
-  - live terminal UI with terminal creation, restart, close pane, and terminal navigator
-  - split terminal workspace modes (vertical / horizontal)
+  - backend workspace APIs with Codex-Labs parity compatibility routes:
+    - warmup/session/status/list/create/close terminals
+    - websocket + SSE terminal streams
+    - file list/content/download/upload/create directory/rename/move/edit/delete
+  - modular web UI with:
+    - tree-based file navigator (expand/collapse, context menu, drag/drop move, hidden file toggle)
+    - multi-terminal tabs with split panes
+    - floating preview windows (snap/drag/resize) for text, image, PDF, HTML, KMZ, and XLSX
   - terminal websocket auth aligned for prod (`/api/neural-labs/terminal/ws?token=...&terminal_token=...`)
   - managed shell banner and login profile initialization
   - per-user Codex config bootstrap at `~/.codex/config.toml`
-  - OpenAI-only Codex runtime config using credentials from Onyx LLM provider settings
+  - OpenAI Codex runtime config using credentials from Onyx LLM provider settings
   - fixed OpenAI endpoint in Codex config (`https://api.openai.com/v1`)
+  - MCP server config bootstrap in Codex config with bearer-token env wiring
+  - PAT fallback provisioning for MCP auth from Neural Labs shell sessions
   - preinstalled terminal CLIs in Neural Labs backend image:
     - `codex` (`@openai/codex`)
     - `claude` (`@anthropic-ai/claude-code`)
@@ -48,9 +54,5 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
 - Current deployment requirement:
   - `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users
-- Still pending:
-  - richer multi-window previews
-  - drag/drop move flows
-  - optional UX enhancements for file previews
-
-Neural Labs deliberately does not provision custom MCP servers or custom skills in chatVSP.
+- Note:
+  - infrastructure-level Codex/Craft compose wiring remains intentionally separate from this Neural Labs parity import.

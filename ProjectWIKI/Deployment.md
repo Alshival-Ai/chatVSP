@@ -84,19 +84,27 @@ sudo docker compose -f docker-compose.prod.yml build api_server background web_s
 sudo docker compose -f docker-compose.prod.yml up -d --no-deps api_server background web_server nginx
 ```
 
-Current live scope is the first functional Neural Labs slice:
+Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept under Neural Labs route/branding):
 
 - gated `/neural-labs` access
 - per-user persistent workspaces on the shared `file-system` volume
-- backend APIs for warmup, list, read, upload, folder create, rename, move, text save, and delete
-- browser UI for folder navigation plus text, image, PDF, and HTML previews
-- terminal / PTY session management in the Neural Labs page
-- split terminal controls in the UI (vertical and horizontal pane modes)
+- backend APIs for:
+  - warmup/session/status/list/create/close terminals
+  - websocket + SSE terminal streams
+  - file list/content/download/upload/folder create/rename/move/text save/delete
+- browser UI for:
+  - tree navigator with context actions and drag/drop move
+  - split terminal tabs/panes
+  - floating preview windows with snap/resize for text, image, PDF, HTML, KMZ, and XLSX
 - websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
 - managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
 - Codex bootstrap config written to `~/.codex/config.toml`
-- OpenAI-only Codex provider bootstrap using Onyx LLM provider credentials
+- OpenAI Codex provider bootstrap using Onyx LLM provider credentials
 - fixed Codex OpenAI endpoint (`https://api.openai.com/v1`)
+- MCP server configuration embedded in Codex config
+- MCP bearer token propagation into shell sessions:
+  - request bearer token preferred
+  - PAT fallback provisioned per user when request token is unavailable
 - backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
   - `@openai/codex`
   - `@anthropic-ai/claude-code`
@@ -113,7 +121,7 @@ cd deployment/docker_compose
 sudo docker compose -f docker-compose.prod.yml restart nginx
 ```
 
-Neural Labs intentionally does not pre-provision custom MCP servers or custom skills in chatVSP.
+Neural Labs parity currently focuses on application/backend behavior. Deployment-level service topology changes (compose/nginx/runtime restructuring) remain a separate rollout decision.
 
 
 ## Enterprise Feature Toggle (Applied 2026-03-24)
