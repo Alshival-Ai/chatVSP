@@ -150,12 +150,6 @@ def _build_codex_config_toml(model_name: str, mcp_server_url: str | None) -> str
         'model_provider = "openai"',
         'model_reasoning_effort = "medium"',
         "",
-        "[model_providers.openai]",
-        'name = "OpenAI"',
-        f"base_url = {_toml_quote(OPENAI_STANDARD_BASE_URL)}",
-        f"env_key = {_toml_quote(OPENAI_ENV_KEY_NAME)}",
-        'wire_api = "responses"',
-        "",
     ]
 
     if mcp_server_url:
