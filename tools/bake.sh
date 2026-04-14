@@ -149,3 +149,30 @@ if ((${#services[@]} > 0)); then
   up_args+=("${services[@]}")
 fi
 docker "${up_args[@]}"
+
+echo
+echo "Deployment image summary:"
+summary_services=()
+if ((${#services[@]} > 0)); then
+  summary_services=("${services[@]}")
+else
+  # Fallback summary when no explicit service list is provided.
+  summary_services=(web_server api_server background nginx)
+fi
+
+for svc in "${summary_services[@]}"; do
+  cid="$(docker "${compose_args[@]}" ps -q "$svc" 2>/dev/null || true)"
+  if [[ -z "${cid}" ]]; then
+    echo "  - ${svc}: not running"
+    continue
+  fi
+
+  image_ref="$(docker inspect --format '{{.Config.Image}}' "${cid}" 2>/dev/null || true)"
+  image_id="$(docker inspect --format '{{.Image}}' "${cid}" 2>/dev/null || true)"
+  started_at="$(docker inspect --format '{{.State.StartedAt}}' "${cid}" 2>/dev/null || true)"
+  if [[ -n "${image_ref}" && -n "${image_id}" ]]; then
+    echo "  - ${svc}: ${image_ref} (${image_id}) started=${started_at}"
+  else
+    echo "  - ${svc}: running (details unavailable)"
+  fi
+done

@@ -631,14 +631,13 @@ def get_file_content(
 async def upload_file(
     file: UploadFile = File(...),
     path: str = Form(default=""),
-    _path: str | None = Form(default=None),
     user: User = Depends(current_user),
     db_session: Session = Depends(get_session),
 ) -> PathResponse:
     manager = _get_manager(db_session)
     _tenant_id, workspace_root = _workspace_for_user(manager, user)
 
-    destination = _path if _path is not None else path
+    destination = path
     safe_filename = sanitize_filename(file.filename or "upload.bin")
     content = await file.read()
 
