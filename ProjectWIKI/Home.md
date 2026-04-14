@@ -12,7 +12,7 @@ This folder is the local copy of operational documentation for chatVSP.
 - [Troubleshooting 502 and Voice WebSockets](Troubleshooting-502-and-Voice-WebSockets.md)
 - [Voice Capabilities](Voice-Capabilities.md)
 
-## Current Production Endpoints (2026-03-24)
+## Current Production Endpoints (2026-04-14)
 
 - App: `https://chatvsp.vsp-app-aws-us-west-2.com`
 - SSH: `ssh-chatvsp.vsp-app-aws-us-west-2.com:22`
@@ -34,6 +34,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - web UI for browsing folders and previewing common file types
   - live terminal UI with terminal creation, restart, close pane, and terminal navigator
   - split terminal workspace modes (vertical / horizontal)
+  - terminal websocket auth aligned for prod (`/api/codex-labs/terminal/ws?token=...&terminal_token=...`)
 - Current deployment requirement:
   - `ENABLE_CODEX_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users

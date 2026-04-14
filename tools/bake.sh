@@ -136,6 +136,15 @@ up_args=("${compose_args[@]}" up -d --force-recreate)
 if ((!no_wait)); then
   up_args+=(--wait)
 fi
+# For production partial refreshes, avoid dependency restarts/healthcheck gating.
+# This keeps app-only deploys (web/api/background) stable on constrained hosts.
+if ((${#services[@]} > 0)); then
+  case "$profile" in
+    prod|prod-cloud|prod-no-letsencrypt)
+      up_args+=(--no-deps)
+      ;;
+  esac
+fi
 if ((${#services[@]} > 0)); then
   up_args+=("${services[@]}")
 fi

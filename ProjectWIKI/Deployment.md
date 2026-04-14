@@ -1,6 +1,6 @@
 # Deployment
 
-## Current AWS Layout (2026-03-24)
+## Current AWS Layout (2026-04-14)
 
 - Route 53 public DNS
 - ALB for app traffic (`80` -> redirect `443`, TLS terminated with ACM)
@@ -68,6 +68,8 @@ cd /home/ubuntu/chatVSP
 
 This default is intended to include Codex Labs frontend/backend code updates without forcing a full-stack rebuild.
 
+For prod profiles, `tools/bake.sh` now runs the recreate step with `--no-deps` when specific services are targeted. This avoids dependency-healthcheck blocks (for example `relational_db` healthcheck gating) during app-only deploys.
+
 ## Codex Labs rollout
 
 Codex Labs is behind both a global runtime flag and a per-user access flag.
@@ -90,6 +92,7 @@ Current live scope is the first functional Codex Labs slice:
 - browser UI for folder navigation plus text, image, PDF, and HTML previews
 - terminal / PTY session management in the Codex Labs page
 - split terminal controls in the UI (vertical and horizontal pane modes)
+- websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
 
 Still not ported:
 
@@ -131,3 +134,13 @@ Verification:
 ## Note on TLS
 
 TLS is terminated at ALB via ACM. Instance nginx should run HTTP template mode for upstream routing.
+
+## Resource Monitoring During Rebuilds
+
+Use these quick checks before and after rebuilds to reduce VM crash risk:
+
+```bash
+free -h
+docker stats --no-stream
+docker compose -p onyx -f deployment/docker_compose/docker-compose.prod.yml ps
+```
