@@ -90,6 +90,18 @@ def _workspace_for_user(
     return get_current_tenant_id(), session.root
 
 
+def _raise_files_http_error(error: ValueError) -> None:
+    detail = str(error)
+    lowered_detail = detail.lower()
+
+    if "not found" in lowered_detail:
+        raise HTTPException(status_code=404, detail=detail)
+    if "already exists" in lowered_detail:
+        raise HTTPException(status_code=409, detail=detail)
+
+    raise HTTPException(status_code=400, detail=detail)
+
+
 def _extract_bearer_token_from_request(*, request: Request) -> str:
     authorization = request.headers.get("authorization", "")
     if not authorization:
@@ -575,7 +587,7 @@ def list_files(
     try:
         listing = manager.list_directory(workspace_root=workspace_root, path=path)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        _raise_files_http_error(e)
 
     return DirectoryResponse(
         path=listing.path,
@@ -616,8 +628,8 @@ def get_file_content(
             workspace_root=workspace_root,
             path=path,
         )
-    except ValueError:
-        raise HTTPException(status_code=404, detail="File not found")
+    except ValueError as e:
+        _raise_files_http_error(e)
 
     disposition = "attachment" if download else "inline"
     return StreamingResponse(
@@ -649,7 +661,7 @@ async def upload_file(
             parent_path=destination,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        _raise_files_http_error(e)
 
     return PathResponse(path=relative_path)
 
@@ -672,7 +684,7 @@ def create_directory(
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Directory already exists")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        _raise_files_http_error(e)
 
     return PathResponse(path=relative_path)
 
@@ -692,9 +704,7 @@ def rename_path(
             new_name=sanitize_filename(request.new_name),
         )
     except ValueError as e:
-        if "already exists" in str(e).lower():
-            raise HTTPException(status_code=409, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+        _raise_files_http_error(e)
 
     return PathResponse(path=relative_path)
 
@@ -716,9 +726,7 @@ def move_path(
             new_name=sanitize_filename(request.new_name) if request.new_name else None,
         )
     except ValueError as e:
-        if "already exists" in str(e).lower():
-            raise HTTPException(status_code=409, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+        _raise_files_http_error(e)
 
     return PathResponse(path=relative_path)
 
@@ -738,7 +746,7 @@ def update_file_content(
             content=request.content,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        _raise_files_http_error(e)
 
     return PathResponse(path=relative_path)
 
@@ -754,5 +762,5 @@ def delete_file(
     try:
         deleted = manager.delete_file(workspace_root=workspace_root, path=path)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        _raise_files_http_error(e)
     return DeletePathResponse(deleted=deleted)

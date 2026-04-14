@@ -31,6 +31,13 @@
   - `/api/neural-labs/terminal/ws?token=<auth_token>&terminal_token=<terminal_ticket>`
 - Per-user workspace root:
   - `${PERSISTENT_DOCUMENT_STORAGE_PATH}/${tenant_id}/neural-labs/${user_id}`
+- File API status semantics:
+  - missing files or directories now return `404`
+  - invalid paths and traversal-style input return `400`
+  - conflicting create / move / rename operations return `409`
+- Frontend tree state recovery:
+  - the Neural Labs file tree persists expanded and selected paths in browser storage
+  - if a persisted directory no longer exists, the frontend clears that stale entry when the API returns `404`
 
 ## SSH Path
 

@@ -34,6 +34,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - warmup/session/status/list/create/close terminals
     - websocket + SSE terminal streams
     - file list/content/download/upload/create directory/rename/move/edit/delete
+    - missing file or directory paths return `404` so stale browser tree state self-heals correctly
   - modular web UI with:
     - tree-based file navigator (expand/collapse, context menu, drag/drop move, hidden file toggle)
     - independently collapsible file navigator and terminal navigator with thin icon rails when collapsed
