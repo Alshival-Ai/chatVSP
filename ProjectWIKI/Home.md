@@ -32,11 +32,12 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - per-user persistent workspace rooted under the shared `file-system` volume
   - backend workspace APIs for warmup, file listing, file read, upload, folder create, rename, move, text save, and delete
   - web UI for browsing folders and previewing common file types
+  - live terminal UI with terminal creation, restart, close pane, and terminal navigator
+  - split terminal workspace modes (vertical / horizontal)
 - Current deployment requirement:
   - `ENABLE_CODEX_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users
 - Still pending:
-  - terminal/session manager
   - richer multi-window previews
   - drag/drop move flows
   - MCP/Codex provisioning layer
