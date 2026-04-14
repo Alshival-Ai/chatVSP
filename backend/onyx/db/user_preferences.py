@@ -253,15 +253,15 @@ def update_user_code_interpreter_access(
     db_session.commit()
 
 
-def update_user_codex_labs_access(
+def update_user_neural_labs_access(
     user_id: UUID,
-    enable_codex_labs: bool,
+    enable_neural_labs: bool,
     db_session: Session,
 ) -> None:
     db_session.execute(
         update(User)
         .where(User.id == user_id)  # type: ignore
-        .values(enable_codex_labs=enable_codex_labs)
+        .values(enable_neural_labs=enable_neural_labs)
     )
     db_session.commit()
 

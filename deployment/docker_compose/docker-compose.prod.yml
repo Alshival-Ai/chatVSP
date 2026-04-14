@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     environment:
       - AUTH_TYPE=${AUTH_TYPE:-oidc}
-      - ENABLE_CODEX_LABS=${ENABLE_CODEX_LABS:-false}
+      - ENABLE_NEURAL_LABS=${ENABLE_NEURAL_LABS:-false}
       - POSTGRES_HOST=relational_db
       - VESPA_HOST=index
       - OPENSEARCH_HOST=${OPENSEARCH_HOST:-opensearch}
@@ -90,7 +90,7 @@ services:
     restart: unless-stopped
     environment:
       - AUTH_TYPE=${AUTH_TYPE:-oidc}
-      - ENABLE_CODEX_LABS=${ENABLE_CODEX_LABS:-false}
+      - ENABLE_NEURAL_LABS=${ENABLE_NEURAL_LABS:-false}
       - POSTGRES_HOST=relational_db
       - VESPA_HOST=index
       - OPENSEARCH_HOST=${OPENSEARCH_HOST:-opensearch}

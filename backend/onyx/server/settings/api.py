@@ -13,7 +13,7 @@ from onyx.configs.constants import KV_REINDEX_KEY
 from onyx.configs.constants import NotificationType
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.models import User
-from onyx.server.features.build.configs import ENABLE_CODEX_LABS
+from onyx.server.features.build.configs import ENABLE_NEURAL_LABS
 from onyx.db.notification import dismiss_all_notifications
 from onyx.db.notification import get_notifications
 from onyx.db.notification import update_notification_last_shown
@@ -73,10 +73,10 @@ def fetch_settings(
 
     # Check if feature-gated workspaces are enabled for this user
     onyx_craft_enabled_for_user = is_onyx_craft_enabled(user) if user else False
-    codex_labs_enabled_for_user = (
+    neural_labs_enabled_for_user = (
         bool(user)
-        and ENABLE_CODEX_LABS
-        and bool(user.enable_codex_labs)
+        and ENABLE_NEURAL_LABS
+        and bool(user.enable_neural_labs)
     )
 
     return UserSettings(
@@ -84,7 +84,7 @@ def fetch_settings(
         notifications=settings_notifications,
         needs_reindexing=needs_reindexing,
         onyx_craft_enabled=onyx_craft_enabled_for_user,
-        codex_labs_enabled=codex_labs_enabled_for_user,
+        neural_labs_enabled=neural_labs_enabled_for_user,
         vector_db_enabled=not DISABLE_VECTOR_DB,
     )
 

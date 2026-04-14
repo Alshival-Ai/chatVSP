@@ -1,4 +1,4 @@
-"""add enable_codex_labs to user
+"""add enable_neural_labs to user
 
 Revision ID: e1a2b3c4d5f6
 Revises: c7bf5721733e, d4f1e7c2b9a0
@@ -21,14 +21,14 @@ def upgrade() -> None:
     op.add_column(
         "user",
         sa.Column(
-            "enable_codex_labs",
+            "enable_neural_labs",
             sa.Boolean(),
             nullable=False,
             server_default=sa.false(),
         ),
     )
-    op.alter_column("user", "enable_codex_labs", server_default=None)
+    op.alter_column("user", "enable_neural_labs", server_default=None)
 
 
 def downgrade() -> None:
-    op.drop_column("user", "enable_codex_labs")
+    op.drop_column("user", "enable_neural_labs")

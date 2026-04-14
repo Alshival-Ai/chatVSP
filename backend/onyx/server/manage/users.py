@@ -61,7 +61,7 @@ from onyx.db.user_preferences import update_assistant_preferences
 from onyx.db.user_preferences import update_user_assistant_visibility
 from onyx.db.user_preferences import update_user_auto_scroll
 from onyx.db.user_preferences import update_user_chat_backgrounds
-from onyx.db.user_preferences import update_user_codex_labs_access
+from onyx.db.user_preferences import update_user_neural_labs_access
 from onyx.db.user_preferences import update_user_default_app_mode
 from onyx.db.user_preferences import update_user_default_model
 from onyx.db.user_preferences import update_user_personalization
@@ -96,7 +96,7 @@ from onyx.server.manage.models import TenantInfo
 from onyx.server.manage.models import TenantSnapshot
 from onyx.server.manage.models import ThemePreferenceRequest
 from onyx.server.manage.models import UserByEmail
-from onyx.server.manage.models import UserCodexLabsAccessUpdateRequest
+from onyx.server.manage.models import UserNeuralLabsAccessUpdateRequest
 from onyx.server.manage.models import UserCodeInterpreterAccessUpdateRequest
 from onyx.server.manage.models import UserInfo
 from onyx.server.manage.models import UserPreferences
@@ -671,9 +671,9 @@ def update_user_code_interpreter_access_api(
     )
 
 
-@router.patch("/manage/admin/codex-labs-access", tags=PUBLIC_API_TAGS)
-def update_user_codex_labs_access_api(
-    request: UserCodexLabsAccessUpdateRequest,
+@router.patch("/manage/admin/neural-labs-access", tags=PUBLIC_API_TAGS)
+def update_user_neural_labs_access_api(
+    request: UserNeuralLabsAccessUpdateRequest,
     _: User = Depends(current_admin_user),
     db_session: Session = Depends(get_session),
 ) -> None:
@@ -681,9 +681,9 @@ def update_user_codex_labs_access_api(
     if not user_to_update:
         raise HTTPException(status_code=404, detail="User not found")
 
-    update_user_codex_labs_access(
+    update_user_neural_labs_access(
         user_id=user_to_update.id,
-        enable_codex_labs=request.enable_codex_labs,
+        enable_neural_labs=request.enable_neural_labs,
         db_session=db_session,
     )
 

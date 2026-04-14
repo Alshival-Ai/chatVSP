@@ -81,21 +81,21 @@ export async function setUserCodeInterpreterAccess(
   }
 }
 
-export async function setUserCodexLabsAccess(
+export async function setUserNeuralLabsAccess(
   email: string,
-  enableCodexLabs: boolean
+  enableNeuralLabs: boolean
 ): Promise<void> {
-  const res = await fetch("/api/manage/admin/codex-labs-access", {
+  const res = await fetch("/api/manage/admin/neural-labs-access", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       user_email: email,
-      enable_codex_labs: enableCodexLabs,
+      enable_neural_labs: enableNeuralLabs,
     }),
   });
   if (!res.ok) {
     throw new Error(
-      await parseErrorDetail(res, "Failed to update Codex Labs access")
+      await parseErrorDetail(res, "Failed to update Neural Labs access")
     );
   }
 }

@@ -17,7 +17,7 @@ const PROTECTED_ROUTES = [
   "/agents",
   "/connector",
   "/craft",
-  "/codex-labs",
+  "/neural-labs",
 ];
 
 // Public route prefixes (no authentication required)
@@ -33,7 +33,7 @@ export const config = {
     "/agents/:path*",
     "/connector/:path*",
     "/craft/:path*",
-    "/codex-labs/:path*",
+    "/neural-labs/:path*",
 
     // Enterprise Edition routes (for /ee rewriting)
     // These are ONLY the EE-specific routes that should be rewritten

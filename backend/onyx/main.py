@@ -72,7 +72,8 @@ from onyx.server.documents.document import router as document_router
 from onyx.server.documents.standard_oauth import router as standard_oauth_router
 from onyx.server.features.build.api.api import public_build_router
 from onyx.server.features.build.api.api import router as build_router
-from onyx.server.features.codex_labs.api import router as codex_labs_router
+from onyx.server.features.neural_labs.api import router as neural_labs_router
+from onyx.server.features.neural_labs.api import ws_router as neural_labs_ws_router
 from onyx.server.features.default_assistant.api import (
     router as default_assistant_router,
 )
@@ -469,7 +470,8 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
     include_router_with_global_prefix_prepended(application, projects_router)
     include_router_with_global_prefix_prepended(application, public_build_router)
     include_router_with_global_prefix_prepended(application, build_router)
-    include_router_with_global_prefix_prepended(application, codex_labs_router)
+    include_router_with_global_prefix_prepended(application, neural_labs_router)
+    include_router_with_global_prefix_prepended(application, neural_labs_ws_router)
     include_router_with_global_prefix_prepended(application, document_set_router)
     include_router_with_global_prefix_prepended(application, hierarchy_router)
     include_router_with_global_prefix_prepended(application, search_settings_router)

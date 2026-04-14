@@ -4,13 +4,13 @@ import { unstable_noStore as noStore } from "next/cache";
 import { requireAuth } from "@/lib/auth/requireAuth";
 import { fetchSettingsSS } from "@/components/settings/lib";
 
-interface CodexLabsLayoutProps {
+interface NeuralLabsLayoutProps {
   children: React.ReactNode;
 }
 
-export default async function CodexLabsLayout({
+export default async function NeuralLabsLayout({
   children,
-}: CodexLabsLayoutProps) {
+}: NeuralLabsLayoutProps) {
   noStore();
 
   const authResult = await requireAuth();
@@ -19,7 +19,7 @@ export default async function CodexLabsLayout({
   }
 
   const settings = await fetchSettingsSS();
-  if (settings?.settings?.codex_labs_enabled !== true) {
+  if (settings?.settings?.neural_labs_enabled !== true) {
     redirect("/app" as Route);
   }
 

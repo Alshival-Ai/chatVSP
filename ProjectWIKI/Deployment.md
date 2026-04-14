@@ -66,16 +66,16 @@ cd /home/ubuntu/chatVSP
 - `api_server`
 - `background`
 
-This default is intended to include Codex Labs frontend/backend code updates without forcing a full-stack rebuild.
+This default is intended to include Neural Labs frontend/backend code updates without forcing a full-stack rebuild.
 
 For prod profiles, `tools/bake.sh` now runs the recreate step with `--no-deps` when specific services are targeted. This avoids dependency-healthcheck blocks (for example `relational_db` healthcheck gating) during app-only deploys.
 
-## Codex Labs rollout
+## Neural Labs rollout
 
-Codex Labs is behind both a global runtime flag and a per-user access flag.
+Neural Labs is behind both a global runtime flag and a per-user access flag.
 
-- Global flag: set `ENABLE_CODEX_LABS=true` in `deployment/docker_compose/.env`
-- User flag: enable Codex Labs access for the target user from the Admin Users page
+- Global flag: set `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
+- User flag: enable Neural Labs access for the target user from the Admin Users page
 - Rebuild/restart the app services after code changes:
 
 ```bash
@@ -84,20 +84,19 @@ sudo docker compose -f docker-compose.prod.yml build api_server background web_s
 sudo docker compose -f docker-compose.prod.yml up -d --no-deps api_server background web_server nginx
 ```
 
-Current live scope is the first functional Codex Labs slice:
+Current live scope is the first functional Neural Labs slice:
 
-- gated `/codex-labs` access
+- gated `/neural-labs` access
 - per-user persistent workspaces on the shared `file-system` volume
 - backend APIs for warmup, list, read, upload, folder create, rename, move, text save, and delete
 - browser UI for folder navigation plus text, image, PDF, and HTML previews
-- terminal / PTY session management in the Codex Labs page
+- terminal / PTY session management in the Neural Labs page
 - split terminal controls in the UI (vertical and horizontal pane modes)
 - websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
-
-Still not ported:
-
-- richer multi-window preview interactions
-- MCP / Codex provisioning
+- managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
+- Codex bootstrap config written to `~/.codex/config.toml`
+- OpenAI-only Codex provider bootstrap using Onyx LLM provider credentials
+- fixed Codex OpenAI endpoint (`https://api.openai.com/v1`)
 
 Operational note:
 
@@ -107,6 +106,8 @@ Operational note:
 cd deployment/docker_compose
 sudo docker compose -f docker-compose.prod.yml restart nginx
 ```
+
+Neural Labs intentionally does not pre-provision custom MCP servers or custom skills in chatVSP.
 
 
 ## Enterprise Feature Toggle (Applied 2026-03-24)

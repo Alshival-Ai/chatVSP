@@ -104,7 +104,7 @@ case "$profile" in
 esac
 
 # For production profiles, default to rebuilding the app services only.
-# This includes Codex Labs web/backend changes while avoiding full-stack rebuild pressure.
+# This includes Neural Labs web/backend changes while avoiding full-stack rebuild pressure.
 if ((${#services[@]} == 0)); then
   case "$profile" in
     prod|prod-cloud|prod-no-letsencrypt)

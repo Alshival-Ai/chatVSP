@@ -23,7 +23,7 @@ import useGroups from "@/hooks/useGroups";
 import {
   addUserToGroup,
   removeUserFromGroup,
-  setUserCodexLabsAccess,
+  setUserNeuralLabsAccess,
   setUserCodeInterpreterAccess,
   setUserRole,
 } from "./svc";
@@ -70,8 +70,8 @@ export default function EditUserModal({
   const [codeInterpreterEnabled, setCodeInterpreterEnabled] = useState(
     user.enable_code_interpreter
   );
-  const [codexLabsEnabled, setCodexLabsEnabled] = useState(
-    user.enable_codex_labs
+  const [neuralLabsEnabled, setNeuralLabsEnabled] = useState(
+    user.enable_neural_labs
   );
 
   const initialMemberGroupIds = useMemo(
@@ -111,12 +111,12 @@ export default function EditUserModal({
     user.role !== null && selectedRole !== "" && selectedRole !== user.role;
   const hasCodeInterpreterChange =
     codeInterpreterEnabled !== user.enable_code_interpreter;
-  const hasCodexLabsChange = codexLabsEnabled !== user.enable_codex_labs;
+  const hasNeuralLabsChange = neuralLabsEnabled !== user.enable_neural_labs;
   const hasChanges =
     hasGroupChanges ||
     hasRoleChange ||
     hasCodeInterpreterChange ||
-    hasCodexLabsChange;
+    hasNeuralLabsChange;
 
   const toggleGroup = (groupId: number) => {
     setMemberGroupIds((prev) => {
@@ -171,8 +171,8 @@ export default function EditUserModal({
         await setUserCodeInterpreterAccess(user.email, codeInterpreterEnabled);
       }
 
-      if (hasCodexLabsChange) {
-        await setUserCodexLabsAccess(user.email, codexLabsEnabled);
+      if (hasNeuralLabsChange) {
+        await setUserNeuralLabsAccess(user.email, neuralLabsEnabled);
       }
 
       onMutate();
@@ -391,16 +391,16 @@ export default function EditUserModal({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex flex-col gap-1">
                     <Text as="p" mainUiBody className="font-medium">
-                      Codex Labs Access
+                      Neural Labs Access
                     </Text>
                     <Text as="p" secondaryBody text03>
-                      Enables the gated Codex Labs workspace for this user.
+                      Enables the gated Neural Labs workspace for this user.
                     </Text>
                   </div>
                   <Checkbox
-                    checked={codexLabsEnabled}
-                    onCheckedChange={setCodexLabsEnabled}
-                    aria-label="Enable Codex Labs access"
+                    checked={neuralLabsEnabled}
+                    onCheckedChange={setNeuralLabsEnabled}
+                    aria-label="Enable Neural Labs access"
                   />
                 </div>
               </>

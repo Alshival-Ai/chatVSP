@@ -91,8 +91,8 @@ services:
       # Onyx Craft configuration (disabled by default, set ENABLE_CRAFT=true in .env to enable)
       # Use --include-craft with install script, or manually set in .env file
       - ENABLE_CRAFT=${ENABLE_CRAFT:-false}
-      # Codex Labs configuration (disabled by default, requires per-user access too)
-      - ENABLE_CODEX_LABS=${ENABLE_CODEX_LABS:-false}
+      # Neural Labs configuration (disabled by default, requires per-user access too)
+      - ENABLE_NEURAL_LABS=${ENABLE_NEURAL_LABS:-false}
       - OUTPUTS_TEMPLATE_PATH=${OUTPUTS_TEMPLATE_PATH:-/app/onyx/server/features/build/sandbox/kubernetes/docker/templates/outputs}
       - VENV_TEMPLATE_PATH=${VENV_TEMPLATE_PATH:-/app/onyx/server/features/build/sandbox/kubernetes/docker/templates/venv}
       - WEB_TEMPLATE_PATH=${WEB_TEMPLATE_PATH:-/app/onyx/server/features/build/sandbox/kubernetes/docker/templates/outputs/web}
@@ -179,8 +179,8 @@ services:
       - API_SERVER_HOST=${API_SERVER_HOST:-api_server}
       # Onyx Craft configuration (set up automatically on container startup)
       - ENABLE_CRAFT=${ENABLE_CRAFT:-false}
-      # Codex Labs configuration (disabled by default, requires per-user access too)
-      - ENABLE_CODEX_LABS=${ENABLE_CODEX_LABS:-false}
+      # Neural Labs configuration (disabled by default, requires per-user access too)
+      - ENABLE_NEURAL_LABS=${ENABLE_NEURAL_LABS:-false}
       - OUTPUTS_TEMPLATE_PATH=${OUTPUTS_TEMPLATE_PATH:-/app/onyx/server/features/build/sandbox/kubernetes/docker/templates/outputs}
       - VENV_TEMPLATE_PATH=${VENV_TEMPLATE_PATH:-/app/onyx/server/features/build/sandbox/kubernetes/docker/templates/venv}
       - WEB_TEMPLATE_PATH=${WEB_TEMPLATE_PATH:-/app/onyx/server/features/build/sandbox/kubernetes/docker/templates/outputs/web}

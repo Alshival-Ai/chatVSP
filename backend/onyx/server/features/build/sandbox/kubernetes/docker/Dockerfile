@@ -88,6 +88,9 @@ ENV PATH="/workspace/.venv/bin:${PATH}"
 # Install pptxgenjs globally for creating presentations from scratch
 RUN npm install -g pptxgenjs
 
+# Install Claude Code CLI for optional agent workflows
+RUN npm install -g @anthropic-ai/claude-code
+
 # Install opencode CLI as sandbox user so it goes to their home directory
 USER sandbox
 RUN curl -fsSL https://opencode.ai/install | bash

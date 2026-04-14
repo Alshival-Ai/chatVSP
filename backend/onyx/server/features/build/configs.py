@@ -45,7 +45,7 @@ SANDBOX_AGENT_COMMAND = os.environ.get("SANDBOX_AGENT_COMMAND", "opencode").spli
 # Available tools: bash, edit, write, read, grep, glob, list, lsp, patch,
 #                  skill, todowrite, todoread, webfetch, question
 # Example: "question,webfetch" to disable user questions and web fetching
-_disabled_tools_str = os.environ.get("OPENCODE_DISABLED_TOOLS", "question")
+_disabled_tools_str = os.environ.get("OPENCODE_DISABLED_TOOLS", "question,skill")
 OPENCODE_DISABLED_TOOLS: list[str] = [
     t.strip() for t in _disabled_tools_str.split(",") if t.strip()
 ]
@@ -108,8 +108,8 @@ SANDBOX_FILE_SYNC_SERVICE_ACCOUNT = os.environ.get(
 )
 
 ENABLE_CRAFT = os.environ.get("ENABLE_CRAFT", "false").lower() == "true"
-ENABLE_CODEX_LABS = (
-    os.environ.get("ENABLE_CODEX_LABS", "false").lower() == "true"
+ENABLE_NEURAL_LABS = (
+    os.environ.get("ENABLE_NEURAL_LABS", "false").lower() == "true"
 )
 
 # ============================================================================

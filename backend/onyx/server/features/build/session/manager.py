@@ -33,6 +33,7 @@ from onyx.db.models import BuildMessage
 from onyx.db.models import BuildSession
 from onyx.db.models import User
 from onyx.db.users import fetch_user_by_id
+from onyx.llm.constants import LlmProviderNames
 from onyx.llm.factory import get_default_llm
 from onyx.llm.models import LanguageModelInput
 from onyx.llm.models import ReasoningEffort
@@ -89,10 +90,13 @@ from onyx.tracing.framework.create import ensure_trace
 from onyx.tracing.llm_utils import llm_generation_span
 from onyx.tracing.llm_utils import record_llm_response
 from onyx.utils.logger import setup_logger
+from onyx.server.manage.llm.models import LLMProviderView
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
+
+OPENAI_STANDARD_API_BASE = "https://api.openai.com/v1"
 
 
 class UploadLimitExceededError(ValueError):
@@ -308,11 +312,7 @@ class SessionManager:
         requested_provider_type: str | None,
         requested_model_name: str | None,
     ) -> LLMProviderConfig:
-        """Get LLM config for sandbox provisioning.
-
-        Resolution priority:
-        1. User's requested provider/model (from cookie)
-        2. System default provider
+        """Get OpenAI-only LLM config for sandbox provisioning.
 
         Args:
             requested_provider_type: Provider type from user's cookie (e.g., "anthropic", "openai")
@@ -324,40 +324,66 @@ class SessionManager:
         Raises:
             ValueError: If no LLM provider is configured
         """
-        if requested_provider_type and requested_model_name:
-            # Look up provider by type (e.g., "anthropic", "openai", "openrouter")
-            provider = fetch_llm_provider_by_type_for_build_mode(
-                self._db_session, requested_provider_type
+        if requested_provider_type and requested_provider_type != str(
+            LlmProviderNames.OPENAI
+        ):
+            logger.warning(
+                "Ignoring non-OpenAI build provider request '%s'; Build uses OpenAI only.",
+                requested_provider_type,
             )
-            if provider:
-                # Use the requested model directly - the provider's API will
-                # reject invalid models. This allows users to use models that
-                # aren't explicitly configured as "visible" in the admin UI.
-                return LLMProviderConfig(
-                    provider=provider.provider,
-                    model_name=requested_model_name,
-                    api_key=provider.api_key,
-                    api_base=provider.api_base,
-                )
-            else:
-                logger.warning(
-                    f"Requested provider type {requested_provider_type} not found, falling back to default"
-                )
 
-        # Fallback to system default
-        default_model = fetch_default_llm_model(self._db_session)
-        if not default_model:
-            raise ValueError("No default LLM model found")
+        openai_provider = fetch_llm_provider_by_type_for_build_mode(
+            self._db_session, str(LlmProviderNames.OPENAI)
+        )
+        if not openai_provider:
+            raise ValueError(
+                "Build requires an OpenAI provider. Configure OpenAI credentials in Admin > LLM Providers."
+            )
+        if not openai_provider.api_key:
+            raise ValueError(
+                "Build requires an OpenAI API key. Update the OpenAI provider in Admin > LLM Providers."
+            )
+
+        model_name = self._resolve_openai_model_name(
+            openai_provider=openai_provider,
+            requested_provider_type=requested_provider_type,
+            requested_model_name=requested_model_name,
+        )
 
         return LLMProviderConfig(
-            provider=default_model.llm_provider.provider,
-            model_name=default_model.name,
-            api_key=(
-                default_model.llm_provider.api_key.get_value(apply_mask=False)
-                if default_model.llm_provider.api_key
-                else None
-            ),
-            api_base=default_model.llm_provider.api_base,
+            provider=str(LlmProviderNames.OPENAI),
+            model_name=model_name,
+            api_key=openai_provider.api_key,
+            api_base=OPENAI_STANDARD_API_BASE,
+        )
+
+    def _resolve_openai_model_name(
+        self,
+        openai_provider: LLMProviderView,
+        requested_provider_type: str | None,
+        requested_model_name: str | None,
+    ) -> str:
+        if (
+            requested_provider_type in (None, str(LlmProviderNames.OPENAI))
+            and requested_model_name
+        ):
+            return requested_model_name
+
+        default_model = fetch_default_llm_model(self._db_session)
+        if default_model and default_model.llm_provider.provider == str(
+            LlmProviderNames.OPENAI
+        ):
+            return default_model.name
+
+        provider_models = openai_provider.model_configurations
+        visible_models = [model.name for model in provider_models if model.is_visible]
+        if visible_models:
+            return visible_models[0]
+        if provider_models:
+            return provider_models[0].name
+
+        raise ValueError(
+            "Build requires at least one OpenAI model configuration in Admin > LLM Providers."
         )
 
     # =========================================================================

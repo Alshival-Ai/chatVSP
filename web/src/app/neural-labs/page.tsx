@@ -54,7 +54,7 @@ type PreviewKind = "text" | "image" | "pdf" | "html" | null;
 type SplitMode = "none" | "vertical" | "horizontal";
 type FocusedPane = "primary" | "secondary";
 
-const API_PREFIX = "/api/codex-labs";
+const API_PREFIX = "/api/neural-labs";
 
 function getParentPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
@@ -307,7 +307,7 @@ function TerminalPane({
   );
 }
 
-export default function CodexLabsPage() {
+export default function NeuralLabsPage() {
   const { resolvedTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -385,7 +385,7 @@ export default function CodexLabsPage() {
         ]);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load Codex Labs");
+          setError(e instanceof Error ? e.message : "Failed to load Neural Labs");
         }
       } finally {
         if (!cancelled) {
@@ -584,7 +584,7 @@ export default function CodexLabsPage() {
           Back to Main Chat
         </a>
         <span>|</span>
-        <span className="font-medium text-text-01">Codex Labs</span>
+        <span className="font-medium text-text-01">Neural Labs</span>
       </div>
 
       <div className="rounded-16 border border-border-02 bg-background-100 shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
@@ -592,7 +592,7 @@ export default function CodexLabsPage() {
           <Content
             sizePreset="main-ui"
             variant="section"
-            title="Codex Labs"
+            title="Neural Labs"
             description={homeDir ? `Home: ${homeDir}` : "Preparing workspace"}
           />
 

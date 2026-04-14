@@ -59,3 +59,6 @@ node_modules
 
 # plans
 plans/
+
+# local temp imports
+temp/WardGPT-main.zip

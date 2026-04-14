@@ -1,6 +1,7 @@
 import asyncio
 import json
 import secrets
+from pathlib import Path
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -18,52 +19,55 @@ from onyx.auth.users import current_user
 from onyx.auth.users import current_user_from_websocket
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.models import User
-from onyx.server.features.build.configs import ENABLE_CODEX_LABS
+from onyx.server.features.build.configs import ENABLE_NEURAL_LABS
 from onyx.server.features.build.utils import sanitize_filename
-from onyx.server.features.codex_labs.manager import CodexLabsSessionManager
-from onyx.server.features.codex_labs.manager import get_codex_labs_manager
-from onyx.server.features.codex_labs.manager import Subscriber
-from onyx.server.features.codex_labs.models import CreateDirectoryRequest
-from onyx.server.features.codex_labs.models import DeletePathResponse
-from onyx.server.features.codex_labs.models import DirectoryResponse
-from onyx.server.features.codex_labs.models import FileEntry
-from onyx.server.features.codex_labs.models import MovePathRequest
-from onyx.server.features.codex_labs.models import PathResponse
-from onyx.server.features.codex_labs.models import RenamePathRequest
-from onyx.server.features.codex_labs.models import TerminalDescriptor
-from onyx.server.features.codex_labs.models import TerminalInputRequest
-from onyx.server.features.codex_labs.models import TerminalListResponse
-from onyx.server.features.codex_labs.models import TerminalResizeRequest
-from onyx.server.features.codex_labs.models import TerminalSessionResponse
-from onyx.server.features.codex_labs.models import TerminalStatusResponse
-from onyx.server.features.codex_labs.models import TerminalWebSocketTokenRequest
-from onyx.server.features.codex_labs.models import TerminalWebSocketTokenResponse
-from onyx.server.features.codex_labs.models import UpdateFileContentRequest
-from onyx.server.features.codex_labs.models import WarmupResponse
+from onyx.server.features.neural_labs.manager import NeuralLabsSessionManager
+from onyx.server.features.neural_labs.manager import get_neural_labs_manager
+from onyx.server.features.neural_labs.manager import Subscriber
+from onyx.server.features.neural_labs.models import CreateDirectoryRequest
+from onyx.server.features.neural_labs.models import DeletePathResponse
+from onyx.server.features.neural_labs.models import DirectoryResponse
+from onyx.server.features.neural_labs.models import FileEntry
+from onyx.server.features.neural_labs.models import MovePathRequest
+from onyx.server.features.neural_labs.models import PathResponse
+from onyx.server.features.neural_labs.models import RenamePathRequest
+from onyx.server.features.neural_labs.models import TerminalDescriptor
+from onyx.server.features.neural_labs.models import TerminalInputRequest
+from onyx.server.features.neural_labs.models import TerminalListResponse
+from onyx.server.features.neural_labs.models import TerminalResizeRequest
+from onyx.server.features.neural_labs.models import TerminalSessionResponse
+from onyx.server.features.neural_labs.models import TerminalStatusResponse
+from onyx.server.features.neural_labs.models import TerminalWebSocketTokenRequest
+from onyx.server.features.neural_labs.models import TerminalWebSocketTokenResponse
+from onyx.server.features.neural_labs.models import UpdateFileContentRequest
+from onyx.server.features.neural_labs.models import WarmupResponse
+from onyx.server.features.neural_labs.provisioning import provision_neural_labs_home
 from onyx.redis.redis_pool import store_ws_token
 from onyx.redis.redis_pool import WsTokenRateLimitExceeded
 from shared_configs.contextvars import get_current_tenant_id
 
 
-def require_codex_labs_enabled(user: User = Depends(current_user)) -> User:
-    if not ENABLE_CODEX_LABS or not user.enable_codex_labs:
-        raise HTTPException(status_code=403, detail="Codex Labs is not available")
+def require_neural_labs_enabled(user: User = Depends(current_user)) -> User:
+    if not ENABLE_NEURAL_LABS or not user.enable_neural_labs:
+        raise HTTPException(status_code=403, detail="Neural Labs is not available")
     return user
 
 
 router = APIRouter(
-    prefix="/codex-labs",
-    dependencies=[Depends(require_codex_labs_enabled)],
-    tags=["codex-labs"],
+    prefix="/neural-labs",
+    dependencies=[Depends(require_neural_labs_enabled)],
+    tags=["neural-labs"],
 )
-ws_router = APIRouter(prefix="/codex-labs")
+ws_router = APIRouter(prefix="/neural-labs")
 
 
-def _get_manager(db_session: Session) -> CodexLabsSessionManager:
-    return CodexLabsSessionManager(db_session)
+def _get_manager(db_session: Session) -> NeuralLabsSessionManager:
+    return NeuralLabsSessionManager(db_session)
 
 
-def _workspace_for_user(manager: CodexLabsSessionManager, user: User) -> tuple[str, object]:
+def _workspace_for_user(
+    manager: NeuralLabsSessionManager, user: User
+) -> tuple[str, Path]:
     session = manager.ensure_workspace_session(user)
     return get_current_tenant_id(), session.root
 
@@ -75,17 +79,21 @@ def warmup(
 ) -> WarmupResponse:
     manager = _get_manager(db_session)
     tenant_id, workspace_root = _workspace_for_user(manager, user)
-    terminal_id, _session = get_codex_labs_manager().ensure_default_session(
+    env_overrides = provision_neural_labs_home(
+        home_dir=workspace_root, db_session=db_session
+    )
+    terminal_id, _session = get_neural_labs_manager().ensure_default_session(
         tenant_id=tenant_id,
         user_id=user.id,
         home_dir=workspace_root,
+        env_overrides=env_overrides,
     )
     return WarmupResponse(home_dir=str(workspace_root), terminal_id=terminal_id)
 
 
 @router.get("/terminals", response_model=TerminalListResponse)
 def list_terminals(user: User = Depends(current_user)) -> TerminalListResponse:
-    manager = get_codex_labs_manager()
+    manager = get_neural_labs_manager()
     tenant_id = get_current_tenant_id()
     sessions = manager.list_sessions(tenant_id=tenant_id, user_id=user.id)
     return TerminalListResponse(
@@ -100,11 +108,15 @@ def create_terminal(
 ) -> TerminalDescriptor:
     manager = _get_manager(db_session)
     tenant_id, workspace_root = _workspace_for_user(manager, user)
+    env_overrides = provision_neural_labs_home(
+        home_dir=workspace_root, db_session=db_session
+    )
     try:
-        terminal_id, _session = get_codex_labs_manager().create_session(
+        terminal_id, _session = get_neural_labs_manager().create_session(
             tenant_id=tenant_id,
             user_id=user.id,
             home_dir=workspace_root,
+            env_overrides=env_overrides,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -117,7 +129,7 @@ def close_terminal_by_id(
     user: User = Depends(current_user),
 ) -> Response:
     tenant_id = get_current_tenant_id()
-    get_codex_labs_manager().close_session(
+    get_neural_labs_manager().close_session(
         tenant_id=tenant_id,
         user_id=user.id,
         terminal_id=terminal_id,
@@ -131,7 +143,7 @@ def get_terminal_status(
     user: User = Depends(current_user),
 ) -> TerminalStatusResponse:
     tenant_id = get_current_tenant_id()
-    session = get_codex_labs_manager().get_session(
+    session = get_neural_labs_manager().get_session(
         tenant_id=tenant_id,
         user_id=user.id,
         terminal_id=terminal_id,
@@ -157,7 +169,7 @@ async def create_terminal_ws_token(
 ) -> TerminalWebSocketTokenResponse:
     tenant_id = get_current_tenant_id()
     try:
-        terminal_ticket = get_codex_labs_manager().issue_ws_ticket(
+        terminal_ticket = get_neural_labs_manager().issue_ws_ticket(
             tenant_id=tenant_id,
             user_id=user.id,
             terminal_id=request.terminal_id,
@@ -177,7 +189,7 @@ async def create_terminal_ws_token(
     return TerminalWebSocketTokenResponse(
         token=terminal_ticket,
         ws_path=(
-            "/api/codex-labs/terminal/ws"
+            "/api/neural-labs/terminal/ws"
             f"?token={auth_token}&terminal_token={terminal_ticket}"
         ),
     )
@@ -212,7 +224,7 @@ async def stream_terminal_ws(
     terminal_token: str,
     _user: User = Depends(current_user_from_websocket),
 ) -> None:
-    manager = get_codex_labs_manager()
+    manager = get_neural_labs_manager()
     ticket = manager.consume_ws_ticket(terminal_token)
     if ticket is None:
         await websocket.close(code=4403, reason="Invalid terminal stream token")
@@ -296,7 +308,7 @@ def send_terminal_input(
         raise HTTPException(status_code=400, detail="Input payload too large")
 
     tenant_id = get_current_tenant_id()
-    session = get_codex_labs_manager().get_session(
+    session = get_neural_labs_manager().get_session(
         tenant_id=tenant_id,
         user_id=user.id,
         terminal_id=request.terminal_id,
@@ -313,7 +325,7 @@ def resize_terminal(
     user: User = Depends(current_user),
 ) -> Response:
     tenant_id = get_current_tenant_id()
-    session = get_codex_labs_manager().get_session(
+    session = get_neural_labs_manager().get_session(
         tenant_id=tenant_id,
         user_id=user.id,
         terminal_id=request.terminal_id,

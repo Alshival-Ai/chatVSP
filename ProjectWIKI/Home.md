@@ -21,24 +21,30 @@ This folder is the local copy of operational documentation for chatVSP.
 
 If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*` images. Build from this repository for `web_server` and backend services.
 
-## Codex Labs Status
+## Neural Labs Status
 
-- Codex Labs is being ported in as a contained feature, not a full WardGPT fork merge.
+- Neural Labs is being ported in as a contained feature, not a full WardGPT fork merge.
 - Current live slice includes:
-  - `enable_codex_labs` on users
+  - `enable_neural_labs` on users
   - admin toggle support
-  - gated `/codex-labs` route
-  - compose/runtime flag `ENABLE_CODEX_LABS`
+  - gated `/neural-labs` route
+  - compose/runtime flag `ENABLE_NEURAL_LABS`
   - per-user persistent workspace rooted under the shared `file-system` volume
   - backend workspace APIs for warmup, file listing, file read, upload, folder create, rename, move, text save, and delete
   - web UI for browsing folders and previewing common file types
   - live terminal UI with terminal creation, restart, close pane, and terminal navigator
   - split terminal workspace modes (vertical / horizontal)
-  - terminal websocket auth aligned for prod (`/api/codex-labs/terminal/ws?token=...&terminal_token=...`)
+  - terminal websocket auth aligned for prod (`/api/neural-labs/terminal/ws?token=...&terminal_token=...`)
+  - managed shell banner and login profile initialization
+  - per-user Codex config bootstrap at `~/.codex/config.toml`
+  - OpenAI-only Codex runtime config using credentials from Onyx LLM provider settings
+  - fixed OpenAI endpoint in Codex config (`https://api.openai.com/v1`)
 - Current deployment requirement:
-  - `ENABLE_CODEX_LABS=true` in `deployment/docker_compose/.env`
+  - `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users
 - Still pending:
   - richer multi-window previews
   - drag/drop move flows
-  - MCP/Codex provisioning layer
+  - optional UX enhancements for file previews
+
+Neural Labs deliberately does not provision custom MCP servers or custom skills in chatVSP.
