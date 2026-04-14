@@ -100,6 +100,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
 - managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
 - Codex bootstrap config written to `~/.codex/config.toml`
 - OpenAI Codex provider bootstrap using Onyx LLM provider credentials
+- Codex config uses custom provider ID `openai-custom` with OpenAI default base URL (`https://api.openai.com/v1`)
 - fixed Codex OpenAI endpoint (`https://api.openai.com/v1`)
 - MCP server configuration embedded in Codex config
 - MCP bearer token propagation into shell sessions:

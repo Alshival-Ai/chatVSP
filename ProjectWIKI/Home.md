@@ -41,7 +41,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - terminal websocket auth aligned for prod (`/api/neural-labs/terminal/ws?token=...&terminal_token=...`)
   - managed shell banner and login profile initialization
   - per-user Codex config bootstrap at `~/.codex/config.toml`
-  - OpenAI Codex runtime config using credentials from Onyx LLM provider settings
+  - OpenAI Codex runtime config using custom provider ID `openai-custom` (to avoid overriding reserved built-in IDs)
+  - API key sourced from Onyx provider settings and injected as `OPENAI_API_KEY`
   - fixed OpenAI endpoint in Codex config (`https://api.openai.com/v1`)
   - MCP server config bootstrap in Codex config with bearer-token env wiring
   - PAT fallback provisioning for MCP auth from Neural Labs shell sessions
