@@ -2281,7 +2281,7 @@ export default function NeuralLabsPage() {
                   disabled={!activePane}
                   onClick={() => void closeActivePane()}
                 >
-                  Close Pane
+                  {activeTab?.split_mode !== "none" ? "Close Group" : "Close Terminal"}
                 </Button>
                 <Button
                   tertiary
