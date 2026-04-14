@@ -271,16 +271,6 @@ async function getFetchErrorMessage(response: Response): Promise<string> {
   return `Request failed (${response.status})`;
 }
 
-function getSplitModeLabel(splitMode: SplitMode): string {
-  if (splitMode === "vertical") {
-    return "Vertical split";
-  }
-  if (splitMode === "horizontal") {
-    return "Horizontal split";
-  }
-  return "Single terminal";
-}
-
 function createTabFromTerminal(terminalId: string, existingTabs: TabState[]): TabState {
   const tabId = createLocalId();
   const paneId = createLocalId();
@@ -2247,20 +2237,34 @@ export default function NeuralLabsPage() {
             <div className="flex items-center justify-between p-2 border-b border-border-01 bg-background-neutral-01 gap-2">
               <div className="min-w-0">
                 <Text mainUiAction className="truncate">
-                  {activeTab?.title ?? "Terminals"}
+                  {activeTab
+                    ? activeTab.split_mode === "none"
+                      ? `Terminal ${
+                          layout?.tabs.findIndex((tab) => tab.tab_id === activeTab.tab_id)! + 1
+                        }`
+                      : `Group ${
+                          layout?.tabs.findIndex((tab) => tab.tab_id === activeTab.tab_id)! + 1
+                        }`
+                    : "Terminals"}
                 </Text>
                 {activeTab ? (
-                  activeTab.split_mode !== "none" ? (
+                  activeTab.split_mode !== "none" && activePane ? (
                     <Text text03 className="truncate text-xs">
-                      {`${getSplitModeLabel(activeTab.split_mode)}${
-                        activeTab.panes.length > 1 && activePane
-                          ? ` · Pane ${
-                              activeTab.panes.findIndex(
-                                (pane) => pane.pane_id === activePane.pane_id
-                              ) + 1
-                            } active`
-                          : ""
-                      }`}
+                      {`Pane ${
+                        activeTab.panes.findIndex(
+                          (pane) => pane.pane_id === activePane.pane_id
+                        ) + 1
+                      } · Terminal ${
+                        activeTab.panes.findIndex(
+                          (pane) => pane.pane_id === activePane.pane_id
+                        ) + 1
+                      } active`}
+                    </Text>
+                  ) : activeTab.split_mode === "none" ? (
+                    <Text text03 className="truncate text-xs">
+                      {`Terminal ${
+                        layout?.tabs.findIndex((tab) => tab.tab_id === activeTab.tab_id)! + 1
+                      } active`}
                     </Text>
                   ) : null
                 ) : (
