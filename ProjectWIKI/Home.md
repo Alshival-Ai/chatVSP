@@ -42,7 +42,10 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - multi-terminal tabs with split panes, consistent terminal/pane terminology, and navigator grouping that mirrors split orientation
     - file action icons now show explicit hover helper text for folder creation, upload, and refresh
     - terminal and group deletion now lives in the Terminal Navigator via trash actions instead of top-bar close controls
-    - Neural Apps currently includes a Text Editor for pasted text that can be saved directly into the workspace as a file
+    - Neural Apps currently includes:
+      - a Text Editor for pasted text that can be saved directly into the workspace as a file
+      - a lightweight Browser with a single address bar for embedded public `https://` sites
+    - Browser app uses an in-panel iframe with refresh and open-external actions; sites that block iframe embedding fall back to an inline blocked message instead of tabs or full browser chrome
     - floating preview windows (snap/drag/resize) for text, image, PDF, HTML, KMZ, and XLSX
     - HTML preview iframe now allows scripts and same-origin access so generated graph outputs can render instead of falling back to a blank/non-interactive frame
     - terminal refresh/focus flow now reconciles saved layout against live backend sessions to reduce stale pane or ghost-terminal behavior after reload
