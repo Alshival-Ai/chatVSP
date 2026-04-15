@@ -863,12 +863,7 @@ function NeuralAppsPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col border-t border-border-01 bg-background-neutral-01">
       <div className="flex items-center justify-between gap-2 border-b border-border-01 px-3 py-2">
-        <div className="min-w-0">
-          <Text mainUiAction>Neural Apps</Text>
-          <Text text03 className="truncate text-xs">
-            Open an app in a floating window
-          </Text>
-        </div>
+        <Text mainUiAction>Neural Apps</Text>
       </div>
 
       <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-2">
@@ -878,19 +873,8 @@ function NeuralAppsPanel({
           onClick={onActivateTextEditor}
         >
           <SvgFileText className="h-4 w-4 shrink-0 stroke-text-03" />
-          <div className="min-w-0">
-            <Text className="truncate">Text Editor</Text>
-            <Text text03 className="truncate text-xs">
-              Open the editor in a popup window
-            </Text>
-          </div>
+          <Text className="truncate">Text Editor</Text>
         </button>
-
-        <div className="mt-3 rounded-12 border border-dashed border-border-01 bg-background-neutral-02 px-4 py-6 text-center">
-          <Text text03>
-            Apps open in popup windows over the workspace.
-          </Text>
-        </div>
       </div>
     </div>
   );
