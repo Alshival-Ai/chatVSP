@@ -28,13 +28,13 @@ import {
   SvgArrowLeft,
   SvgChevronLeft,
   SvgChevronRight,
+  SvgFileText,
   SvgFolder,
   SvgFolderPlus,
   SvgRefreshCw,
   SvgTerminal,
   SvgTrash,
   SvgUploadCloud,
-  SvgX,
 } from "@opal/icons";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -107,6 +107,8 @@ interface TerminalPaneProps {
   isActive: boolean;
   onFocus: () => void;
 }
+
+type NeuralAppId = "text-editor";
 
 function IconActionButton({
   label,
@@ -205,6 +207,28 @@ function getParentPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
   parts.pop();
   return parts.join("/");
+}
+
+function getAncestorPaths(path: string): string[] {
+  const parts = path.split("/").filter(Boolean);
+  const ancestors: string[] = [];
+  for (let index = 1; index <= parts.length; index += 1) {
+    ancestors.push(parts.slice(0, index).join("/"));
+  }
+  return ancestors;
+}
+
+function resolveEditorSavePath(input: string, currentDirectory: string): string {
+  const trimmedInput = input.trim().replace(/^\/+/, "");
+  if (!trimmedInput) {
+    throw new Error("File name cannot be empty");
+  }
+
+  if (currentDirectory && !trimmedInput.includes("/")) {
+    return `${currentDirectory}/${trimmedInput}`;
+  }
+
+  return trimmedInput;
 }
 
 function getPreviewKind(entry: NeuralLabsFileEntry): PreviewKind | null {
@@ -843,6 +867,114 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
   );
 }
 
+function NeuralAppsPanel({
+  currentDirectory,
+  activeApp,
+  textEditorValue,
+  isSaving,
+  statusMessage,
+  onActivateTextEditor,
+  onChangeTextEditorValue,
+  onClearTextEditor,
+  onSaveTextEditor,
+}: {
+  currentDirectory: string;
+  activeApp: NeuralAppId | null;
+  textEditorValue: string;
+  isSaving: boolean;
+  statusMessage: string | null;
+  onActivateTextEditor: () => void;
+  onChangeTextEditorValue: (value: string) => void;
+  onClearTextEditor: () => void;
+  onSaveTextEditor: () => void;
+}) {
+  const hasContent = textEditorValue.trim().length > 0;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col border-t border-border-01 bg-background-neutral-01">
+      <div className="flex items-center justify-between gap-2 border-b border-border-01 px-3 py-2">
+        <div className="min-w-0">
+          <Text mainUiAction>Neural Apps</Text>
+          <Text text03 className="truncate text-xs">
+            Open an app to create or edit content
+          </Text>
+        </div>
+      </div>
+
+      <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-2">
+        <button
+          type="button"
+          className={`flex w-full items-center gap-2 rounded-10 border px-3 py-2 text-left transition-colors ${
+            activeApp === "text-editor"
+              ? "border-border-04 bg-background-tint-03/60"
+              : "border-border-01 bg-background-neutral-02 hover:bg-background-neutral-00"
+          }`}
+          onClick={onActivateTextEditor}
+        >
+          <SvgFileText className="h-4 w-4 shrink-0 stroke-text-03" />
+          <div className="min-w-0">
+            <Text className="truncate">Text Editor</Text>
+            <Text text03 className="truncate text-xs">
+              Paste text and save it to a file
+            </Text>
+          </div>
+        </button>
+
+        {activeApp === "text-editor" ? (
+          <div className="mt-3 flex min-h-[18rem] flex-col rounded-12 border border-border-01 bg-background-neutral-00">
+            <div className="flex items-center justify-between gap-2 border-b border-border-01 px-3 py-2">
+              <div className="min-w-0">
+                <Text className="truncate">Text Editor</Text>
+                <Text text03 className="truncate text-xs">
+                  {`Saving to: ${currentDirectory ? `~/${currentDirectory}` : "~"}`}
+                </Text>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  tertiary
+                  size="md"
+                  disabled={!hasContent || isSaving}
+                  onClick={onClearTextEditor}
+                >
+                  Clear
+                </Button>
+                <Button
+                  tertiary
+                  size="md"
+                  disabled={!hasContent || isSaving}
+                  onClick={onSaveTextEditor}
+                >
+                  Save to File
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-b border-border-01 px-3 py-1.5">
+              <Text text03 className="truncate text-xs">
+                {statusMessage ?? (hasContent ? "Unsaved changes" : "Ready")}
+              </Text>
+            </div>
+
+            <textarea
+              spellCheck={false}
+              value={textEditorValue}
+              onChange={(event) => onChangeTextEditorValue(event.target.value)}
+              placeholder="Paste or type text here..."
+              className="min-h-0 flex-1 resize-none border-0 bg-background-neutral-00 px-3 py-3 font-mono text-sm leading-5 text-text-00 outline-none"
+            />
+          </div>
+        ) : (
+          <div className="mt-3 rounded-12 border border-dashed border-border-01 bg-background-neutral-02 px-4 py-6 text-center">
+            <Text text03>
+              Open the Text Editor to draft content and save it as a file.
+            </Text>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function NeuralLabsPage() {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState("");
@@ -861,6 +993,10 @@ export default function NeuralLabsPage() {
   const [isResizingNavigator, setIsResizingNavigator] = useState(false);
   const [isNavigatorCollapsed, setIsNavigatorCollapsed] = useState(false);
   const [isTerminalNavigatorCollapsed, setIsTerminalNavigatorCollapsed] = useState(false);
+  const [activeNeuralApp, setActiveNeuralApp] = useState<NeuralAppId | null>(null);
+  const [textEditorValue, setTextEditorValue] = useState("");
+  const [textEditorStatusMessage, setTextEditorStatusMessage] = useState<string | null>(null);
+  const [isSavingTextEditor, setIsSavingTextEditor] = useState(false);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
   const fileUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -1091,6 +1227,68 @@ export default function NeuralLabsPage() {
         })
     );
   }, [currentPath, expandedPaths, loadDirectory]);
+
+  const openTextEditorApp = useCallback(() => {
+    if (isDesktopLayout && isNavigatorCollapsed) {
+      setIsNavigatorCollapsed(false);
+    }
+    setActiveNeuralApp("text-editor");
+    setTextEditorStatusMessage((previousStatus) => previousStatus ?? "Ready");
+  }, [isDesktopLayout, isNavigatorCollapsed]);
+
+  const saveTextEditorToFile = useCallback(async () => {
+    const promptDefault = currentPath ? `${currentPath}/untitled.txt` : "untitled.txt";
+    const targetInput = window.prompt("Save text as:", promptDefault);
+    if (targetInput === null) {
+      return;
+    }
+
+    let targetPath = "";
+    try {
+      targetPath = resolveEditorSavePath(targetInput, currentPath);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Invalid file name");
+      return;
+    }
+
+    setIsSavingTextEditor(true);
+    setTextEditorStatusMessage("Saving...");
+
+    try {
+      const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/content`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: targetPath,
+          content: textEditorValue,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await getFetchErrorMessage(response));
+      }
+
+      const parentPath = getParentPath(targetPath);
+      const expandedAncestors = parentPath ? getAncestorPaths(parentPath) : [];
+
+      setExpandedPaths((previousPaths) => {
+        const nextPaths = new Set(previousPaths);
+        expandedAncestors.forEach((path) => nextPaths.add(path));
+        return Array.from(nextPaths);
+      });
+      setCurrentPath(parentPath);
+      setSelectedPath(targetPath);
+      setTextEditorStatusMessage("Saved");
+      await refreshDirectory();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to save text file";
+      setTextEditorStatusMessage(message);
+      toast.error(message);
+    } finally {
+      setIsSavingTextEditor(false);
+    }
+  }, [currentPath, refreshDirectory, textEditorValue]);
 
   const navigateUp = useCallback(async () => {
     if (!currentPath) {
@@ -2182,24 +2380,46 @@ export default function NeuralLabsPage() {
               onChange={uploadFile}
             />
 
-            <div className="min-h-0 flex-1 overflow-auto p-1.5">
-              <NeuralLabsFileTree
-                entriesByPath={treeEntries}
-                expandedPaths={expandedPaths}
-                loadingPaths={loadingPaths}
-                selectedPath={selectedPath}
-                onSelectEntry={selectEntry}
-                onToggleDirectory={toggleDirectory}
-                onActivateEntry={activateTreeEntry}
-                onPreviewEntry={openPreview}
-                onDownloadEntry={downloadFile}
-                onCopyPath={copyPath}
-                onRenameEntry={renamePath}
-                onDeleteEntry={deletePath}
-                onMoveEntry={moveEntry}
-                onUploadFiles={uploadFilesToPath}
-                canPreviewEntry={isPreviewable}
-              />
+            <div className="min-h-0 flex flex-1 flex-col">
+              <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-1.5">
+                <NeuralLabsFileTree
+                  entriesByPath={treeEntries}
+                  expandedPaths={expandedPaths}
+                  loadingPaths={loadingPaths}
+                  selectedPath={selectedPath}
+                  onSelectEntry={selectEntry}
+                  onToggleDirectory={toggleDirectory}
+                  onActivateEntry={activateTreeEntry}
+                  onPreviewEntry={openPreview}
+                  onDownloadEntry={downloadFile}
+                  onCopyPath={copyPath}
+                  onRenameEntry={renamePath}
+                  onDeleteEntry={deletePath}
+                  onMoveEntry={moveEntry}
+                  onUploadFiles={uploadFilesToPath}
+                  canPreviewEntry={isPreviewable}
+                />
+              </div>
+
+              <div className="min-h-[18rem]">
+                <NeuralAppsPanel
+                  currentDirectory={currentPath}
+                  activeApp={activeNeuralApp}
+                  textEditorValue={textEditorValue}
+                  isSaving={isSavingTextEditor}
+                  statusMessage={textEditorStatusMessage}
+                  onActivateTextEditor={openTextEditorApp}
+                  onChangeTextEditorValue={(value) => {
+                    setTextEditorValue(value);
+                    setTextEditorStatusMessage(value.trim() ? "Unsaved changes" : "Ready");
+                  }}
+                  onClearTextEditor={() => {
+                    setTextEditorValue("");
+                    setTextEditorStatusMessage("Ready");
+                  }}
+                  onSaveTextEditor={() => void saveTextEditorToFile()}
+                />
+              </div>
             </div>
             </aside>
           ) : isDesktopLayout ? (
@@ -2254,6 +2474,17 @@ export default function NeuralLabsPage() {
                   title="Refresh files"
                   aria-label="Refresh files"
                   onClick={() => void refreshDirectory()}
+                />
+              </IconActionButton>
+              <div className="h-px w-6 bg-border-01" />
+              <IconActionButton label="Text Editor">
+                <Button
+                  tertiary
+                  size="md"
+                  leftIcon={SvgFileText}
+                  title="Text Editor"
+                  aria-label="Text Editor"
+                  onClick={openTextEditorApp}
                 />
               </IconActionButton>
             </aside>

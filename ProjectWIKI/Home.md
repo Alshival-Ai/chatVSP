@@ -38,9 +38,11 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - modular web UI with:
     - tree-based file navigator (expand/collapse, context menu, drag/drop move, hidden file toggle)
     - independently collapsible file navigator and terminal navigator with thin icon rails when collapsed
+    - left sidebar now stacks `File Navigator` over `Neural Apps`; when collapsed, Neural Apps surface as rail icons
     - multi-terminal tabs with split panes, consistent terminal/pane terminology, and navigator grouping that mirrors split orientation
     - file action icons now show explicit hover helper text for folder creation, upload, and refresh
     - terminal and group deletion now lives in the Terminal Navigator via trash actions instead of top-bar close controls
+    - Neural Apps currently includes a Text Editor for pasted text that can be saved directly into the workspace as a file
     - floating preview windows (snap/drag/resize) for text, image, PDF, HTML, KMZ, and XLSX
     - HTML preview iframe now allows scripts and same-origin access so generated graph outputs can render instead of falling back to a blank/non-interactive frame
     - terminal refresh/focus flow now reconciles saved layout against live backend sessions to reduce stale pane or ghost-terminal behavior after reload
