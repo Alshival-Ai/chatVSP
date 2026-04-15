@@ -2516,10 +2516,58 @@ export default function NeuralLabsPage() {
                     <div className="flex flex-col gap-2">
                       {(layout?.tabs ?? []).map((tab, tabIndex) => {
                         const isActiveTab = layout?.active_tab_id === tab.tab_id;
+                        const isGroupedTab = tab.panes.length > 1;
                         const paneLayoutClass =
                           tab.split_mode === "horizontal"
                             ? "grid grid-cols-2"
                             : "flex flex-col";
+
+                        if (!isGroupedTab) {
+                          const pane = tab.panes[0]!;
+                          const isActivePane =
+                            isActiveTab && tab.active_pane_id === pane.pane_id;
+
+                          return (
+                            <div
+                              key={tab.tab_id}
+                              className={`rounded-12 border ${
+                                isActivePane
+                                  ? "border-border-04 bg-background-tint-03/60"
+                                  : "border-border-01 bg-background-neutral-02"
+                              }`}
+                            >
+                              <div className="flex min-w-0 items-center gap-1 p-1.5">
+                                <button
+                                  type="button"
+                                  className="flex min-w-0 flex-1 items-center gap-2 rounded-10 px-2 py-1.5 text-left hover:bg-background-neutral-01/70"
+                                  onClick={() => {
+                                    setActiveTab(tab.tab_id);
+                                    setActivePane(tab.tab_id, pane.pane_id);
+                                  }}
+                                >
+                                  <span
+                                    className={`h-2 w-2 shrink-0 rounded-full ${
+                                      isActivePane ? "bg-green-500" : "bg-border-03"
+                                    }`}
+                                  />
+                                  <Text className="min-w-0 truncate">
+                                    Terminal {tabIndex + 1}
+                                  </Text>
+                                </button>
+                                <IconActionButton label="Delete terminal">
+                                  <button
+                                    type="button"
+                                    className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
+                                    aria-label="Delete terminal"
+                                    onClick={() => void closePaneById(tab.tab_id, pane.pane_id)}
+                                  >
+                                    <SvgTrash className="h-4 w-4 stroke-red-500" />
+                                  </button>
+                                </IconActionButton>
+                              </div>
+                            </div>
+                          );
+                        }
 
                         return (
                           <div
@@ -2540,13 +2588,14 @@ export default function NeuralLabsPage() {
                                 <Text className="truncate">Group {tabIndex + 1}</Text>
                               </button>
                               <IconActionButton label="Delete group">
-                                <Button
-                                  tertiary
-                                  size="md"
-                                  leftIcon={SvgTrash}
+                                <button
+                                  type="button"
+                                  className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
                                   aria-label="Delete group"
                                   onClick={() => void closeTabById(tab.tab_id)}
-                                />
+                                >
+                                  <SvgTrash className="h-4 w-4 stroke-red-500" />
+                                </button>
                               </IconActionButton>
                             </div>
                             <div className={`gap-1 p-1.5 ${paneLayoutClass}`}>
@@ -2582,13 +2631,14 @@ export default function NeuralLabsPage() {
                                       </Text>
                                     </button>
                                     <IconActionButton label="Delete terminal">
-                                      <Button
-                                        tertiary
-                                        size="md"
-                                        leftIcon={SvgTrash}
+                                      <button
+                                        type="button"
+                                        className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
                                         aria-label="Delete terminal"
                                         onClick={() => void closePaneById(tab.tab_id, pane.pane_id)}
-                                      />
+                                      >
+                                        <SvgTrash className="h-4 w-4 stroke-text-03" />
+                                      </button>
                                     </IconActionButton>
                                   </div>
                                 );

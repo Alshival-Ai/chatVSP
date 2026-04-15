@@ -96,9 +96,10 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - tree navigator with context actions and drag/drop move
   - left sidebar splits into File Navigator + Neural Apps, with app icons available in the collapsed rail
   - split terminal tabs/panes
+  - Terminal Navigator shows a single terminal as `Terminal 1` without a group wrapper; group cards only render when a tab contains multiple panes
   - file action icons expose hover helper text for create/upload/refresh
   - Neural Labs hover helper text now uses the themed white tooltip only; native browser duplicate tooltips are removed and tooltip positioning is clamped within the viewport above floating windows
-  - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls
+  - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls; standalone terminal and group delete actions are red while in-group terminal delete actions stay neutral
   - Neural Apps includes a Text Editor that opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API; the launcher shows icon+name in the expanded sidebar and icon-only in the collapsed rail
   - floating preview windows with snap/resize for text, image, PDF, HTML, KMZ, and XLSX
   - HTML previews allow scripts and same-origin access so self-contained generated graph pages can render
