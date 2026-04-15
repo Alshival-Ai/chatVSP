@@ -96,7 +96,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - tree navigator with context actions and drag/drop move
   - split terminal tabs/panes
   - floating preview windows with snap/resize for text, image, PDF, HTML, KMZ, and XLSX
-  - HTML previews allow scripts so self-contained generated graph pages can render
+  - HTML previews allow scripts and same-origin access so self-contained generated graph pages can render
   - refresh/focus restores terminal layout by reconciling browser-saved tabs with live backend terminal IDs to reduce stale or ghost panes after reload
 - websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
 - managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner

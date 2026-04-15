@@ -1041,7 +1041,7 @@ function WindowContent({
       <iframe
         title={windowState.name}
         src={contentUrl}
-        sandbox="allow-scripts"
+        sandbox="allow-same-origin allow-scripts"
         className="h-full w-full bg-white"
         onError={() => setHasError(true)}
       />
