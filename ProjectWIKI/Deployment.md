@@ -95,6 +95,8 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
 - browser UI for:
   - tree navigator with context actions and drag/drop move
   - split terminal tabs/panes
+  - file action icons expose hover helper text for create/upload/refresh
+  - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls
   - floating preview windows with snap/resize for text, image, PDF, HTML, KMZ, and XLSX
   - HTML previews allow scripts and same-origin access so self-contained generated graph pages can render
   - refresh/focus restores terminal layout by reconciling browser-saved tabs with live backend terminal IDs to reduce stale or ghost panes after reload

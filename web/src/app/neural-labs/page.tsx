@@ -10,6 +10,7 @@ import {
   useState,
   type ChangeEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/refresh-components/buttons/Button";
@@ -31,6 +32,7 @@ import {
   SvgFolderPlus,
   SvgRefreshCw,
   SvgTerminal,
+  SvgTrash,
   SvgUploadCloud,
   SvgX,
 } from "@opal/icons";
@@ -104,6 +106,25 @@ interface TerminalPaneProps {
   terminalId: string;
   isActive: boolean;
   onFocus: () => void;
+}
+
+function IconActionButton({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="group relative flex">
+      {children}
+      <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 rounded-08 border border-border-01 bg-background-neutral-00 px-2 py-1 opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+        <Text text03 className="whitespace-nowrap text-xs">
+          {label}
+        </Text>
+      </div>
+    </div>
+  );
 }
 
 const NEURAL_LABS_API_PREFIX = "/api/neural-labs";
@@ -1759,82 +1780,42 @@ export default function NeuralLabsPage() {
     [createTerminal, deleteTerminal]
   );
 
-  const closeActivePane = useCallback(async () => {
-    const current = layoutRef.current;
-    if (!current) {
-      return;
-    }
-
-    const tab = current.tabs.find((candidate) => candidate.tab_id === current.active_tab_id);
-    if (!tab) {
-      return;
-    }
-
-    const pane = tab.panes.find((candidate) => candidate.pane_id === tab.active_pane_id);
-    if (!pane) {
-      return;
-    }
-
-    try {
-      await deleteTerminal(pane.terminal_id);
-    } catch (error) {
-      toast.error(
-        `Failed closing terminal pane: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-      return;
-    }
-
-    if (tab.panes.length === 1) {
-      await closeTabById(tab.tab_id);
-      return;
-    }
-
-    const remainingPanes = tab.panes.filter((candidate) => candidate.pane_id !== pane.pane_id);
-    const activePaneId = remainingPanes[0]!.pane_id;
-
-    setLayout((prev) => {
-      if (!prev) {
-        return prev;
+  const closePaneById = useCallback(
+    async (tabId: string, paneId: string) => {
+      const current = layoutRef.current;
+      if (!current) {
+        return;
       }
 
-      return {
-        ...prev,
-        tabs: prev.tabs.map((candidate) => {
-          if (candidate.tab_id !== tab.tab_id) {
-            return candidate;
-          }
-          return {
-            ...candidate,
-            split_mode: "none",
-            panes: remainingPanes,
-            active_pane_id: activePaneId,
-          };
-        }),
-      };
-    });
-  }, [closeTabById, deleteTerminal]);
+      const tab = current.tabs.find((candidate) => candidate.tab_id === tabId);
+      if (!tab) {
+        return;
+      }
 
-  const restartActivePane = useCallback(async () => {
-    const current = layoutRef.current;
-    if (!current) {
-      return;
-    }
+      const pane = tab.panes.find((candidate) => candidate.pane_id === paneId);
+      if (!pane) {
+        return;
+      }
 
-    const tab = current.tabs.find((candidate) => candidate.tab_id === current.active_tab_id);
-    if (!tab) {
-      return;
-    }
+      try {
+        await deleteTerminal(pane.terminal_id);
+      } catch (error) {
+        toast.error(
+          `Failed closing terminal pane: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+        return;
+      }
 
-    const pane = tab.panes.find((candidate) => candidate.pane_id === tab.active_pane_id);
-    if (!pane) {
-      return;
-    }
+      if (tab.panes.length === 1) {
+        await closeTabById(tab.tab_id);
+        return;
+      }
 
-    try {
-      const newTerminalId = await createTerminal();
-      await deleteTerminal(pane.terminal_id);
+      const remainingPanes = tab.panes.filter((candidate) => candidate.pane_id !== pane.pane_id);
+      const activePaneId =
+        tab.active_pane_id === pane.pane_id ? remainingPanes[0]!.pane_id : tab.active_pane_id;
 
       setLayout((prev) => {
         if (!prev) {
@@ -1843,30 +1824,22 @@ export default function NeuralLabsPage() {
 
         return {
           ...prev,
-          tabs: prev.tabs.map((candidateTab) => {
-            if (candidateTab.tab_id !== tab.tab_id) {
-              return candidateTab;
+          tabs: prev.tabs.map((candidate) => {
+            if (candidate.tab_id !== tab.tab_id) {
+              return candidate;
             }
-
             return {
-              ...candidateTab,
-              panes: candidateTab.panes.map((candidatePane) =>
-                candidatePane.pane_id === pane.pane_id
-                  ? { ...candidatePane, terminal_id: newTerminalId }
-                  : candidatePane
-              ),
+              ...candidate,
+              split_mode: remainingPanes.length === 1 ? "none" : candidate.split_mode,
+              panes: remainingPanes,
+              active_pane_id: activePaneId,
             };
           }),
         };
       });
-    } catch (error) {
-      toast.error(
-        `Failed restarting terminal pane: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    }
-  }, [createTerminal, deleteTerminal]);
+    },
+    [closeTabById, deleteTerminal]
+  );
 
   useEffect(() => {
     let isCancelled = false;
@@ -2116,15 +2089,6 @@ export default function NeuralLabsPage() {
             >
               Split Horizontal
             </Button>
-            <Button
-              tertiary
-              size="md"
-              disabled={!activePane}
-              leftIcon={SvgRefreshCw}
-              onClick={() => void restartActivePane()}
-            >
-              Restart Pane
-            </Button>
           </div>
         </div>
 
@@ -2176,30 +2140,36 @@ export default function NeuralLabsPage() {
                   Up
                 </Button>
                 <div className="flex items-center gap-1.5">
-                  <Button
-                    tertiary
-                    size="md"
-                    leftIcon={SvgFolderPlus}
-                    title="New folder"
-                    aria-label="New folder"
-                    onClick={() => void createFolder()}
-                  />
-                  <Button
-                    tertiary
-                    size="md"
-                    leftIcon={SvgUploadCloud}
-                    title="Upload files"
-                    aria-label="Upload files"
-                    onClick={triggerUpload}
-                  />
-                  <Button
-                    tertiary
-                    size="md"
-                    leftIcon={SvgRefreshCw}
-                    title="Refresh directory"
-                    aria-label="Refresh directory"
-                    onClick={() => void refreshDirectory()}
-                  />
+                  <IconActionButton label="New folder">
+                    <Button
+                      tertiary
+                      size="md"
+                      leftIcon={SvgFolderPlus}
+                      title="New folder"
+                      aria-label="New folder"
+                      onClick={() => void createFolder()}
+                    />
+                  </IconActionButton>
+                  <IconActionButton label="Upload files">
+                    <Button
+                      tertiary
+                      size="md"
+                      leftIcon={SvgUploadCloud}
+                      title="Upload files"
+                      aria-label="Upload files"
+                      onClick={triggerUpload}
+                    />
+                  </IconActionButton>
+                  <IconActionButton label="Refresh files">
+                    <Button
+                      tertiary
+                      size="md"
+                      leftIcon={SvgRefreshCw}
+                      title="Refresh files"
+                      aria-label="Refresh files"
+                      onClick={() => void refreshDirectory()}
+                    />
+                  </IconActionButton>
                 </div>
               </div>
             </div>
@@ -2256,30 +2226,36 @@ export default function NeuralLabsPage() {
                 disabled={!currentPath}
                 onClick={() => void navigateUp()}
               />
-              <Button
-                tertiary
-                size="md"
-                leftIcon={SvgFolderPlus}
-                title="New folder"
-                aria-label="New folder"
-                onClick={() => void createFolder()}
-              />
-              <Button
-                tertiary
-                size="md"
-                leftIcon={SvgUploadCloud}
-                title="Upload files"
-                aria-label="Upload files"
-                onClick={triggerUpload}
-              />
-              <Button
-                tertiary
-                size="md"
-                leftIcon={SvgRefreshCw}
-                title="Refresh directory"
-                aria-label="Refresh directory"
-                onClick={() => void refreshDirectory()}
-              />
+              <IconActionButton label="New folder">
+                <Button
+                  tertiary
+                  size="md"
+                  leftIcon={SvgFolderPlus}
+                  title="New folder"
+                  aria-label="New folder"
+                  onClick={() => void createFolder()}
+                />
+              </IconActionButton>
+              <IconActionButton label="Upload files">
+                <Button
+                  tertiary
+                  size="md"
+                  leftIcon={SvgUploadCloud}
+                  title="Upload files"
+                  aria-label="Upload files"
+                  onClick={triggerUpload}
+                />
+              </IconActionButton>
+              <IconActionButton label="Refresh files">
+                <Button
+                  tertiary
+                  size="md"
+                  leftIcon={SvgRefreshCw}
+                  title="Refresh files"
+                  aria-label="Refresh files"
+                  onClick={() => void refreshDirectory()}
+                />
+              </IconActionButton>
             </aside>
           ) : null}
 
@@ -2344,24 +2320,6 @@ export default function NeuralLabsPage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Button
-                  tertiary
-                  size="md"
-                  disabled={!activePane}
-                  onClick={() => void closeActivePane()}
-                >
-                  {activeTab?.split_mode !== "none" ? "Close Group" : "Close Terminal"}
-                </Button>
-                <Button
-                  tertiary
-                  size="md"
-                  disabled={!activeTab}
-                  onClick={() => activeTab && void closeTabById(activeTab.tab_id)}
-                >
-                  Close Terminal
-                </Button>
-              </div>
             </div>
 
             <div className="min-h-0 flex flex-1">
@@ -2464,43 +2422,69 @@ export default function NeuralLabsPage() {
                                 : "border-border-01 bg-background-neutral-02"
                             }`}
                           >
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-2 border-b border-border-01 px-3 py-2 text-left hover:bg-background-neutral-01/70"
-                              onClick={() => setActiveTab(tab.tab_id)}
-                            >
-                              <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
-                              <Text className="truncate">Group {tabIndex + 1}</Text>
-                            </button>
+                            <div className="flex items-center gap-1 border-b border-border-01 px-1.5 py-1">
+                              <button
+                                type="button"
+                                className="flex min-w-0 flex-1 items-center gap-2 rounded-08 px-1.5 py-1 text-left hover:bg-background-neutral-01/70"
+                                onClick={() => setActiveTab(tab.tab_id)}
+                              >
+                                <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
+                                <Text className="truncate">Group {tabIndex + 1}</Text>
+                              </button>
+                              <IconActionButton label="Delete group">
+                                <Button
+                                  tertiary
+                                  size="md"
+                                  leftIcon={SvgTrash}
+                                  title="Delete group"
+                                  aria-label="Delete group"
+                                  onClick={() => void closeTabById(tab.tab_id)}
+                                />
+                              </IconActionButton>
+                            </div>
                             <div className={`gap-1 p-1.5 ${paneLayoutClass}`}>
                               {tab.panes.map((pane, paneIndex) => {
                                 const isActivePane =
                                   isActiveTab && tab.active_pane_id === pane.pane_id;
 
                                 return (
-                                  <button
+                                  <div
                                     key={pane.pane_id}
-                                    type="button"
-                                    className={`flex min-w-0 items-center gap-2 rounded-10 px-2 py-1.5 text-left ${
+                                    className={`flex min-w-0 items-center gap-1 rounded-10 ${
                                       isActivePane
                                         ? "bg-background-neutral-00 ring-1 ring-border-04"
                                         : "hover:bg-background-neutral-01"
-                                    } ${
-                                      tab.split_mode === "horizontal"
-                                        ? "justify-center"
-                                        : "w-full"
                                     }`}
-                                    onClick={() => setActivePane(tab.tab_id, pane.pane_id)}
                                   >
-                                    <span
-                                      className={`h-2 w-2 shrink-0 rounded-full ${
-                                        isActivePane ? "bg-green-500" : "bg-border-03"
+                                    <button
+                                      type="button"
+                                      className={`flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left ${
+                                        tab.split_mode === "horizontal"
+                                          ? "justify-center"
+                                          : "w-full"
                                       }`}
-                                    />
-                                    <Text className="min-w-0 truncate">
-                                      Terminal {paneIndex + 1}
-                                    </Text>
-                                  </button>
+                                      onClick={() => setActivePane(tab.tab_id, pane.pane_id)}
+                                    >
+                                      <span
+                                        className={`h-2 w-2 shrink-0 rounded-full ${
+                                          isActivePane ? "bg-green-500" : "bg-border-03"
+                                        }`}
+                                      />
+                                      <Text className="min-w-0 truncate">
+                                        Terminal {paneIndex + 1}
+                                      </Text>
+                                    </button>
+                                    <IconActionButton label="Delete terminal">
+                                      <Button
+                                        tertiary
+                                        size="md"
+                                        leftIcon={SvgTrash}
+                                        title="Delete terminal"
+                                        aria-label="Delete terminal"
+                                        onClick={() => void closePaneById(tab.tab_id, pane.pane_id)}
+                                      />
+                                    </IconActionButton>
+                                  </div>
                                 );
                               })}
                             </div>
