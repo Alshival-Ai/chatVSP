@@ -2,21 +2,20 @@
 
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import dynamic from "next/dynamic";
 import JSZip from "jszip";
-import L from "leaflet";
 import { kml as kmlToGeoJson } from "@tmcw/togeojson";
-import { GeoJSON as LeafletGeoJSONLayer, MapContainer, TileLayer } from "react-leaflet";
 import Text from "@/refresh-components/texts/Text";
 import { SvgFileText, SvgImage, SvgRefreshCw, SvgX } from "@opal/icons";
 import { PreviewWindowState, type PreviewSnapZone } from "@/app/neural-labs/types";
 import type { GeoJsonObject } from "geojson";
-import type { LatLng } from "leaflet";
 
 interface WorkspaceBounds {
   width: number;
@@ -71,6 +70,9 @@ const MIN_WINDOW_WIDTH = 280;
 const MIN_WINDOW_HEIGHT = 220;
 const MAX_XLSX_PREVIEW_ROWS = 200;
 const MAX_XLSX_PREVIEW_COLUMNS = 40;
+const NeuralLabsKmzMap = dynamic(() => import("./NeuralLabsKmzMap"), {
+  ssr: false,
+});
 
 interface XlsxSheetPreview {
   name: string;
@@ -703,13 +705,7 @@ function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
     };
   }, [contentUrl, windowState.name]);
 
-  const bounds = useMemo(() => {
-    if (!geoJson) {
-      return null;
-    }
-    const calculated = L.geoJSON(geoJson).getBounds();
-    return calculated.isValid() ? calculated : null;
-  }, [geoJson]);
+  const deferredGeoJson = useDeferredValue(geoJson);
 
   return (
     <div className="flex h-full w-full flex-col bg-background-neutral-00">
@@ -736,40 +732,12 @@ function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
           <div className="flex h-full w-full items-center justify-center px-4 text-center">
             <Text text03>Loading map preview...</Text>
           </div>
-        ) : errorMessage || !geoJson || !bounds ? (
+        ) : errorMessage || !deferredGeoJson ? (
           <div className="flex h-full w-full items-center justify-center px-4 text-center">
             <Text text03>{errorMessage || "Map preview unavailable for this KMZ."}</Text>
           </div>
         ) : (
-          <MapContainer
-            className="h-full w-full"
-            bounds={bounds}
-            scrollWheelZoom={false}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <LeafletGeoJSONLayer
-              data={geoJson}
-              pointToLayer={(_feature: unknown, latlng: LatLng) =>
-                L.circleMarker(latlng, {
-                  radius: 5,
-                  color: "#0f766e",
-                  fillColor: "#22d3ee",
-                  fillOpacity: 0.75,
-                  weight: 1.5,
-                })
-              }
-              style={() => ({
-                color: "#0f766e",
-                weight: 2,
-                opacity: 0.95,
-                fillColor: "#22d3ee",
-                fillOpacity: 0.25,
-              })}
-            />
-          </MapContainer>
+          <NeuralLabsKmzMap geoJson={deferredGeoJson} />
         )}
       </div>
     </div>

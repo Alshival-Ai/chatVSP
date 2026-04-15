@@ -98,6 +98,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - floating preview windows with snap/resize for text, image, PDF, HTML, KMZ, and XLSX
   - HTML previews allow scripts and same-origin access so self-contained generated graph pages can render
   - refresh/focus restores terminal layout by reconciling browser-saved tabs with live backend terminal IDs to reduce stale or ghost panes after reload
+  - KMZ preview uses a client-only Leaflet bundle to avoid server-side `window is not defined` crashes on the Neural Labs page
 - websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
 - managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
 - Codex bootstrap config written to `~/.codex/config.toml`
