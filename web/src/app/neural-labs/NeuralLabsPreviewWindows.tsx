@@ -15,7 +15,10 @@ import { kml as kmlToGeoJson } from "@tmcw/togeojson";
 import Text from "@/refresh-components/texts/Text";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import { SvgFileText, SvgImage, SvgRefreshCw, SvgX } from "@opal/icons";
-import { PreviewWindowState, type PreviewSnapZone } from "@/app/neural-labs/types";
+import {
+  PreviewWindowState,
+  type PreviewSnapZone,
+} from "@/app/neural-labs/types";
 import type { GeoJsonObject } from "geojson";
 
 interface WorkspaceBounds {
@@ -38,15 +41,7 @@ interface NeuralLabsPreviewWindowsProps {
   ) => void;
 }
 
-type ResizeDirection =
-  | "n"
-  | "ne"
-  | "e"
-  | "se"
-  | "s"
-  | "sw"
-  | "w"
-  | "nw";
+type ResizeDirection = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
 
 interface DragInteraction {
   mode: "drag";
@@ -94,6 +89,19 @@ function clamp(value: number, min: number, max: number): number {
 
 function getContentUrl(path: string): string {
   return `${CONTENT_API_PREFIX}?path=${encodeURIComponent(path)}`;
+}
+
+function getPathContentUrl(path: string): string {
+  const encodedPath = path
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `${CONTENT_API_PREFIX}/${encodedPath}`;
+}
+
+function appendRefreshParam(url: string, refreshKey: number): string {
+  return refreshKey > 0 ? `${url}?refresh=${refreshKey}` : url;
 }
 
 function looksLikeKml(name: string, mimeType: string): boolean {
@@ -151,7 +159,11 @@ function toGeoJson(kmlText: string): GeoJsonObject {
 }
 
 function hasRenderableFeatures(geoJson: GeoJsonObject): boolean {
-  const candidate = geoJson as { type?: string; features?: unknown[]; geometry?: unknown };
+  const candidate = geoJson as {
+    type?: string;
+    features?: unknown[];
+    geometry?: unknown;
+  };
   if (candidate.type === "FeatureCollection") {
     return Array.isArray(candidate.features) && candidate.features.length > 0;
   }
@@ -192,13 +204,22 @@ function getSnappedBounds(
     MIN_WINDOW_HEIGHT,
     Math.floor((workspaceBounds.height - WINDOW_GAP * 3) / 2)
   );
-  const fullWidth = Math.max(MIN_WINDOW_WIDTH, workspaceBounds.width - WINDOW_GAP * 2);
+  const fullWidth = Math.max(
+    MIN_WINDOW_WIDTH,
+    workspaceBounds.width - WINDOW_GAP * 2
+  );
   const fullHeight = Math.max(
     MIN_WINDOW_HEIGHT,
     workspaceBounds.height - WINDOW_GAP * 2
   );
-  const rightX = Math.max(WINDOW_GAP, workspaceBounds.width - width - WINDOW_GAP);
-  const bottomY = Math.max(WINDOW_GAP, workspaceBounds.height - height - WINDOW_GAP);
+  const rightX = Math.max(
+    WINDOW_GAP,
+    workspaceBounds.width - width - WINDOW_GAP
+  );
+  const bottomY = Math.max(
+    WINDOW_GAP,
+    workspaceBounds.height - height - WINDOW_GAP
+  );
 
   switch (zone) {
     case "left":
@@ -235,11 +256,21 @@ function clampWindowToWorkspace(
     };
   }
 
-  const maxWidth = Math.max(MIN_WINDOW_WIDTH, workspaceBounds.width - WINDOW_GAP * 2);
-  const maxHeight = Math.max(MIN_WINDOW_HEIGHT, workspaceBounds.height - WINDOW_GAP * 2);
+  const maxWidth = Math.max(
+    MIN_WINDOW_WIDTH,
+    workspaceBounds.width - WINDOW_GAP * 2
+  );
+  const maxHeight = Math.max(
+    MIN_WINDOW_HEIGHT,
+    workspaceBounds.height - WINDOW_GAP * 2
+  );
   const width = clamp(windowState.width, MIN_WINDOW_WIDTH, maxWidth);
   const height = clamp(windowState.height, MIN_WINDOW_HEIGHT, maxHeight);
-  const x = clamp(windowState.x, WINDOW_GAP, workspaceBounds.width - width - WINDOW_GAP);
+  const x = clamp(
+    windowState.x,
+    WINDOW_GAP,
+    workspaceBounds.width - width - WINDOW_GAP
+  );
   const y = clamp(
     windowState.y,
     WINDOW_GAP,
@@ -297,7 +328,10 @@ function getXmlDocument(xmlText: string): Document {
   return xml;
 }
 
-function getAttributeValue(element: Element, attributeName: string): string | null {
+function getAttributeValue(
+  element: Element,
+  attributeName: string
+): string | null {
   return (
     element.getAttribute(attributeName) ??
     Array.from(element.attributes).find((attribute) =>
@@ -350,7 +384,10 @@ function readSharedStringValue(sharedString: Element): string {
   return textNodes.map((node) => node.textContent ?? "").join("");
 }
 
-function readWorksheetCellValue(cell: Element, sharedStrings: string[]): string {
+function readWorksheetCellValue(
+  cell: Element,
+  sharedStrings: string[]
+): string {
   const cellType = cell.getAttribute("t") ?? "";
 
   if (cellType === "inlineStr") {
@@ -389,22 +426,23 @@ async function extractXlsxPreviewData(blob: Blob): Promise<XlsxPreviewData> {
   const relsXml = getXmlDocument(await relsEntry.async("text"));
 
   const relTargetById = new Map<string, string>();
-  Array.from(relsXml.getElementsByTagNameNS("*", "Relationship")).forEach((rel) => {
-    const id = rel.getAttribute("Id");
-    const target = rel.getAttribute("Target");
-    if (!id || !target) {
-      return;
+  Array.from(relsXml.getElementsByTagNameNS("*", "Relationship")).forEach(
+    (rel) => {
+      const id = rel.getAttribute("Id");
+      const target = rel.getAttribute("Target");
+      if (!id || !target) {
+        return;
+      }
+      relTargetById.set(id, normalizeZipPath("xl/workbook.xml", target));
     }
-    relTargetById.set(id, normalizeZipPath("xl/workbook.xml", target));
-  });
+  );
 
   const sharedStringsEntry = zip.file("xl/sharedStrings.xml");
   const sharedStrings = sharedStringsEntry
     ? Array.from(
-        getXmlDocument(await sharedStringsEntry.async("text")).getElementsByTagNameNS(
-          "*",
-          "si"
-        )
+        getXmlDocument(
+          await sharedStringsEntry.async("text")
+        ).getElementsByTagNameNS("*", "si")
       ).map(readSharedStringValue)
     : [];
 
@@ -435,7 +473,9 @@ async function extractXlsxPreviewData(blob: Blob): Promise<XlsxPreviewData> {
       }
 
       const worksheetXml = getXmlDocument(await worksheetEntry.async("text"));
-      const rowNodes = Array.from(worksheetXml.getElementsByTagNameNS("*", "row"));
+      const rowNodes = Array.from(
+        worksheetXml.getElementsByTagNameNS("*", "row")
+      );
       if (rowNodes.length > MAX_XLSX_PREVIEW_ROWS) {
         truncatedRows = true;
       }
@@ -461,19 +501,26 @@ async function extractXlsxPreviewData(blob: Blob): Promise<XlsxPreviewData> {
           while (rowValues.length <= columnIndex) {
             rowValues.push("");
           }
-          rowValues[columnIndex] = readWorksheetCellValue(cellNode, sharedStrings);
+          rowValues[columnIndex] = readWorksheetCellValue(
+            cellNode,
+            sharedStrings
+          );
           maxColumnIndex = Math.max(maxColumnIndex, columnIndex);
         });
 
         rows[rowIndex] = rowValues;
       });
 
-      const columnCount = Math.min(MAX_XLSX_PREVIEW_COLUMNS, maxColumnIndex + 1);
+      const columnCount = Math.min(
+        MAX_XLSX_PREVIEW_COLUMNS,
+        maxColumnIndex + 1
+      );
       return {
         name,
         rows: rows.map((row) => {
-          const normalizedRow = Array.from({ length: columnCount }, (_, index) =>
-            row[index] ?? ""
+          const normalizedRow = Array.from(
+            { length: columnCount },
+            (_, index) => row[index] ?? ""
           );
           return normalizedRow;
         }),
@@ -523,8 +570,7 @@ function EditorWindowContent({
   const [savedValue, setSavedValue] = useState("");
 
   const contentUrl = useMemo(() => {
-    const suffix = refreshKey > 0 ? `&refresh=${refreshKey}` : "";
-    return `${getContentUrl(windowState.path)}${suffix}`;
+    return appendRefreshParam(getContentUrl(windowState.path), refreshKey);
   }, [refreshKey, windowState.path]);
 
   const loadText = useCallback(async () => {
@@ -703,7 +749,10 @@ function EditorWindowContent({
           }
         }}
         onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+          if (
+            (event.metaKey || event.ctrlKey) &&
+            event.key.toLowerCase() === "s"
+          ) {
             event.preventDefault();
             void saveText();
           }
@@ -722,8 +771,7 @@ function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
   const [geoJson, setGeoJson] = useState<GeoJsonObject | null>(null);
 
   const contentUrl = useMemo(() => {
-    const suffix = refreshKey > 0 ? `&refresh=${refreshKey}` : "";
-    return `${getContentUrl(windowState.path)}${suffix}`;
+    return appendRefreshParam(getContentUrl(windowState.path), refreshKey);
   }, [refreshKey, windowState.path]);
 
   useEffect(() => {
@@ -754,7 +802,9 @@ function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
-            error instanceof Error ? error.message : "Failed to load KMZ map preview"
+            error instanceof Error
+              ? error.message
+              : "Failed to load KMZ map preview"
           );
         }
       } finally {
@@ -798,7 +848,9 @@ function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
           </div>
         ) : errorMessage || !deferredGeoJson ? (
           <div className="flex h-full w-full items-center justify-center px-4 text-center">
-            <Text text03>{errorMessage || "Map preview unavailable for this KMZ."}</Text>
+            <Text text03>
+              {errorMessage || "Map preview unavailable for this KMZ."}
+            </Text>
           </div>
         ) : (
           <NeuralLabsKmzMap geoJson={deferredGeoJson} />
@@ -816,8 +868,7 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
 
   const contentUrl = useMemo(() => {
-    const suffix = refreshKey > 0 ? `&refresh=${refreshKey}` : "";
-    return `${getContentUrl(windowState.path)}${suffix}`;
+    return appendRefreshParam(getContentUrl(windowState.path), refreshKey);
   }, [refreshKey, windowState.path]);
 
   useEffect(() => {
@@ -843,7 +894,9 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
-            error instanceof Error ? error.message : "Unable to load spreadsheet preview"
+            error instanceof Error
+              ? error.message
+              : "Unable to load spreadsheet preview"
           );
         }
       } finally {
@@ -861,7 +914,9 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
 
   const activeSheet =
     previewData && previewData.sheets.length > 0
-      ? previewData.sheets[Math.min(activeSheetIndex, previewData.sheets.length - 1)]!
+      ? previewData.sheets[
+          Math.min(activeSheetIndex, previewData.sheets.length - 1)
+        ]!
       : null;
 
   return (
@@ -873,7 +928,9 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
             : errorMessage
               ? errorMessage
               : activeSheet
-                ? `${previewData?.sheets.length ?? 0} sheet(s) · ${activeSheet.rows.length} row(s)`
+                ? `${previewData?.sheets.length ?? 0} sheet(s) · ${
+                    activeSheet.rows.length
+                  } row(s)`
                 : "Spreadsheet preview"}
         </Text>
         <button
@@ -911,7 +968,9 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
           </div>
         ) : errorMessage || !activeSheet ? (
           <div className="flex h-full w-full items-center justify-center px-4 text-center">
-            <Text text03>{errorMessage || "Spreadsheet preview unavailable."}</Text>
+            <Text text03>
+              {errorMessage || "Spreadsheet preview unavailable."}
+            </Text>
           </div>
         ) : (
           <div className="min-w-max p-2">
@@ -921,14 +980,17 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
                   <th className="sticky top-0 left-0 z-20 border border-border-01 bg-background-neutral-01 px-2 py-1 text-right text-text-03">
                     #
                   </th>
-                  {Array.from({ length: activeSheet.columnCount }, (_, index) => (
-                    <th
-                      key={index}
-                      className="sticky top-0 z-10 min-w-[7rem] border border-border-01 bg-background-neutral-01 px-2 py-1 text-left text-text-03"
-                    >
-                      {columnIndexToLabel(index)}
-                    </th>
-                  ))}
+                  {Array.from(
+                    { length: activeSheet.columnCount },
+                    (_, index) => (
+                      <th
+                        key={index}
+                        className="sticky top-0 z-10 min-w-[7rem] border border-border-01 bg-background-neutral-01 px-2 py-1 text-left text-text-03"
+                      >
+                        {columnIndexToLabel(index)}
+                      </th>
+                    )
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -937,17 +999,20 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
                     <td className="sticky left-0 z-10 border border-border-01 bg-background-neutral-01 px-2 py-1 text-right text-text-03">
                       {rowIndex + 1}
                     </td>
-                    {Array.from({ length: activeSheet.columnCount }, (_, columnIndex) => (
-                      <td
-                        key={columnIndex}
-                        className="max-w-[20rem] border border-border-01 bg-background-neutral-00 px-2 py-1 align-top font-mono text-text-00"
-                        title={row[columnIndex] ?? ""}
-                      >
-                        <div className="line-clamp-3 whitespace-pre-wrap break-words">
-                          {row[columnIndex] ?? ""}
-                        </div>
-                      </td>
-                    ))}
+                    {Array.from(
+                      { length: activeSheet.columnCount },
+                      (_, columnIndex) => (
+                        <td
+                          key={columnIndex}
+                          className="max-w-[20rem] border border-border-01 bg-background-neutral-00 px-2 py-1 align-top font-mono text-text-00"
+                          title={row[columnIndex] ?? ""}
+                        >
+                          <div className="line-clamp-3 whitespace-pre-wrap break-words">
+                            {row[columnIndex] ?? ""}
+                          </div>
+                        </td>
+                      )
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -957,7 +1022,8 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
             (previewData.truncatedRows || previewData.truncatedColumns) ? (
               <div className="pt-2">
                 <Text text03 className="text-xs">
-                  Preview truncated to {MAX_XLSX_PREVIEW_ROWS} rows and {MAX_XLSX_PREVIEW_COLUMNS} columns.
+                  Preview truncated to {MAX_XLSX_PREVIEW_ROWS} rows and{" "}
+                  {MAX_XLSX_PREVIEW_COLUMNS} columns.
                 </Text>
               </div>
             ) : null}
@@ -1003,8 +1069,7 @@ function WindowContent({
   }, [refreshKey, windowState.path]);
 
   const contentUrl = useMemo(() => {
-    const suffix = refreshKey > 0 ? `&refresh=${refreshKey}` : "";
-    return `${getContentUrl(windowState.path)}${suffix}`;
+    return appendRefreshParam(getPathContentUrl(windowState.path), refreshKey);
   }, [refreshKey, windowState.path]);
 
   if (windowState.preview_kind === "image") {
@@ -1071,15 +1136,15 @@ function WindowContent({
         </button>
       </div>
     </div>
-    ) : (
-      <iframe
-        title={windowState.name}
-        src={contentUrl}
-        sandbox="allow-same-origin allow-scripts"
-        className="h-full w-full bg-white"
-        onError={() => setHasError(true)}
-      />
-    );
+  ) : (
+    <iframe
+      title={windowState.name}
+      src={contentUrl}
+      sandbox="allow-scripts"
+      className="h-full w-full bg-white"
+      onError={() => setHasError(true)}
+    />
+  );
 }
 
 function PreviewWindow({
@@ -1132,7 +1197,8 @@ function PreviewWindow({
   };
 
   const startResize =
-    (direction: ResizeDirection) => (event: ReactPointerEvent<HTMLDivElement>) => {
+    (direction: ResizeDirection) =>
+    (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) {
         return;
       }
@@ -1278,7 +1344,10 @@ function PreviewWindow({
     { direction: "ne", className: "right-0 top-0 h-3 w-3 cursor-ne-resize" },
     { direction: "e", className: "bottom-3 right-0 top-3 w-2 cursor-e-resize" },
     { direction: "se", className: "bottom-0 right-0 h-3 w-3 cursor-se-resize" },
-    { direction: "s", className: "bottom-0 left-3 right-3 h-2 cursor-s-resize" },
+    {
+      direction: "s",
+      className: "bottom-0 left-3 right-3 h-2 cursor-s-resize",
+    },
     { direction: "sw", className: "bottom-0 left-0 h-3 w-3 cursor-sw-resize" },
     { direction: "w", className: "bottom-3 left-0 top-3 w-2 cursor-w-resize" },
     { direction: "nw", className: "left-0 top-0 h-3 w-3 cursor-nw-resize" },
@@ -1316,7 +1385,9 @@ function PreviewWindow({
             <button
               type="button"
               className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02 disabled:cursor-not-allowed disabled:opacity-45"
-              onClick={() => onUpdateWindow(windowState.id, { snapped_zone: null })}
+              onClick={() =>
+                onUpdateWindow(windowState.id, { snapped_zone: null })
+              }
               aria-label="Unsnap"
               disabled={!displayWindow.snapped_zone}
             >

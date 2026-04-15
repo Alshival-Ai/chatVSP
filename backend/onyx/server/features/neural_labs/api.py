@@ -639,6 +639,15 @@ def get_file_content(
     )
 
 
+@router.get("/files/content/{path:path}")
+def get_file_content_by_path(
+    path: str,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> Response:
+    return get_file_content(path=path, download=False, user=user, db_session=db_session)
+
+
 @router.post("/files/upload", response_model=PathResponse)
 async def upload_file(
     file: UploadFile = File(...),

@@ -47,7 +47,9 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - Neural Apps currently includes a Text Editor that opens as its own floating app window over the workspace and can save pasted text directly into the workspace as a file; the sidebar launcher is now icon+name when expanded and icon-only when collapsed
     - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
     - floating preview windows (snap/drag/resize) for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
-    - HTML preview iframe now allows scripts and same-origin access so generated graph outputs can render instead of falling back to a blank/non-interactive frame
+    - HTML preview iframe now uses a path-based `/api/neural-labs/files/content/<path>` URL so relative `style.css`, `app.js`, and sibling asset requests resolve inside the selected workspace folder instead of collapsing to `/api/neural-labs/files/*`
+    - HTML preview iframe keeps script execution enabled but no longer grants `allow-same-origin`, removing the browser sandbox escape warning from generated site previews
+    - web security headers now use a trimmed `Permissions-Policy` set that avoids unsupported directives rejected by current Chromium builds
     - terminal refresh/focus flow now reconciles saved layout against live backend sessions to reduce stale pane or ghost-terminal behavior after reload
     - KMZ/Leaflet preview is loaded client-only to avoid `window is not defined` SSR failures on `/neural-labs`
   - terminal websocket auth aligned for prod (`/api/neural-labs/terminal/ws?token=...&terminal_token=...`)

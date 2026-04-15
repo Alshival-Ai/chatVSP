@@ -40,3 +40,26 @@ def test_list_files_uses_404_for_missing_directories(monkeypatch: pytest.MonkeyP
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail == "Directory not found"
 
+
+def test_get_file_content_by_path_delegates_to_query_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_response = Mock()
+    get_file_content_mock = Mock(return_value=expected_response)
+    monkeypatch.setattr(api, "get_file_content", get_file_content_mock)
+
+    user = Mock()
+    db_session = Mock()
+    response = api.get_file_content_by_path(
+        path="outputs/site/index.html",
+        user=user,
+        db_session=db_session,
+    )
+
+    assert response is expected_response
+    get_file_content_mock.assert_called_once_with(
+        path="outputs/site/index.html",
+        download=False,
+        user=user,
+        db_session=db_session,
+    )
