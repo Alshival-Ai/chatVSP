@@ -1037,15 +1037,15 @@ function WindowContent({
         </button>
       </div>
     </div>
-  ) : (
-    <iframe
-      title={windowState.name}
-      src={contentUrl}
-      sandbox=""
-      className="h-full w-full bg-white"
-      onError={() => setHasError(true)}
-    />
-  );
+    ) : (
+      <iframe
+        title={windowState.name}
+        src={contentUrl}
+        sandbox="allow-scripts"
+        className="h-full w-full bg-white"
+        onError={() => setHasError(true)}
+      />
+    );
 }
 
 function PreviewWindow({

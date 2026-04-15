@@ -40,6 +40,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - independently collapsible file navigator and terminal navigator with thin icon rails when collapsed
     - multi-terminal tabs with split panes, consistent terminal/pane terminology, and navigator grouping that mirrors split orientation
     - floating preview windows (snap/drag/resize) for text, image, PDF, HTML, KMZ, and XLSX
+    - HTML preview iframe now allows scripts so generated graph outputs can render instead of falling back to a blank/non-interactive frame
+    - terminal refresh/focus flow now reconciles saved layout against live backend sessions to reduce stale pane or ghost-terminal behavior after reload
   - terminal websocket auth aligned for prod (`/api/neural-labs/terminal/ws?token=...&terminal_token=...`)
   - managed shell banner and login profile initialization
   - per-user Codex config bootstrap at `~/.codex/config.toml`

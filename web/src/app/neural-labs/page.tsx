@@ -446,6 +446,23 @@ function persistPreviewWindows(windows: PreviewWindowState[]): void {
   );
 }
 
+function findTabIdForTerminal(
+  layout: TerminalLayoutState,
+  terminalId: string | null | undefined
+): string | null {
+  if (!terminalId) {
+    return null;
+  }
+
+  for (const tab of layout.tabs) {
+    if (tab.panes.some((pane) => pane.terminal_id === terminalId)) {
+      return tab.tab_id;
+    }
+  }
+
+  return null;
+}
+
 function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -560,6 +577,10 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
     if (!terminalHost) {
       return;
     }
+
+    // Clear any previous xterm DOM in case React reuses the host during refresh
+    // or a terminal instance is replaced in-place.
+    terminalHost.replaceChildren();
 
     const terminal = new Terminal({
       cursorBlink: true,
@@ -765,6 +786,7 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
       terminalRef.current?.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
+      terminalHost.replaceChildren();
     };
   }, [
     copyTerminalSelection,
@@ -1552,6 +1574,35 @@ export default function NeuralLabsPage() {
     }
   }, []);
 
+  const reconcileLiveTerminals = useCallback(
+    async (preferredActiveTerminalId?: string | null) => {
+      let terminalIds = await listTerminals();
+      if (terminalIds.length === 0) {
+        const terminalId = await createTerminal();
+        terminalIds = [terminalId];
+      }
+
+      setLayout((prev) => {
+        const baselineLayout = prev ?? loadPersistedLayout();
+        const nextLayout = reconcileLayout(baselineLayout, terminalIds);
+        const preferredTabId = findTabIdForTerminal(
+          nextLayout,
+          preferredActiveTerminalId
+        );
+
+        if (preferredTabId) {
+          return {
+            ...nextLayout,
+            active_tab_id: preferredTabId,
+          };
+        }
+
+        return nextLayout;
+      });
+    },
+    [createTerminal, listTerminals]
+  );
+
   const setActiveTab = useCallback((tabId: string) => {
     setLayout((prev) => {
       if (!prev) {
@@ -1831,22 +1882,8 @@ export default function NeuralLabsPage() {
         }
 
         const warmupPayload = (await warmupResponse.json()) as WarmupResponse;
-        let terminalIds = await listTerminals();
-
-        if (warmupPayload.terminal_id && !terminalIds.includes(warmupPayload.terminal_id)) {
-          terminalIds = [...terminalIds, warmupPayload.terminal_id];
-        }
-
-        if (terminalIds.length === 0) {
-          const terminalId = await createTerminal();
-          terminalIds = [terminalId];
-        }
-
-        const savedLayout = loadPersistedLayout();
-        const nextLayout = reconcileLayout(savedLayout, terminalIds);
-
         if (!isCancelled) {
-          setLayout(nextLayout);
+          await reconcileLiveTerminals(warmupPayload.terminal_id);
         }
       } catch (error) {
         if (!isCancelled) {
@@ -1869,7 +1906,7 @@ export default function NeuralLabsPage() {
     return () => {
       isCancelled = true;
     };
-  }, [createTerminal, listTerminals]);
+  }, [reconcileLiveTerminals]);
 
   useEffect(() => {
     if (!layout) {
@@ -1899,6 +1936,38 @@ export default function NeuralLabsPage() {
   const activeTerminalId = activePane?.terminal_id ?? null;
 
   useEffect(() => {
+    if (isInitializingTerminals) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const refreshLiveTerminals = async () => {
+      try {
+        await reconcileLiveTerminals(activeTerminalId);
+      } catch {
+        // Ignore background refresh failures and keep the current layout visible.
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden || cancelled) {
+        return;
+      }
+      void refreshLiveTerminals();
+    };
+
+    window.addEventListener("focus", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeTerminalId, isInitializingTerminals, reconcileLiveTerminals]);
+
+  useEffect(() => {
     if (isInitializingTerminals || !activeTerminalId) {
       setActiveTerminalStatus(null);
       return;
@@ -1925,6 +1994,7 @@ export default function NeuralLabsPage() {
               last_activity_epoch: 0,
               has_output: false,
             });
+            void reconcileLiveTerminals(activeTerminalId);
           }
           if (intervalId !== null) {
             window.clearInterval(intervalId);
@@ -1965,7 +2035,7 @@ export default function NeuralLabsPage() {
         window.clearInterval(intervalId);
       }
     };
-  }, [activeTerminalId, isInitializingTerminals]);
+  }, [activeTerminalId, isInitializingTerminals, reconcileLiveTerminals]);
 
   const pathLabel = useMemo(() => {
     return currentPath ? `~/${currentPath}` : "~";
