@@ -68,16 +68,20 @@ RUN if [ "$ENABLE_CRAFT" = "true" ] || [ "$ENABLE_NEURAL_LABS" = "true" ]; then 
 
 # Conditionally install terminal CLIs.
 # - opencode is Craft-specific
-# - @openai/codex and @anthropic-ai/claude-code are used in Neural Labs
+# - @openai/codex is used in Neural Labs
+# - Claude Code uses Anthropic's native installer so the `claude` launcher works
 RUN if [ "$ENABLE_CRAFT" = "true" ] || [ "$ENABLE_NEURAL_LABS" = "true" ]; then \
         if [ "$ENABLE_CRAFT" = "true" ]; then \
           echo "Installing opencode CLI for Craft support..." && \
           curl -fsSL https://opencode.ai/install | bash; \
         fi && \
-        echo "Installing OpenAI Codex and Claude Code CLIs for Neural Labs..." && \
-        npm install -g @openai/codex @anthropic-ai/claude-code; \
+        echo "Installing OpenAI Codex CLI for Neural Labs..." && \
+        npm install -g @openai/codex && \
+        echo "Installing Claude Code for Neural Labs..." && \
+        curl -fsSL https://claude.ai/install.sh | bash && \
+        /root/.local/bin/claude --version; \
     fi
-ENV PATH="/root/.opencode/bin:${PATH}"
+ENV PATH="/root/.opencode/bin:/root/.local/bin:${PATH}"
 
 # Install Python dependencies
 # Remove py which is pulled in by retry, py is not needed and is a CVE

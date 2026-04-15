@@ -46,14 +46,15 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - OpenAI Codex runtime config using custom provider ID `openai-custom` (to avoid overriding reserved built-in IDs)
   - API key sourced from Onyx provider settings and injected as `OPENAI_API_KEY`
   - fixed OpenAI endpoint in Codex config (`https://api.openai.com/v1`)
-  - MCP server config bootstrap in Codex config with bearer-token env wiring
-  - PAT fallback provisioning for MCP auth from Neural Labs shell sessions
   - preinstalled terminal CLIs in Neural Labs backend image:
     - `codex` (`@openai/codex`)
-    - `claude` (`@anthropic-ai/claude-code`)
+    - `claude` (Anthropic native installer via `https://claude.ai/install.sh`)
   - shell env injection from configured providers:
     - `OPENAI_API_KEY` (required for `codex`)
     - `ANTHROPIC_API_KEY` (optional, enables `claude`)
+- Important behavior:
+  - Neural Labs no longer writes any MCP server entries into `~/.codex/config.toml`
+  - this prevents legacy `onyx` / `wardgpt` MCP bootstrap leakage from imported Codex Labs examples
 - Current deployment requirement:
   - `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users

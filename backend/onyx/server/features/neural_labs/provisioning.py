@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
@@ -25,13 +24,6 @@ DEFAULT_OPENAI_CODEX_MODEL = "gpt-5.4"
 NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR = "NEURAL_LABS_MCP_BEARER_TOKEN"
 WARDGPT_MCP_BEARER_TOKEN_ENV_VAR = "WARDGPT_MCP_BEARER_TOKEN"
 
-MCP_SERVER_URL_ENV_KEYS = (
-    "NEURAL_LABS_MCP_SERVER_URL",
-    "LOCAL_MCP_SERVER_URL",
-    "MCP_SERVER_URL",
-)
-DEFAULT_MCP_SERVER_URL = "http://api_server:8080/mcp"
-
 SHELL_BASHRC_FILENAME = ".bashrc"
 SHELL_BASH_PROFILE_FILENAME = ".bash_profile"
 SHELL_BANNER_BLOCK_START = "# >>> neural-labs-banner >>>"
@@ -50,11 +42,7 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
     if not openai_api_key:
         return {}
 
-    mcp_server_url = _resolve_mcp_server_url()
-    config_text = _build_codex_config_toml(
-        model_name=model_name,
-        mcp_server_url=mcp_server_url,
-    )
+    config_text = _build_codex_config_toml(model_name=model_name)
     codex_dir = home_dir / CODEX_CONFIG_DIR_NAME
     codex_dir.mkdir(parents=True, exist_ok=True)
     (codex_dir / CODEX_CONFIG_FILE_NAME).write_text(config_text, encoding="utf-8")
@@ -64,18 +52,6 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
     if anthropic_api_key:
         env_overrides[ANTHROPIC_ENV_KEY_NAME] = anthropic_api_key
     return env_overrides
-
-
-def _resolve_mcp_server_url() -> str | None:
-    for key in MCP_SERVER_URL_ENV_KEYS:
-        value = os.environ.get(key, "").strip()
-        if value:
-            return value
-
-    # Keep this deterministic in compose environments where api_server is resolvable.
-    return DEFAULT_MCP_SERVER_URL
-
-
 def _resolve_openai_codex_settings(db_session: Session) -> tuple[str, str | None]:
     """Resolve OpenAI model+credentials from Onyx LLM provider settings."""
     provider = _fetch_openai_provider(db_session)
@@ -140,7 +116,7 @@ def _fetch_provider_by_type(db_session: Session, provider_type: str) -> LLMProvi
     )
 
 
-def _build_codex_config_toml(model_name: str, mcp_server_url: str | None) -> str:
+def _build_codex_config_toml(model_name: str) -> str:
     lines = [
         "# Managed by Neural Labs. Manual edits may be overwritten.",
         'approval_policy = "never"',
@@ -157,26 +133,6 @@ def _build_codex_config_toml(model_name: str, mcp_server_url: str | None) -> str
         'wire_api = "responses"',
         "",
     ]
-
-    if mcp_server_url:
-        lines.extend(
-            [
-                "[mcp_servers.onyx]",
-                f"url = {_toml_quote(mcp_server_url)}",
-                (
-                    "bearer_token_env_var = "
-                    f"{_toml_quote(NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR)}"
-                ),
-                "",
-                "[mcp_servers.wardgpt]",
-                f"url = {_toml_quote(mcp_server_url)}",
-                (
-                    "bearer_token_env_var = "
-                    f"{_toml_quote(WARDGPT_MCP_BEARER_TOKEN_ENV_VAR)}"
-                ),
-                "",
-            ]
-        )
 
     return "\n".join(lines).rstrip() + "\n"
 

@@ -88,16 +88,15 @@ ENV PATH="/workspace/.venv/bin:${PATH}"
 # Install pptxgenjs globally for creating presentations from scratch
 RUN npm install -g pptxgenjs
 
-# Install Claude Code CLI for optional agent workflows
-RUN npm install -g @anthropic-ai/claude-code
-
 # Install opencode CLI as sandbox user so it goes to their home directory
 USER sandbox
+RUN curl -fsSL https://claude.ai/install.sh | bash && \
+    /home/sandbox/.local/bin/claude --version
 RUN curl -fsSL https://opencode.ai/install | bash
 USER root
 
-# Add opencode to PATH (installs to ~/.opencode/bin)
-ENV PATH="/home/sandbox/.opencode/bin:${PATH}"
+# Add Claude and opencode to PATH
+ENV PATH="/home/sandbox/.local/bin:/home/sandbox/.opencode/bin:${PATH}"
 
 # Copy agent skills (symlinked into each session's .opencode/skills/ at setup time)
 COPY --exclude=__pycache__ skills/ /workspace/skills/

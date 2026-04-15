@@ -102,16 +102,16 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
 - OpenAI Codex provider bootstrap using Onyx LLM provider credentials
 - Codex config uses custom provider ID `openai-custom` with OpenAI default base URL (`https://api.openai.com/v1`)
 - fixed Codex OpenAI endpoint (`https://api.openai.com/v1`)
-- MCP server configuration embedded in Codex config
-- MCP bearer token propagation into shell sessions:
-  - request bearer token preferred
-  - PAT fallback provisioned per user when request token is unavailable
 - backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
   - `@openai/codex`
-  - `@anthropic-ai/claude-code`
+  - `claude` via Anthropic native installer (`curl -fsSL https://claude.ai/install.sh | bash`)
 - Neural Labs shell sessions inject keys from configured providers:
   - `OPENAI_API_KEY` from the OpenAI provider (required for Codex)
   - `ANTHROPIC_API_KEY` from the Anthropic provider (optional, enables Claude CLI auth)
+
+Neural Labs intentionally does not write MCP server blocks into `~/.codex/config.toml`.
+This avoids cross-app inheritance from imported WardGPT / Onyx examples and prevents stale
+`onyx` / `wardgpt` MCP startup failures in provisioned user shells.
 
 Operational note:
 
