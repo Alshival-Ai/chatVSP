@@ -103,6 +103,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - Neural Apps includes a Text Editor that opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API; the launcher shows icon+name in the expanded sidebar and icon-only in the collapsed rail
   - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
   - floating preview windows with snap/resize for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
+  - preview windows include a maximize/restore control that preserves the prior bounds when returning from maximized state
   - HTML previews use a path-based `/api/neural-labs/files/content/<path>` route so relative assets load from the previewed workspace folder
   - HTML preview sandbox keeps scripts enabled but drops `allow-same-origin` to avoid the browser escape warning on generated sites
   - the web app `Permissions-Policy` header is restricted to currently supported directives so Chromium no longer logs unsupported-feature warnings

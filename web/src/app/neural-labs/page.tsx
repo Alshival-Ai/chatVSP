@@ -116,9 +116,7 @@ function IconActionButton({
   label: string;
   children: ReactElement;
 }) {
-  return (
-    <NeuralLabsTooltip label={label}>{children}</NeuralLabsTooltip>
-  );
+  return <NeuralLabsTooltip label={label}>{children}</NeuralLabsTooltip>;
 }
 
 const NEURAL_LABS_API_PREFIX = "/api/neural-labs";
@@ -220,16 +218,29 @@ function getPreviewKind(entry: NeuralLabsFileEntry): PreviewKind | null {
   if (mimeType.startsWith("image/")) {
     return "image";
   }
-  if (mimeType === "text/html" || lowerName.endsWith(".html") || lowerName.endsWith(".htm")) {
+  if (
+    mimeType === "text/html" ||
+    lowerName.endsWith(".html") ||
+    lowerName.endsWith(".htm")
+  ) {
     return "html";
   }
-  if (PDF_PREVIEW_MIME_TYPES.has(mimeType) || PDF_PREVIEW_EXTENSIONS.has(extension)) {
+  if (
+    PDF_PREVIEW_MIME_TYPES.has(mimeType) ||
+    PDF_PREVIEW_EXTENSIONS.has(extension)
+  ) {
     return "pdf";
   }
-  if (KMZ_PREVIEW_MIME_TYPES.has(mimeType) || KMZ_PREVIEW_EXTENSIONS.has(extension)) {
+  if (
+    KMZ_PREVIEW_MIME_TYPES.has(mimeType) ||
+    KMZ_PREVIEW_EXTENSIONS.has(extension)
+  ) {
     return "kmz";
   }
-  if (XLSX_PREVIEW_MIME_TYPES.has(mimeType) || XLSX_PREVIEW_EXTENSIONS.has(extension)) {
+  if (
+    XLSX_PREVIEW_MIME_TYPES.has(mimeType) ||
+    XLSX_PREVIEW_EXTENSIONS.has(extension)
+  ) {
     return "xlsx";
   }
 
@@ -252,7 +263,9 @@ function isPreviewable(entry: NeuralLabsFileEntry): boolean {
 
 function triggerBrowserDownload(path: string, name: string): void {
   const anchor = document.createElement("a");
-  anchor.href = `${NEURAL_LABS_API_PREFIX}/files/download?path=${encodeURIComponent(path)}`;
+  anchor.href = `${NEURAL_LABS_API_PREFIX}/files/download?path=${encodeURIComponent(
+    path
+  )}`;
   anchor.download = name;
   anchor.rel = "noopener";
   document.body.appendChild(anchor);
@@ -295,7 +308,10 @@ async function getFetchErrorMessage(response: Response): Promise<string> {
   return `Request failed (${response.status})`;
 }
 
-function createTabFromTerminal(terminalId: string, existingTabs: TabState[]): TabState {
+function createTabFromTerminal(
+  terminalId: string,
+  existingTabs: TabState[]
+): TabState {
   const tabId = createLocalId();
   const paneId = createLocalId();
   return {
@@ -325,14 +341,19 @@ function reconcileLayout(
 
   if (savedLayout) {
     for (const savedTab of savedLayout.tabs) {
-      const panes = savedTab.panes.filter((pane) => available.has(pane.terminal_id));
+      const panes = savedTab.panes.filter((pane) =>
+        available.has(pane.terminal_id)
+      );
       if (panes.length === 0) {
         continue;
       }
 
       panes.forEach((pane) => used.add(pane.terminal_id));
-      const splitMode: SplitMode = panes.length === 2 ? savedTab.split_mode : "none";
-      const activePaneId = panes.some((pane) => pane.pane_id === savedTab.active_pane_id)
+      const splitMode: SplitMode =
+        panes.length === 2 ? savedTab.split_mode : "none";
+      const activePaneId = panes.some(
+        (pane) => pane.pane_id === savedTab.active_pane_id
+      )
         ? savedTab.active_pane_id
         : panes[0]!.pane_id;
 
@@ -356,7 +377,8 @@ function reconcileLayout(
   }
 
   const activeTabId =
-    savedLayout && reconciledTabs.some((tab) => tab.tab_id === savedLayout.active_tab_id)
+    savedLayout &&
+    reconciledTabs.some((tab) => tab.tab_id === savedLayout.active_tab_id)
       ? savedLayout.active_tab_id
       : reconciledTabs[0]?.tab_id;
 
@@ -374,7 +396,10 @@ function loadPersistedLayout(): PersistedTerminalLayout | null {
     }
 
     const parsed = JSON.parse(raw) as PersistedTerminalLayout;
-    if (!Array.isArray(parsed.tabs) || typeof parsed.active_tab_id !== "string") {
+    if (
+      !Array.isArray(parsed.tabs) ||
+      typeof parsed.active_tab_id !== "string"
+    ) {
       return null;
     }
 
@@ -434,31 +459,56 @@ function loadPersistedPreviewWindows(): PreviewWindowState[] {
       return [];
     }
 
-    return parsed.filter((entry): entry is PreviewWindowState => {
-      if (!entry || typeof entry !== "object") {
-        return false;
-      }
+    return parsed
+      .filter((entry): entry is PreviewWindowState => {
+        if (!entry || typeof entry !== "object") {
+          return false;
+        }
 
-      const candidate = entry as Record<string, unknown>;
-      return (
-        typeof candidate.id === "string" &&
-        typeof candidate.path === "string" &&
-        typeof candidate.name === "string" &&
-        typeof candidate.x === "number" &&
-        typeof candidate.y === "number" &&
-        typeof candidate.width === "number" &&
-        typeof candidate.height === "number" &&
-        typeof candidate.z_index === "number" &&
-        (candidate.preview_kind === "image" ||
-          candidate.preview_kind === "html" ||
-          candidate.preview_kind === "text" ||
-          candidate.preview_kind === "pdf" ||
-          candidate.preview_kind === "kmz" ||
-          candidate.preview_kind === "xlsx" ||
-          candidate.preview_kind === "app-text-editor") &&
-        (candidate.snapped_zone === null || typeof candidate.snapped_zone === "string")
-      );
-    });
+        const candidate = entry as Record<string, unknown>;
+        return (
+          typeof candidate.id === "string" &&
+          typeof candidate.path === "string" &&
+          typeof candidate.name === "string" &&
+          typeof candidate.x === "number" &&
+          typeof candidate.y === "number" &&
+          typeof candidate.width === "number" &&
+          typeof candidate.height === "number" &&
+          typeof candidate.z_index === "number" &&
+          (candidate.preview_kind === "image" ||
+            candidate.preview_kind === "html" ||
+            candidate.preview_kind === "text" ||
+            candidate.preview_kind === "pdf" ||
+            candidate.preview_kind === "kmz" ||
+            candidate.preview_kind === "xlsx" ||
+            candidate.preview_kind === "app-text-editor") &&
+          (candidate.snapped_zone === null ||
+            typeof candidate.snapped_zone === "string") &&
+          (candidate.is_maximized === undefined ||
+            typeof candidate.is_maximized === "boolean") &&
+          (candidate.restore_bounds === undefined ||
+            candidate.restore_bounds === null ||
+            (typeof candidate.restore_bounds === "object" &&
+              candidate.restore_bounds !== null &&
+              typeof (candidate.restore_bounds as Record<string, unknown>).x ===
+                "number" &&
+              typeof (candidate.restore_bounds as Record<string, unknown>).y ===
+                "number" &&
+              typeof (candidate.restore_bounds as Record<string, unknown>)
+                .width === "number" &&
+              typeof (candidate.restore_bounds as Record<string, unknown>)
+                .height === "number" &&
+              ((candidate.restore_bounds as Record<string, unknown>)
+                .snapped_zone === null ||
+                typeof (candidate.restore_bounds as Record<string, unknown>)
+                  .snapped_zone === "string")))
+        );
+      })
+      .map((entry) => ({
+        ...entry,
+        is_maximized: entry.is_maximized ?? false,
+        restore_bounds: entry.restore_bounds ?? null,
+      }));
   } catch {
     return [];
   }
@@ -508,25 +558,28 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
   const bootstrapTimerRef = useRef<number | null>(null);
   const selectionCopyTimerRef = useRef<number | null>(null);
 
-  const sendTerminalInput = useCallback(async (data: string) => {
-    if (!data) {
-      return;
-    }
+  const sendTerminalInput = useCallback(
+    async (data: string) => {
+      if (!data) {
+        return;
+      }
 
-    const socket = socketRef.current;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(data);
-      return;
-    }
+      const socket = socketRef.current;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(data);
+        return;
+      }
 
-    await fetch(`${NEURAL_LABS_API_PREFIX}/terminal/input`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ terminal_id: terminalId, data }),
-    });
-  }, [terminalId]);
+      await fetch(`${NEURAL_LABS_API_PREFIX}/terminal/input`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ terminal_id: terminalId, data }),
+      });
+    },
+    [terminalId]
+  );
 
   const flushTerminalInput = useCallback(async () => {
     const data = inputBufferRef.current;
@@ -657,13 +710,16 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
     let isDisposed = false;
     const connectSocket = async () => {
       try {
-        const tokenResponse = await fetch(`${NEURAL_LABS_API_PREFIX}/terminal/ws-token`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ terminal_id: terminalId }),
-        });
+        const tokenResponse = await fetch(
+          `${NEURAL_LABS_API_PREFIX}/terminal/ws-token`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ terminal_id: terminalId }),
+          }
+        );
 
         if (!tokenResponse.ok) {
           throw new Error(await getFetchErrorMessage(tokenResponse));
@@ -711,7 +767,9 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
             if (payload.type === "exit") {
               terminal.writeln(
                 `\r\n[terminal exited${
-                  typeof payload.code === "number" ? ` with code ${payload.code}` : ""
+                  typeof payload.code === "number"
+                    ? ` with code ${payload.code}`
+                    : ""
                 }]`
               );
             }
@@ -883,21 +941,31 @@ function NeuralAppsPanel({
 export default function NeuralLabsPage() {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState("");
-  const [treeEntries, setTreeEntries] = useState<Record<string, NeuralLabsFileEntry[]>>({});
+  const [treeEntries, setTreeEntries] = useState<
+    Record<string, NeuralLabsFileEntry[]>
+  >({});
   const [loadingPaths, setLoadingPaths] = useState<string[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<string[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [previewWindows, setPreviewWindows] = useState<PreviewWindowState[]>([]);
-  const [workspaceBounds, setWorkspaceBounds] = useState({ width: 0, height: 0 });
+  const [previewWindows, setPreviewWindows] = useState<PreviewWindowState[]>(
+    []
+  );
+  const [workspaceBounds, setWorkspaceBounds] = useState({
+    width: 0,
+    height: 0,
+  });
   const [layout, setLayout] = useState<TerminalLayoutState | null>(null);
   const [isInitializingTerminals, setIsInitializingTerminals] = useState(true);
   const [activeTerminalStatus, setActiveTerminalStatus] =
     useState<TerminalStatusResponse | null>(null);
-  const [navigatorWidth, setNavigatorWidth] = useState(DEFAULT_NAVIGATOR_WIDTH_PX);
+  const [navigatorWidth, setNavigatorWidth] = useState(
+    DEFAULT_NAVIGATOR_WIDTH_PX
+  );
   const [isDesktopLayout, setIsDesktopLayout] = useState(false);
   const [isResizingNavigator, setIsResizingNavigator] = useState(false);
   const [isNavigatorCollapsed, setIsNavigatorCollapsed] = useState(false);
-  const [isTerminalNavigatorCollapsed, setIsTerminalNavigatorCollapsed] = useState(false);
+  const [isTerminalNavigatorCollapsed, setIsTerminalNavigatorCollapsed] =
+    useState(false);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
   const fileUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -975,7 +1043,9 @@ export default function NeuralLabsPage() {
   const isNavigatorVisible = !isDesktopLayout || !isNavigatorCollapsed;
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY);
+    const raw = window.localStorage.getItem(
+      TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY
+    );
     if (raw === "1") {
       setIsTerminalNavigatorCollapsed(true);
     } else if (raw === "0") {
@@ -990,7 +1060,8 @@ export default function NeuralLabsPage() {
     );
   }, [isTerminalNavigatorCollapsed]);
 
-  const isTerminalNavigatorVisible = !isDesktopLayout || !isTerminalNavigatorCollapsed;
+  const isTerminalNavigatorVisible =
+    !isDesktopLayout || !isTerminalNavigatorCollapsed;
 
   useEffect(() => {
     if (!isDesktopLayout) {
@@ -1027,7 +1098,9 @@ export default function NeuralLabsPage() {
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
         const splitBounds = splitNode.getBoundingClientRect();
-        const nextWidth = clampNavigatorWidth(moveEvent.clientX - splitBounds.left);
+        const nextWidth = clampNavigatorWidth(
+          moveEvent.clientX - splitBounds.left
+        );
         setNavigatorWidth(nextWidth);
       };
 
@@ -1052,7 +1125,9 @@ export default function NeuralLabsPage() {
       const silent = options?.silent ?? false;
       if (!silent) {
         setLoadingPaths((previousPaths) =>
-          previousPaths.includes(path) ? previousPaths : [...previousPaths, path]
+          previousPaths.includes(path)
+            ? previousPaths
+            : [...previousPaths, path]
         );
       }
       try {
@@ -1116,18 +1191,21 @@ export default function NeuralLabsPage() {
     []
   );
 
-  const refreshDirectory = useCallback(async (options?: DirectoryLoadOptions) => {
-    const pathsToRefresh = new Set<string>(["", currentPath]);
-    expandedPaths.forEach((path) => pathsToRefresh.add(path));
+  const refreshDirectory = useCallback(
+    async (options?: DirectoryLoadOptions) => {
+      const pathsToRefresh = new Set<string>(["", currentPath]);
+      expandedPaths.forEach((path) => pathsToRefresh.add(path));
 
-    await Promise.all(
-      Array.from(pathsToRefresh)
-        .filter((path) => path !== undefined)
-        .map(async (path) => {
-          await loadDirectory(path, options);
-        })
-    );
-  }, [currentPath, expandedPaths, loadDirectory]);
+      await Promise.all(
+        Array.from(pathsToRefresh)
+          .filter((path) => path !== undefined)
+          .map(async (path) => {
+            await loadDirectory(path, options);
+          })
+      );
+    },
+    [currentPath, expandedPaths, loadDirectory]
+  );
 
   const openTextEditorApp = useCallback(() => {
     if (isDesktopLayout && isNavigatorCollapsed) {
@@ -1142,9 +1220,10 @@ export default function NeuralLabsPage() {
       workspaceBounds.height > 0
         ? Math.min(560, Math.max(340, workspaceBounds.height * 0.62))
         : 520;
-    const offset = previewWindows.filter(
-      (windowState) => windowState.preview_kind === "app-text-editor"
-    ).length * 24;
+    const offset =
+      previewWindows.filter(
+        (windowState) => windowState.preview_kind === "app-text-editor"
+      ).length * 24;
 
     setPreviewWindows((previousWindows) => [
       ...previousWindows,
@@ -1160,6 +1239,8 @@ export default function NeuralLabsPage() {
         height,
         z_index: highestPreviewZIndexRef.current,
         snapped_zone: null,
+        is_maximized: false,
+        restore_bounds: null,
       },
     ]);
   }, [
@@ -1311,10 +1392,17 @@ export default function NeuralLabsPage() {
           height,
           z_index: highestPreviewZIndexRef.current,
           snapped_zone: null,
+          is_maximized: false,
+          restore_bounds: null,
         },
       ]);
     },
-    [focusPreviewWindow, previewWindows, workspaceBounds.height, workspaceBounds.width]
+    [
+      focusPreviewWindow,
+      previewWindows,
+      workspaceBounds.height,
+      workspaceBounds.width,
+    ]
   );
 
   const createFolder = useCallback(async () => {
@@ -1351,14 +1439,17 @@ export default function NeuralLabsPage() {
     const requestCreateDirectory = async (
       parentPath: string
     ): Promise<{ response: Response; message: string | null }> => {
-      const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/directory`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          parent_path: parentPath,
-          name: folderName,
-        }),
-      });
+      const response = await fetch(
+        `${NEURAL_LABS_API_PREFIX}/files/directory`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            parent_path: parentPath,
+            name: folderName,
+          }),
+        }
+      );
 
       if (response.ok) {
         return { response, message: null };
@@ -1377,7 +1468,9 @@ export default function NeuralLabsPage() {
       !createResult.response.ok &&
       parentPath &&
       (createResult.response.status === 404 ||
-        (createResult.message ?? "").toLowerCase().includes("parent directory not found"))
+        (createResult.message ?? "")
+          .toLowerCase()
+          .includes("parent directory not found"))
     ) {
       parentPath = "";
       createResult = await requestCreateDirectory(parentPath);
@@ -1438,7 +1531,9 @@ export default function NeuralLabsPage() {
       }
 
       const response = await fetch(
-        `${NEURAL_LABS_API_PREFIX}/files?path=${encodeURIComponent(entry.path)}`,
+        `${NEURAL_LABS_API_PREFIX}/files?path=${encodeURIComponent(
+          entry.path
+        )}`,
         { method: "DELETE" }
       );
 
@@ -1487,7 +1582,9 @@ export default function NeuralLabsPage() {
       if (failedUploads.length > 0) {
         const failedList = failedUploads.slice(0, 3).join(", ");
         const overflow =
-          failedUploads.length > 3 ? ` and ${failedUploads.length - 3} more` : "";
+          failedUploads.length > 3
+            ? ` and ${failedUploads.length - 3} more`
+            : "";
         toast.error(`Failed to upload: ${failedList}${overflow}`);
       } else if (files.length > 1) {
         toast.success(`Uploaded ${files.length} files`);
@@ -1602,7 +1699,9 @@ export default function NeuralLabsPage() {
 
     const pathsToLoad = new Set<string>([""]);
     persistedTreeState?.expanded_paths.forEach((path) => pathsToLoad.add(path));
-    void Promise.all(Array.from(pathsToLoad).map((path) => loadDirectory(path)));
+    void Promise.all(
+      Array.from(pathsToLoad).map((path) => loadDirectory(path))
+    );
   }, [loadDirectory]);
 
   useEffect(() => {
@@ -1775,7 +1874,9 @@ export default function NeuralLabsPage() {
         return;
       }
 
-      const tab = current.tabs.find((candidate) => candidate.tab_id === current.active_tab_id);
+      const tab = current.tabs.find(
+        (candidate) => candidate.tab_id === current.active_tab_id
+      );
       if (!tab || tab.panes.length !== 1) {
         return;
       }
@@ -1847,12 +1948,20 @@ export default function NeuralLabsPage() {
         return;
       }
 
-      const remainingTabs = nextLayout.tabs.filter((candidate) => candidate.tab_id !== tabId);
+      const remainingTabs = nextLayout.tabs.filter(
+        (candidate) => candidate.tab_id !== tabId
+      );
       if (remainingTabs.length === 0) {
         try {
           const replacementTerminalId = await createTerminal();
-          const replacementTab = createTabFromTerminal(replacementTerminalId, []);
-          setLayout({ tabs: [replacementTab], active_tab_id: replacementTab.tab_id });
+          const replacementTab = createTabFromTerminal(
+            replacementTerminalId,
+            []
+          );
+          setLayout({
+            tabs: [replacementTab],
+            active_tab_id: replacementTab.tab_id,
+          });
         } catch (error) {
           toast.error(
             `Unable to open replacement terminal: ${
@@ -1866,8 +1975,12 @@ export default function NeuralLabsPage() {
 
       const nextActiveId =
         nextLayout.active_tab_id === tabId
-          ? remainingTabs[Math.max(0, nextLayout.tabs.findIndex((t) => t.tab_id === tabId) - 1)]
-              ?.tab_id ?? remainingTabs[0]!.tab_id
+          ? remainingTabs[
+              Math.max(
+                0,
+                nextLayout.tabs.findIndex((t) => t.tab_id === tabId) - 1
+              )
+            ]?.tab_id ?? remainingTabs[0]!.tab_id
           : nextLayout.active_tab_id;
 
       setLayout({ tabs: remainingTabs, active_tab_id: nextActiveId });
@@ -1908,9 +2021,13 @@ export default function NeuralLabsPage() {
         return;
       }
 
-      const remainingPanes = tab.panes.filter((candidate) => candidate.pane_id !== pane.pane_id);
+      const remainingPanes = tab.panes.filter(
+        (candidate) => candidate.pane_id !== pane.pane_id
+      );
       const activePaneId =
-        tab.active_pane_id === pane.pane_id ? remainingPanes[0]!.pane_id : tab.active_pane_id;
+        tab.active_pane_id === pane.pane_id
+          ? remainingPanes[0]!.pane_id
+          : tab.active_pane_id;
 
       setLayout((prev) => {
         if (!prev) {
@@ -1925,7 +2042,8 @@ export default function NeuralLabsPage() {
             }
             return {
               ...candidate,
-              split_mode: remainingPanes.length === 1 ? "none" : candidate.split_mode,
+              split_mode:
+                remainingPanes.length === 1 ? "none" : candidate.split_mode,
               panes: remainingPanes,
               active_pane_id: activePaneId,
             };
@@ -1987,7 +2105,9 @@ export default function NeuralLabsPage() {
     if (!layout) {
       return null;
     }
-    return layout.tabs.find((tab) => tab.tab_id === layout.active_tab_id) ?? null;
+    return (
+      layout.tabs.find((tab) => tab.tab_id === layout.active_tab_id) ?? null
+    );
   }, [layout]);
 
   const activePane = useMemo(() => {
@@ -1995,7 +2115,9 @@ export default function NeuralLabsPage() {
       return null;
     }
     return (
-      activeTab.panes.find((pane) => pane.pane_id === activeTab.active_pane_id) ??
+      activeTab.panes.find(
+        (pane) => pane.pane_id === activeTab.active_pane_id
+      ) ??
       activeTab.panes[0] ??
       null
     );
@@ -2196,113 +2318,113 @@ export default function NeuralLabsPage() {
           {isNavigatorVisible ? (
             <aside
               className="flex min-h-0 w-full md:w-auto md:shrink-0 flex-col border-b border-border-01 md:border-b-0"
-              style={isDesktopLayout ? { width: `${navigatorWidth}px` } : undefined}
+              style={
+                isDesktopLayout ? { width: `${navigatorWidth}px` } : undefined
+              }
             >
-            <div className="p-2 border-b border-border-01 bg-background-neutral-01">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex items-center gap-1.5">
-                  <SvgFolder className="w-4 h-4 stroke-text-03 shrink-0" />
-                  <Text mainUiAction>File Navigator</Text>
+              <div className="p-2 border-b border-border-01 bg-background-neutral-01">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    <SvgFolder className="w-4 h-4 stroke-text-03 shrink-0" />
+                    <Text mainUiAction>File Navigator</Text>
+                  </div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Text
+                      className="truncate max-w-[10rem] md:max-w-[14rem]"
+                      text03
+                      title={pathLabel}
+                    >
+                      {pathLabel}
+                    </Text>
+                    {isDesktopLayout ? (
+                      <IconActionButton label="Collapse file navigator">
+                        <Button
+                          tertiary
+                          size="md"
+                          aria-label="Collapse file navigator"
+                          onClick={() => setIsNavigatorCollapsed(true)}
+                        >
+                          <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
+                        </Button>
+                      </IconActionButton>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="flex min-w-0 items-center gap-2">
-                  <Text
-                    className="truncate max-w-[10rem] md:max-w-[14rem]"
-                    text03
-                    title={pathLabel}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <Button
+                    tertiary
+                    size="md"
+                    leftIcon={SvgChevronLeft}
+                    disabled={!currentPath}
+                    onClick={() => void navigateUp()}
                   >
-                    {pathLabel}
-                  </Text>
-                  {isDesktopLayout ? (
-                    <IconActionButton label="Collapse file navigator">
+                    Up
+                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <IconActionButton label="New folder">
                       <Button
                         tertiary
                         size="md"
-                        aria-label="Collapse file navigator"
-                        onClick={() => setIsNavigatorCollapsed(true)}
-                      >
-                        <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
-                      </Button>
+                        leftIcon={SvgFolderPlus}
+                        aria-label="New folder"
+                        onClick={() => void createFolder()}
+                      />
                     </IconActionButton>
-                  ) : null}
+                    <IconActionButton label="Upload files">
+                      <Button
+                        tertiary
+                        size="md"
+                        leftIcon={SvgUploadCloud}
+                        aria-label="Upload files"
+                        onClick={triggerUpload}
+                      />
+                    </IconActionButton>
+                    <IconActionButton label="Refresh files">
+                      <Button
+                        tertiary
+                        size="md"
+                        leftIcon={SvgRefreshCw}
+                        aria-label="Refresh files"
+                        onClick={() => void refreshDirectory()}
+                      />
+                    </IconActionButton>
+                  </div>
                 </div>
               </div>
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <Button
-                  tertiary
-                  size="md"
-                  leftIcon={SvgChevronLeft}
-                  disabled={!currentPath}
-                  onClick={() => void navigateUp()}
-                >
-                  Up
-                </Button>
-                <div className="flex items-center gap-1.5">
-                  <IconActionButton label="New folder">
-                    <Button
-                      tertiary
-                      size="md"
-                      leftIcon={SvgFolderPlus}
-                      aria-label="New folder"
-                      onClick={() => void createFolder()}
-                    />
-                  </IconActionButton>
-                  <IconActionButton label="Upload files">
-                    <Button
-                      tertiary
-                      size="md"
-                      leftIcon={SvgUploadCloud}
-                      aria-label="Upload files"
-                      onClick={triggerUpload}
-                    />
-                  </IconActionButton>
-                  <IconActionButton label="Refresh files">
-                    <Button
-                      tertiary
-                      size="md"
-                      leftIcon={SvgRefreshCw}
-                      aria-label="Refresh files"
-                      onClick={() => void refreshDirectory()}
-                    />
-                  </IconActionButton>
+
+              <input
+                ref={fileUploadInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={uploadFile}
+              />
+
+              <div className="min-h-0 flex flex-1 flex-col">
+                <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-1.5">
+                  <NeuralLabsFileTree
+                    entriesByPath={treeEntries}
+                    expandedPaths={expandedPaths}
+                    loadingPaths={loadingPaths}
+                    selectedPath={selectedPath}
+                    onSelectEntry={selectEntry}
+                    onToggleDirectory={toggleDirectory}
+                    onActivateEntry={activateTreeEntry}
+                    onPreviewEntry={openPreview}
+                    onDownloadEntry={downloadFile}
+                    onCopyPath={copyPath}
+                    onRenameEntry={renamePath}
+                    onDeleteEntry={deletePath}
+                    onMoveEntry={moveEntry}
+                    onUploadFiles={uploadFilesToPath}
+                    canPreviewEntry={isPreviewable}
+                  />
+                </div>
+
+                <div className="min-h-[18rem]">
+                  <NeuralAppsPanel onActivateTextEditor={openTextEditorApp} />
                 </div>
               </div>
-            </div>
-
-            <input
-              ref={fileUploadInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={uploadFile}
-            />
-
-            <div className="min-h-0 flex flex-1 flex-col">
-              <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-1.5">
-                <NeuralLabsFileTree
-                  entriesByPath={treeEntries}
-                  expandedPaths={expandedPaths}
-                  loadingPaths={loadingPaths}
-                  selectedPath={selectedPath}
-                  onSelectEntry={selectEntry}
-                  onToggleDirectory={toggleDirectory}
-                  onActivateEntry={activateTreeEntry}
-                  onPreviewEntry={openPreview}
-                  onDownloadEntry={downloadFile}
-                  onCopyPath={copyPath}
-                  onRenameEntry={renamePath}
-                  onDeleteEntry={deletePath}
-                  onMoveEntry={moveEntry}
-                  onUploadFiles={uploadFilesToPath}
-                  canPreviewEntry={isPreviewable}
-                />
-              </div>
-
-              <div className="min-h-[18rem]">
-                <NeuralAppsPanel
-                  onActivateTextEditor={openTextEditorApp}
-                />
-              </div>
-            </div>
             </aside>
           ) : isDesktopLayout ? (
             <aside
@@ -2397,10 +2519,14 @@ export default function NeuralLabsPage() {
                   {activeTab
                     ? activeTab.split_mode === "none"
                       ? `Terminal ${
-                          layout?.tabs.findIndex((tab) => tab.tab_id === activeTab.tab_id)! + 1
+                          layout?.tabs.findIndex(
+                            (tab) => tab.tab_id === activeTab.tab_id
+                          )! + 1
                         }`
                       : `Group ${
-                          layout?.tabs.findIndex((tab) => tab.tab_id === activeTab.tab_id)! + 1
+                          layout?.tabs.findIndex(
+                            (tab) => tab.tab_id === activeTab.tab_id
+                          )! + 1
                         }`
                     : "Terminals"}
                 </Text>
@@ -2420,7 +2546,9 @@ export default function NeuralLabsPage() {
                   ) : activeTab.split_mode === "none" ? (
                     <Text text03 className="truncate text-xs">
                       {`Terminal ${
-                        layout?.tabs.findIndex((tab) => tab.tab_id === activeTab.tab_id)! + 1
+                        layout?.tabs.findIndex(
+                          (tab) => tab.tab_id === activeTab.tab_id
+                        )! + 1
                       } active`}
                     </Text>
                   ) : null
@@ -2430,7 +2558,6 @@ export default function NeuralLabsPage() {
                   </Text>
                 )}
               </div>
-
             </div>
 
             <div className="min-h-0 flex flex-1">
@@ -2453,8 +2580,8 @@ export default function NeuralLabsPage() {
                       tab.split_mode === "vertical"
                         ? "grid grid-cols-1 md:grid-cols-2"
                         : tab.split_mode === "horizontal"
-                        ? "grid grid-rows-2"
-                        : "grid grid-cols-1";
+                          ? "grid grid-rows-2"
+                          : "grid grid-cols-1";
 
                     return (
                       <div
@@ -2464,7 +2591,8 @@ export default function NeuralLabsPage() {
                         <div className={`h-full ${splitClass}`}>
                           {tab.panes.map((pane) => {
                             const isActivePane =
-                              isActiveTab && tab.active_pane_id === pane.pane_id;
+                              isActiveTab &&
+                              tab.active_pane_id === pane.pane_id;
 
                             return (
                               <div
@@ -2474,12 +2602,16 @@ export default function NeuralLabsPage() {
                                     ? "ring-1 ring-border-04"
                                     : "ring-0"
                                 }`}
-                                onMouseDown={() => setActivePane(tab.tab_id, pane.pane_id)}
+                                onMouseDown={() =>
+                                  setActivePane(tab.tab_id, pane.pane_id)
+                                }
                               >
                                 <TerminalPane
                                   terminalId={pane.terminal_id}
                                   isActive={isActivePane}
-                                  onFocus={() => setActivePane(tab.tab_id, pane.pane_id)}
+                                  onFocus={() =>
+                                    setActivePane(tab.tab_id, pane.pane_id)
+                                  }
                                 />
                               </div>
                             );
@@ -2521,7 +2653,8 @@ export default function NeuralLabsPage() {
                   <div className="min-h-0 flex-1 overflow-auto p-2">
                     <div className="flex flex-col gap-2">
                       {(layout?.tabs ?? []).map((tab, tabIndex) => {
-                        const isActiveTab = layout?.active_tab_id === tab.tab_id;
+                        const isActiveTab =
+                          layout?.active_tab_id === tab.tab_id;
                         const isGroupedTab = tab.panes.length > 1;
                         const paneLayoutClass =
                           tab.split_mode === "horizontal"
@@ -2553,7 +2686,9 @@ export default function NeuralLabsPage() {
                                 >
                                   <span
                                     className={`h-2 w-2 shrink-0 rounded-full ${
-                                      isActivePane ? "bg-green-500" : "bg-border-03"
+                                      isActivePane
+                                        ? "bg-green-500"
+                                        : "bg-border-03"
                                     }`}
                                   />
                                   <Text className="min-w-0 truncate">
@@ -2565,7 +2700,12 @@ export default function NeuralLabsPage() {
                                     type="button"
                                     className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
                                     aria-label="Delete terminal"
-                                    onClick={() => void closePaneById(tab.tab_id, pane.pane_id)}
+                                    onClick={() =>
+                                      void closePaneById(
+                                        tab.tab_id,
+                                        pane.pane_id
+                                      )
+                                    }
                                   >
                                     <SvgTrash className="h-4 w-4 stroke-red-500" />
                                   </button>
@@ -2591,7 +2731,9 @@ export default function NeuralLabsPage() {
                                 onClick={() => setActiveTab(tab.tab_id)}
                               >
                                 <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
-                                <Text className="truncate">Group {tabIndex + 1}</Text>
+                                <Text className="truncate">
+                                  Group {tabIndex + 1}
+                                </Text>
                               </button>
                               <IconActionButton label="Delete group">
                                 <button
@@ -2607,7 +2749,8 @@ export default function NeuralLabsPage() {
                             <div className={`gap-1 p-1.5 ${paneLayoutClass}`}>
                               {tab.panes.map((pane, paneIndex) => {
                                 const isActivePane =
-                                  isActiveTab && tab.active_pane_id === pane.pane_id;
+                                  isActiveTab &&
+                                  tab.active_pane_id === pane.pane_id;
 
                                 return (
                                   <div
@@ -2625,11 +2768,15 @@ export default function NeuralLabsPage() {
                                           ? "justify-center"
                                           : "w-full"
                                       }`}
-                                      onClick={() => setActivePane(tab.tab_id, pane.pane_id)}
+                                      onClick={() =>
+                                        setActivePane(tab.tab_id, pane.pane_id)
+                                      }
                                     >
                                       <span
                                         className={`h-2 w-2 shrink-0 rounded-full ${
-                                          isActivePane ? "bg-green-500" : "bg-border-03"
+                                          isActivePane
+                                            ? "bg-green-500"
+                                            : "bg-border-03"
                                         }`}
                                       />
                                       <Text className="min-w-0 truncate">
@@ -2641,7 +2788,12 @@ export default function NeuralLabsPage() {
                                         type="button"
                                         className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
                                         aria-label="Delete terminal"
-                                        onClick={() => void closePaneById(tab.tab_id, pane.pane_id)}
+                                        onClick={() =>
+                                          void closePaneById(
+                                            tab.tab_id,
+                                            pane.pane_id
+                                          )
+                                        }
                                       >
                                         <SvgTrash className="h-4 w-4 stroke-text-03" />
                                       </button>

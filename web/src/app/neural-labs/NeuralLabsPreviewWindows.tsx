@@ -14,7 +14,14 @@ import JSZip from "jszip";
 import { kml as kmlToGeoJson } from "@tmcw/togeojson";
 import Text from "@/refresh-components/texts/Text";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
-import { SvgFileText, SvgImage, SvgRefreshCw, SvgX } from "@opal/icons";
+import {
+  SvgFileText,
+  SvgFold,
+  SvgImage,
+  SvgMaximize2,
+  SvgRefreshCw,
+  SvgX,
+} from "@opal/icons";
 import {
   PreviewWindowState,
   type PreviewSnapZone,
@@ -241,12 +248,33 @@ function getSnappedBounds(
   }
 }
 
+function getMaximizedBounds(
+  workspaceBounds: WorkspaceBounds
+): Pick<PreviewWindowState, "x" | "y" | "width" | "height"> {
+  return {
+    x: WINDOW_GAP,
+    y: WINDOW_GAP,
+    width: Math.max(MIN_WINDOW_WIDTH, workspaceBounds.width - WINDOW_GAP * 2),
+    height: Math.max(
+      MIN_WINDOW_HEIGHT,
+      workspaceBounds.height - WINDOW_GAP * 2
+    ),
+  };
+}
+
 function clampWindowToWorkspace(
   windowState: PreviewWindowState,
   workspaceBounds: WorkspaceBounds
 ): PreviewWindowState {
   if (workspaceBounds.width <= 0 || workspaceBounds.height <= 0) {
     return windowState;
+  }
+
+  if (windowState.is_maximized) {
+    return {
+      ...windowState,
+      ...getMaximizedBounds(workspaceBounds),
+    };
   }
 
   if (windowState.snapped_zone) {
@@ -1182,7 +1210,7 @@ function PreviewWindow({
   }, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) {
+    if (event.button !== 0 || displayWindow.is_maximized) {
       return;
     }
 
@@ -1199,7 +1227,7 @@ function PreviewWindow({
   const startResize =
     (direction: ResizeDirection) =>
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) {
+      if (event.button !== 0 || displayWindow.is_maximized) {
         return;
       }
 
@@ -1352,6 +1380,51 @@ function PreviewWindow({
     { direction: "w", className: "bottom-3 left-0 top-3 w-2 cursor-w-resize" },
     { direction: "nw", className: "left-0 top-0 h-3 w-3 cursor-nw-resize" },
   ];
+
+  const toggleMaximize = () => {
+    onUpdateWindow(windowState.id, (existingWindow) => {
+      if (existingWindow.is_maximized) {
+        const restoreBounds = existingWindow.restore_bounds;
+        if (!restoreBounds) {
+          return {
+            ...existingWindow,
+            is_maximized: false,
+            restore_bounds: null,
+            snapped_zone: null,
+          };
+        }
+
+        return clampWindowToWorkspace(
+          {
+            ...existingWindow,
+            x: restoreBounds.x,
+            y: restoreBounds.y,
+            width: restoreBounds.width,
+            height: restoreBounds.height,
+            snapped_zone: restoreBounds.snapped_zone,
+            is_maximized: false,
+            restore_bounds: null,
+          },
+          workspaceBounds
+        );
+      }
+
+      return {
+        ...existingWindow,
+        is_maximized: true,
+        restore_bounds: {
+          x: existingWindow.x,
+          y: existingWindow.y,
+          width: existingWindow.width,
+          height: existingWindow.height,
+          snapped_zone: existingWindow.snapped_zone,
+        },
+        snapped_zone: null,
+        ...getMaximizedBounds(workspaceBounds),
+      };
+    });
+  };
+
   return (
     <div
       className="absolute overflow-hidden rounded-16 border border-border-04 bg-background-neutral-00 shadow-2xl"
@@ -1365,7 +1438,9 @@ function PreviewWindow({
       onMouseDown={() => onFocusWindow(windowState.id)}
     >
       <div
-        className="grid h-11 cursor-move grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border-01 bg-background-neutral-01 px-3"
+        className={`grid h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border-01 bg-background-neutral-01 px-3 ${
+          displayWindow.is_maximized ? "cursor-default" : "cursor-move"
+        }`}
         onPointerDown={handlePointerDown}
       >
         <div className="min-w-0 flex items-center gap-2 overflow-hidden">
@@ -1381,6 +1456,28 @@ function PreviewWindow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 rounded-full border border-border-01 bg-background-neutral-00/95 px-1 py-1 shadow-sm">
+          <NeuralLabsTooltip
+            label={
+              displayWindow.is_maximized ? "Restore window" : "Maximize window"
+            }
+          >
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02"
+              onClick={toggleMaximize}
+              aria-label={
+                displayWindow.is_maximized
+                  ? "Restore window"
+                  : "Maximize window"
+              }
+            >
+              {displayWindow.is_maximized ? (
+                <SvgFold className="h-4 w-4 stroke-text-03" />
+              ) : (
+                <SvgMaximize2 className="h-4 w-4 stroke-text-03" />
+              )}
+            </button>
+          </NeuralLabsTooltip>
           <NeuralLabsTooltip label="Unsnap">
             <button
               type="button"
@@ -1415,13 +1512,15 @@ function PreviewWindow({
         />
       </div>
 
-      {resizeHandles.map((handle) => (
-        <div
-          key={handle.direction}
-          className={`absolute ${handle.className}`}
-          onPointerDown={startResize(handle.direction)}
-        />
-      ))}
+      {!displayWindow.is_maximized
+        ? resizeHandles.map((handle) => (
+            <div
+              key={handle.direction}
+              className={`absolute ${handle.className}`}
+              onPointerDown={startResize(handle.direction)}
+            />
+          ))
+        : null}
     </div>
   );
 }

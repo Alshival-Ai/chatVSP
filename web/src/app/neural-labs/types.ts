@@ -45,4 +45,12 @@ export interface PreviewWindowState {
   height: number;
   z_index: number;
   snapped_zone: PreviewSnapZone | null;
+  is_maximized: boolean;
+  restore_bounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    snapped_zone: PreviewSnapZone | null;
+  } | null;
 }
