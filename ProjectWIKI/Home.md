@@ -49,6 +49,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - preinstalled terminal CLIs in Neural Labs backend image:
     - `codex` (`@openai/codex`)
     - `claude` (Anthropic native installer via `https://claude.ai/install.sh`)
+    - image also restores CLI paths from `/etc/profile.d` so login shells still resolve `codex` and `claude`
   - shell env injection from configured providers:
     - `OPENAI_API_KEY` (required for `codex`)
     - `ANTHROPIC_API_KEY` (optional, enables `claude`)

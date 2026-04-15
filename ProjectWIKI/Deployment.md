@@ -105,6 +105,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
 - backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
   - `@openai/codex`
   - `claude` via Anthropic native installer (`curl -fsSL https://claude.ai/install.sh | bash`)
+  - `/etc/profile.d` restores `/root/.local/bin` and `/root/.opencode/bin` for login shells so `bash -lc 'claude ...'` still works after `/etc/profile` rewrites `PATH`
 - Neural Labs shell sessions inject keys from configured providers:
   - `OPENAI_API_KEY` from the OpenAI provider (required for Codex)
   - `ANTHROPIC_API_KEY` from the Anthropic provider (optional, enables Claude CLI auth)
@@ -121,6 +122,20 @@ Operational note:
 cd deployment/docker_compose
 sudo docker compose -f docker-compose.prod.yml restart nginx
 ```
+
+Verification note:
+
+- verify the rebuilt image from a login shell, not only with direct binary paths:
+
+```bash
+cd deployment/docker_compose
+sudo docker compose -f docker-compose.prod.yml exec api_server bash -lc 'echo "$PATH"; which claude; claude --version'
+```
+
+- expected result:
+  - `PATH` contains `/root/.local/bin`
+  - `which claude` resolves to `/root/.local/bin/claude`
+  - `claude --version` prints the installed version
 
 Neural Labs parity currently focuses on application/backend behavior. Deployment-level service topology changes (compose/nginx/runtime restructuring) remain a separate rollout decision.
 

@@ -82,6 +82,17 @@ RUN if [ "$ENABLE_CRAFT" = "true" ] || [ "$ENABLE_NEURAL_LABS" = "true" ]; then 
         /root/.local/bin/claude --version; \
     fi
 ENV PATH="/root/.opencode/bin:/root/.local/bin:${PATH}"
+RUN printf '%s\n' \
+    'case ":$PATH:" in' \
+    '  *:/root/.local/bin:*) ;;' \
+    '  *) PATH="/root/.local/bin:$PATH" ;;' \
+    'esac' \
+    'case ":$PATH:" in' \
+    '  *:/root/.opencode/bin:*) ;;' \
+    '  *) PATH="/root/.opencode/bin:$PATH" ;;' \
+    'esac' \
+    'export PATH' \
+    > /etc/profile.d/neural-labs-path.sh
 
 # Install Python dependencies
 # Remove py which is pulled in by retry, py is not needed and is a CVE

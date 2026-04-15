@@ -123,7 +123,7 @@ function TreeRow({
     <div
       role="button"
       tabIndex={0}
-      className={`flex w-full items-center gap-2 rounded-08 px-2 py-1.5 text-left ${
+      className={`flex w-full min-w-0 items-center gap-2 rounded-08 px-2 py-1.5 text-left ${
         isDropTarget
           ? "bg-background-tint-02 ring-1 ring-border-04"
           : isSelected
@@ -173,12 +173,12 @@ function TreeRow({
         </>
       )}
 
-      <div className="min-w-0 flex-1">
-        <Text className="truncate">{entry.name}</Text>
+      <div className="min-w-0 flex-1 pr-2">
+        <Text className="block w-full truncate">{entry.name}</Text>
       </div>
 
       {!entry.is_directory && canPreview ? (
-        <span className="shrink-0 whitespace-nowrap rounded-full border border-border-02 bg-background-neutral-01 px-1.5 py-0.5 text-[10px] font-medium leading-none text-text-03">
+        <span className="ml-auto shrink-0 whitespace-nowrap rounded-full border border-border-02 bg-background-neutral-01 px-1.5 py-0.5 text-[10px] font-medium leading-none text-text-03">
           Preview
         </span>
       ) : null}

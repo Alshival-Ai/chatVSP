@@ -97,6 +97,17 @@ USER root
 
 # Add Claude and opencode to PATH
 ENV PATH="/home/sandbox/.local/bin:/home/sandbox/.opencode/bin:${PATH}"
+RUN printf '%s\n' \
+    'case ":$PATH:" in' \
+    '  *:/home/sandbox/.local/bin:*) ;;' \
+    '  *) PATH="/home/sandbox/.local/bin:$PATH" ;;' \
+    'esac' \
+    'case ":$PATH:" in' \
+    '  *:/home/sandbox/.opencode/bin:*) ;;' \
+    '  *) PATH="/home/sandbox/.opencode/bin:$PATH" ;;' \
+    'esac' \
+    'export PATH' \
+    > /etc/profile.d/sandbox-agent-path.sh
 
 # Copy agent skills (symlinked into each session's .opencode/skills/ at setup time)
 COPY --exclude=__pycache__ skills/ /workspace/skills/
