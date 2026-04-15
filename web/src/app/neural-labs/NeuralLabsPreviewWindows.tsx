@@ -13,6 +13,7 @@ import dynamic from "next/dynamic";
 import JSZip from "jszip";
 import { kml as kmlToGeoJson } from "@tmcw/togeojson";
 import Text from "@/refresh-components/texts/Text";
+import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import { SvgFileText, SvgImage, SvgRefreshCw, SvgX } from "@opal/icons";
 import { PreviewWindowState, type PreviewSnapZone } from "@/app/neural-labs/types";
 import type { GeoJsonObject } from "geojson";
@@ -615,7 +616,6 @@ function TextEditorContent({
             className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01"
             onClick={() => setRefreshKey((value) => value + 1)}
             disabled={isLoading || isSaving}
-            title="Reload from disk"
           >
             Reload
           </button>
@@ -624,7 +624,6 @@ function TextEditorContent({
             className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => void saveText()}
             disabled={!hasUnsavedChanges || isSaving || isLoading}
-            title="Save (Ctrl/Cmd+S)"
           >
             Save
           </button>
@@ -836,7 +835,6 @@ function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
           type="button"
           className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01"
           onClick={() => setRefreshKey((value) => value + 1)}
-          title="Reload preview"
         >
           Reload
         </button>
@@ -931,7 +929,6 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
           type="button"
           className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01"
           onClick={() => setRefreshKey((value) => value + 1)}
-          title="Reload preview"
         >
           Reload
         </button>
@@ -1390,23 +1387,27 @@ function PreviewWindow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 rounded-full border border-border-01 bg-background-neutral-00/95 px-1 py-1 shadow-sm">
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02 disabled:cursor-not-allowed disabled:opacity-45"
-            onClick={() => onUpdateWindow(windowState.id, { snapped_zone: null })}
-            title="Unsnap"
-            disabled={!displayWindow.snapped_zone}
-          >
-            <SvgRefreshCw className="h-4 w-4 stroke-text-03" />
-          </button>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02"
-            onClick={() => onCloseWindow(windowState.id)}
-            title="Close preview"
-          >
-            <SvgX className="h-4 w-4 stroke-text-03" />
-          </button>
+          <NeuralLabsTooltip label="Unsnap">
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02 disabled:cursor-not-allowed disabled:opacity-45"
+              onClick={() => onUpdateWindow(windowState.id, { snapped_zone: null })}
+              aria-label="Unsnap"
+              disabled={!displayWindow.snapped_zone}
+            >
+              <SvgRefreshCw className="h-4 w-4 stroke-text-03" />
+            </button>
+          </NeuralLabsTooltip>
+          <NeuralLabsTooltip label="Close preview">
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02"
+              onClick={() => onCloseWindow(windowState.id)}
+              aria-label="Close preview"
+            >
+              <SvgX className="h-4 w-4 stroke-text-03" />
+            </button>
+          </NeuralLabsTooltip>
         </div>
       </div>
 

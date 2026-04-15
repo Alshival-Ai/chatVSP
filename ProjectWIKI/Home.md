@@ -41,6 +41,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - left sidebar now stacks `File Navigator` over `Neural Apps`; when collapsed, Neural Apps surface as rail icons
     - multi-terminal tabs with split panes, consistent terminal/pane terminology, and navigator grouping that mirrors split orientation
     - file action icons now show explicit hover helper text for folder creation, upload, and refresh
+    - Neural Labs action hover text now uses the themed white tooltip only; browser-native duplicate tooltips were removed and tooltip positioning is clamped within the viewport above floating windows
     - terminal and group deletion now lives in the Terminal Navigator via trash actions instead of top-bar close controls
     - Neural Apps currently includes a Text Editor that opens as its own floating app window over the workspace and can save pasted text directly into the workspace as a file; the sidebar launcher is now icon+name when expanded and icon-only when collapsed
     - floating preview windows (snap/drag/resize) for text, image, PDF, HTML, KMZ, and XLSX

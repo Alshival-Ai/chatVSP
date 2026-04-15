@@ -10,7 +10,7 @@ import {
   useState,
   type ChangeEvent,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode,
+  type ReactElement,
 } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/refresh-components/buttons/Button";
@@ -18,6 +18,7 @@ import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
 import NeuralLabsFileTree from "@/app/neural-labs/NeuralLabsFileTree";
 import NeuralLabsPreviewWindows from "@/app/neural-labs/NeuralLabsPreviewWindows";
+import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import type {
   NeuralLabsFileEntry,
   DirectoryResponse,
@@ -113,17 +114,10 @@ function IconActionButton({
   children,
 }: {
   label: string;
-  children: ReactNode;
+  children: ReactElement;
 }) {
   return (
-    <div className="group relative flex">
-      {children}
-      <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 rounded-08 border border-border-01 bg-background-neutral-00 px-2 py-1 opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
-        <Text text03 className="whitespace-nowrap text-xs">
-          {label}
-        </Text>
-      </div>
-    </div>
+    <NeuralLabsTooltip label={label}>{children}</NeuralLabsTooltip>
   );
 }
 
@@ -2213,14 +2207,16 @@ export default function NeuralLabsPage() {
                     {pathLabel}
                   </Text>
                   {isDesktopLayout ? (
-                    <Button
-                      tertiary
-                      size="md"
-                      title="Collapse file navigator"
-                      onClick={() => setIsNavigatorCollapsed(true)}
-                    >
-                      <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
-                    </Button>
+                    <IconActionButton label="Collapse file navigator">
+                      <Button
+                        tertiary
+                        size="md"
+                        aria-label="Collapse file navigator"
+                        onClick={() => setIsNavigatorCollapsed(true)}
+                      >
+                        <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
+                      </Button>
+                    </IconActionButton>
                   ) : null}
                 </div>
               </div>
@@ -2240,7 +2236,6 @@ export default function NeuralLabsPage() {
                       tertiary
                       size="md"
                       leftIcon={SvgFolderPlus}
-                      title="New folder"
                       aria-label="New folder"
                       onClick={() => void createFolder()}
                     />
@@ -2250,7 +2245,6 @@ export default function NeuralLabsPage() {
                       tertiary
                       size="md"
                       leftIcon={SvgUploadCloud}
-                      title="Upload files"
                       aria-label="Upload files"
                       onClick={triggerUpload}
                     />
@@ -2260,7 +2254,6 @@ export default function NeuralLabsPage() {
                       tertiary
                       size="md"
                       leftIcon={SvgRefreshCw}
-                      title="Refresh files"
                       aria-label="Refresh files"
                       onClick={() => void refreshDirectory()}
                     />
@@ -2310,31 +2303,32 @@ export default function NeuralLabsPage() {
               className="hidden md:flex md:shrink-0 flex-col items-center gap-2 border-r border-border-01 bg-background-neutral-01 px-2 py-2"
               style={{ width: `${COLLAPSED_NAVIGATOR_RAIL_PX}px` }}
             >
-              <Button
-                tertiary
-                size="md"
-                title="Expand file navigator"
-                aria-label="Expand file navigator"
-                onClick={() => setIsNavigatorCollapsed(false)}
-              >
-                <SvgChevronRight className="h-4 w-4 stroke-text-03" />
-              </Button>
+              <IconActionButton label="Expand file navigator">
+                <Button
+                  tertiary
+                  size="md"
+                  aria-label="Expand file navigator"
+                  onClick={() => setIsNavigatorCollapsed(false)}
+                >
+                  <SvgChevronRight className="h-4 w-4 stroke-text-03" />
+                </Button>
+              </IconActionButton>
               <SvgFolder className="h-4 w-4 shrink-0 stroke-text-03" />
-              <Button
-                tertiary
-                size="md"
-                leftIcon={SvgChevronLeft}
-                title="Up"
-                aria-label="Up"
-                disabled={!currentPath}
-                onClick={() => void navigateUp()}
-              />
+              <IconActionButton label="Up">
+                <Button
+                  tertiary
+                  size="md"
+                  leftIcon={SvgChevronLeft}
+                  aria-label="Up"
+                  disabled={!currentPath}
+                  onClick={() => void navigateUp()}
+                />
+              </IconActionButton>
               <IconActionButton label="New folder">
                 <Button
                   tertiary
                   size="md"
                   leftIcon={SvgFolderPlus}
-                  title="New folder"
                   aria-label="New folder"
                   onClick={() => void createFolder()}
                 />
@@ -2344,7 +2338,6 @@ export default function NeuralLabsPage() {
                   tertiary
                   size="md"
                   leftIcon={SvgUploadCloud}
-                  title="Upload files"
                   aria-label="Upload files"
                   onClick={triggerUpload}
                 />
@@ -2354,7 +2347,6 @@ export default function NeuralLabsPage() {
                   tertiary
                   size="md"
                   leftIcon={SvgRefreshCw}
-                  title="Refresh files"
                   aria-label="Refresh files"
                   onClick={() => void refreshDirectory()}
                 />
@@ -2365,7 +2357,6 @@ export default function NeuralLabsPage() {
                   tertiary
                   size="md"
                   leftIcon={SvgFileText}
-                  title="Text Editor"
                   aria-label="Text Editor"
                   onClick={openTextEditorApp}
                 />
@@ -2510,14 +2501,16 @@ export default function NeuralLabsPage() {
                 <aside className="hidden w-[248px] shrink-0 border-l border-border-01 bg-background-neutral-01 md:flex md:flex-col">
                   <div className="flex items-center justify-between border-b border-border-01 px-3 py-2">
                     <Text mainUiAction>Terminal Navigator</Text>
-                    <Button
-                      tertiary
-                      size="md"
-                      title="Collapse terminal navigator"
-                      onClick={() => setIsTerminalNavigatorCollapsed(true)}
-                    >
-                      <SvgChevronRight className="h-4 w-4 stroke-text-03" />
-                    </Button>
+                    <IconActionButton label="Collapse terminal navigator">
+                      <Button
+                        tertiary
+                        size="md"
+                        aria-label="Collapse terminal navigator"
+                        onClick={() => setIsTerminalNavigatorCollapsed(true)}
+                      >
+                        <SvgChevronRight className="h-4 w-4 stroke-text-03" />
+                      </Button>
+                    </IconActionButton>
                   </div>
                   <div className="min-h-0 flex-1 overflow-auto p-2">
                     <div className="flex flex-col gap-2">
@@ -2551,7 +2544,6 @@ export default function NeuralLabsPage() {
                                   tertiary
                                   size="md"
                                   leftIcon={SvgTrash}
-                                  title="Delete group"
                                   aria-label="Delete group"
                                   onClick={() => void closeTabById(tab.tab_id)}
                                 />
@@ -2594,7 +2586,6 @@ export default function NeuralLabsPage() {
                                         tertiary
                                         size="md"
                                         leftIcon={SvgTrash}
-                                        title="Delete terminal"
                                         aria-label="Delete terminal"
                                         onClick={() => void closePaneById(tab.tab_id, pane.pane_id)}
                                       />
@@ -2614,15 +2605,16 @@ export default function NeuralLabsPage() {
                   className="hidden md:flex md:shrink-0 flex-col items-center gap-2 border-l border-border-01 bg-background-neutral-01 px-2 py-2"
                   style={{ width: `${COLLAPSED_NAVIGATOR_RAIL_PX}px` }}
                 >
-                  <Button
-                    tertiary
-                    size="md"
-                    title="Expand terminal navigator"
-                    aria-label="Expand terminal navigator"
-                    onClick={() => setIsTerminalNavigatorCollapsed(false)}
-                  >
-                    <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
-                  </Button>
+                  <IconActionButton label="Expand terminal navigator">
+                    <Button
+                      tertiary
+                      size="md"
+                      aria-label="Expand terminal navigator"
+                      onClick={() => setIsTerminalNavigatorCollapsed(false)}
+                    >
+                      <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
+                    </Button>
+                  </IconActionButton>
                   <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
                 </aside>
               ) : null}
