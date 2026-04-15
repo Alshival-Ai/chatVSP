@@ -14,7 +14,14 @@ export interface DirectoryResponse {
   entries: NeuralLabsFileEntry[];
 }
 
-export type PreviewKind = "image" | "html" | "text" | "pdf" | "kmz" | "xlsx";
+export type PreviewKind =
+  | "image"
+  | "html"
+  | "text"
+  | "pdf"
+  | "kmz"
+  | "xlsx"
+  | "app-text-editor";
 
 export type PreviewSnapZone =
   | "left"

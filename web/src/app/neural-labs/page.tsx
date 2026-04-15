@@ -31,7 +31,6 @@ import {
   SvgFileText,
   SvgFolder,
   SvgFolderPlus,
-  SvgGlobe,
   SvgRefreshCw,
   SvgTerminal,
   SvgTrash,
@@ -108,15 +107,6 @@ interface TerminalPaneProps {
   isActive: boolean;
   onFocus: () => void;
 }
-
-type NeuralAppId = "text-editor" | "browser";
-type BrowserAppStatus =
-  | "idle"
-  | "ready"
-  | "loading"
-  | "loaded"
-  | "blocked"
-  | "invalid-url";
 
 function IconActionButton({
   label,
@@ -224,43 +214,6 @@ function getAncestorPaths(path: string): string[] {
     ancestors.push(parts.slice(0, index).join("/"));
   }
   return ancestors;
-}
-
-function resolveEditorSavePath(input: string, currentDirectory: string): string {
-  const trimmedInput = input.trim().replace(/^\/+/, "");
-  if (!trimmedInput) {
-    throw new Error("File name cannot be empty");
-  }
-
-  if (currentDirectory && !trimmedInput.includes("/")) {
-    return `${currentDirectory}/${trimmedInput}`;
-  }
-
-  return trimmedInput;
-}
-
-function normalizeBrowserUrl(input: string): string {
-  const trimmedInput = input.trim();
-  if (!trimmedInput) {
-    throw new Error("Enter a website address");
-  }
-
-  const normalizedInput = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmedInput)
-    ? trimmedInput
-    : `https://${trimmedInput}`;
-
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(normalizedInput);
-  } catch {
-    throw new Error("Enter a valid HTTPS URL");
-  }
-
-  if (parsedUrl.protocol !== "https:") {
-    throw new Error("Only HTTPS URLs are supported");
-  }
-
-  return parsedUrl.toString();
 }
 
 function getPreviewKind(entry: NeuralLabsFileEntry): PreviewKind | null {
@@ -507,7 +460,8 @@ function loadPersistedPreviewWindows(): PreviewWindowState[] {
           candidate.preview_kind === "text" ||
           candidate.preview_kind === "pdf" ||
           candidate.preview_kind === "kmz" ||
-          candidate.preview_kind === "xlsx") &&
+          candidate.preview_kind === "xlsx" ||
+          candidate.preview_kind === "app-text-editor") &&
         (candidate.snapped_zone === null || typeof candidate.snapped_zone === "string")
       );
     });
@@ -519,7 +473,9 @@ function loadPersistedPreviewWindows(): PreviewWindowState[] {
 function persistPreviewWindows(windows: PreviewWindowState[]): void {
   window.localStorage.setItem(
     PREVIEW_WINDOWS_STORAGE_KEY,
-    JSON.stringify(windows)
+    JSON.stringify(
+      windows.filter((windowState) => windowState.preview_kind !== "app-text-editor")
+    )
   );
 }
 
@@ -900,61 +856,17 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
 }
 
 function NeuralAppsPanel({
-  currentDirectory,
-  activeApp,
-  textEditorValue,
-  browserInputValue,
-  browserCurrentUrl,
-  browserStatus,
-  browserNavigationKey,
-  isSaving,
-  statusMessage,
   onActivateTextEditor,
-  onActivateBrowser,
-  onChangeTextEditorValue,
-  onChangeBrowserInputValue,
-  onClearTextEditor,
-  onSaveTextEditor,
-  onSubmitBrowserUrl,
-  onRefreshBrowser,
 }: {
-  currentDirectory: string;
-  activeApp: NeuralAppId | null;
-  textEditorValue: string;
-  browserInputValue: string;
-  browserCurrentUrl: string | null;
-  browserStatus: BrowserAppStatus;
-  browserNavigationKey: number;
-  isSaving: boolean;
-  statusMessage: string | null;
   onActivateTextEditor: () => void;
-  onActivateBrowser: () => void;
-  onChangeTextEditorValue: (value: string) => void;
-  onChangeBrowserInputValue: (value: string) => void;
-  onClearTextEditor: () => void;
-  onSaveTextEditor: () => void;
-  onSubmitBrowserUrl: () => void;
-  onRefreshBrowser: () => void;
 }) {
-  const hasContent = textEditorValue.trim().length > 0;
-  const browserStatusLabel =
-    browserStatus === "loading"
-      ? "Loading"
-      : browserStatus === "loaded"
-        ? "Loaded"
-        : browserStatus === "blocked"
-          ? "Blocked"
-          : browserStatus === "invalid-url"
-            ? "Invalid URL"
-            : "Ready";
-
   return (
     <div className="flex min-h-0 flex-1 flex-col border-t border-border-01 bg-background-neutral-01">
       <div className="flex items-center justify-between gap-2 border-b border-border-01 px-3 py-2">
         <div className="min-w-0">
           <Text mainUiAction>Neural Apps</Text>
           <Text text03 className="truncate text-xs">
-            Open an app to create or edit content
+            Open an app in a floating window
           </Text>
         </div>
       </div>
@@ -962,261 +874,23 @@ function NeuralAppsPanel({
       <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-2">
         <button
           type="button"
-          className={`flex w-full items-center gap-2 rounded-10 border px-3 py-2 text-left transition-colors ${
-            activeApp === "text-editor"
-              ? "border-border-04 bg-background-tint-03/60"
-              : "border-border-01 bg-background-neutral-02 hover:bg-background-neutral-00"
-          }`}
+          className="flex w-full items-center gap-2 rounded-10 border border-border-01 bg-background-neutral-02 px-3 py-2 text-left transition-colors hover:bg-background-neutral-00"
           onClick={onActivateTextEditor}
         >
           <SvgFileText className="h-4 w-4 shrink-0 stroke-text-03" />
           <div className="min-w-0">
             <Text className="truncate">Text Editor</Text>
             <Text text03 className="truncate text-xs">
-              Paste text and save it to a file
+              Open the editor in a popup window
             </Text>
           </div>
         </button>
 
-        <button
-          type="button"
-          className={`mt-2 flex w-full items-center gap-2 rounded-10 border px-3 py-2 text-left transition-colors ${
-            activeApp === "browser"
-              ? "border-border-04 bg-background-tint-03/60"
-              : "border-border-01 bg-background-neutral-02 hover:bg-background-neutral-00"
-          }`}
-          onClick={onActivateBrowser}
-        >
-          <SvgGlobe className="h-4 w-4 shrink-0 stroke-text-03" />
-          <div className="min-w-0">
-            <Text className="truncate">Browser</Text>
-            <Text text03 className="truncate text-xs">
-              Open a public HTTPS site inside Neural Apps
-            </Text>
-          </div>
-        </button>
-
-        {activeApp === "text-editor" ? (
-          <div className="mt-3 flex min-h-[18rem] flex-col rounded-12 border border-border-01 bg-background-neutral-00">
-            <div className="flex items-center justify-between gap-2 border-b border-border-01 px-3 py-2">
-              <div className="min-w-0">
-                <Text className="truncate">Text Editor</Text>
-                <Text text03 className="truncate text-xs">
-                  {`Saving to: ${currentDirectory ? `~/${currentDirectory}` : "~"}`}
-                </Text>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  tertiary
-                  size="md"
-                  disabled={!hasContent || isSaving}
-                  onClick={onClearTextEditor}
-                >
-                  Clear
-                </Button>
-                <Button
-                  tertiary
-                  size="md"
-                  disabled={!hasContent || isSaving}
-                  onClick={onSaveTextEditor}
-                >
-                  Save to File
-                </Button>
-              </div>
-            </div>
-
-            <div className="border-b border-border-01 px-3 py-1.5">
-              <Text text03 className="truncate text-xs">
-                {statusMessage ?? (hasContent ? "Unsaved changes" : "Ready")}
-              </Text>
-            </div>
-
-            <textarea
-              spellCheck={false}
-              value={textEditorValue}
-              onChange={(event) => onChangeTextEditorValue(event.target.value)}
-              placeholder="Paste or type text here..."
-              className="min-h-0 flex-1 resize-none border-0 bg-background-neutral-00 px-3 py-3 font-mono text-sm leading-5 text-text-00 outline-none"
-            />
-          </div>
-        ) : activeApp === "browser" ? (
-          <BrowserAppPanel
-            inputValue={browserInputValue}
-            currentUrl={browserCurrentUrl}
-            status={browserStatus}
-            statusLabel={browserStatusLabel}
-            navigationKey={browserNavigationKey}
-            onChangeInputValue={onChangeBrowserInputValue}
-            onSubmit={onSubmitBrowserUrl}
-            onRefresh={onRefreshBrowser}
-          />
-        ) : (
-          <div className="mt-3 rounded-12 border border-dashed border-border-01 bg-background-neutral-02 px-4 py-6 text-center">
-            <Text text03>
-              Open a Neural App to draft content or browse a website.
-            </Text>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BrowserAppPanel({
-  inputValue,
-  currentUrl,
-  status,
-  statusLabel,
-  navigationKey,
-  onChangeInputValue,
-  onSubmit,
-  onRefresh,
-}: {
-  inputValue: string;
-  currentUrl: string | null;
-  status: BrowserAppStatus;
-  statusLabel: string;
-  navigationKey: number;
-  onChangeInputValue: (value: string) => void;
-  onSubmit: () => void;
-  onRefresh: () => void;
-}) {
-  const [iframeStatus, setIframeStatus] = useState<Exclude<BrowserAppStatus, "invalid-url">>(
-    "idle"
-  );
-
-  useEffect(() => {
-    if (!currentUrl) {
-      setIframeStatus("idle");
-      return;
-    }
-
-    setIframeStatus("loading");
-    const timeoutId = window.setTimeout(() => {
-      setIframeStatus((previousStatus) =>
-        previousStatus === "loading" ? "blocked" : previousStatus
-      );
-    }, 8000);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [currentUrl, navigationKey]);
-
-  const effectiveStatus =
-    status === "invalid-url" ? status : currentUrl ? iframeStatus : status;
-  const effectiveStatusLabel =
-    effectiveStatus === "loading"
-      ? "Loading"
-      : effectiveStatus === "loaded"
-        ? "Loaded"
-        : effectiveStatus === "blocked"
-          ? "Blocked"
-          : effectiveStatus === "invalid-url"
-            ? "Invalid URL"
-            : statusLabel;
-
-  const handleOpenExternally = () => {
-    if (!currentUrl) {
-      return;
-    }
-    window.open(currentUrl, "_blank", "noopener,noreferrer");
-  };
-
-  return (
-    <div className="mt-3 flex min-h-[18rem] flex-col rounded-12 border border-border-01 bg-background-neutral-00">
-      <div className="flex items-center gap-2 border-b border-border-01 px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <Text className="truncate">Browser</Text>
-          <Text text03 className="truncate text-xs">
-            Public HTTPS pages only
+        <div className="mt-3 rounded-12 border border-dashed border-border-01 bg-background-neutral-02 px-4 py-6 text-center">
+          <Text text03>
+            Apps open in popup windows over the workspace.
           </Text>
         </div>
-        <Button tertiary size="md" disabled={!currentUrl} onClick={onRefresh}>
-          Refresh
-        </Button>
-        <Button tertiary size="md" disabled={!currentUrl} onClick={handleOpenExternally}>
-          Open externally
-        </Button>
-      </div>
-
-      <form
-        className="flex items-center gap-2 border-b border-border-01 px-3 py-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(event) => onChangeInputValue(event.target.value)}
-          placeholder="https://example.com"
-          className="min-w-0 flex-1 rounded-08 border border-border-01 bg-background-neutral-02 px-3 py-2 text-sm text-text-00 outline-none transition-colors focus:border-border-04"
-        />
-        <Button tertiary size="md" disabled={!inputValue.trim()}>
-          Go
-        </Button>
-      </form>
-
-      <div className="border-b border-border-01 px-3 py-1.5">
-        <Text text03 className="truncate text-xs">
-          {currentUrl ? `${effectiveStatusLabel}: ${currentUrl}` : effectiveStatusLabel}
-        </Text>
-      </div>
-
-      <div className="relative min-h-0 flex-1 bg-background-neutral-02">
-        {currentUrl ? (
-          <>
-            <iframe
-              key={`${currentUrl}-${navigationKey}`}
-              src={currentUrl}
-              onLoad={() => setIframeStatus("loaded")}
-              className={`absolute inset-0 h-full w-full border-0 ${
-                effectiveStatus === "loaded" ? "opacity-100" : "opacity-0"
-              } transition-opacity duration-200`}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
-              referrerPolicy="strict-origin-when-cross-origin"
-              title="Neural Apps Browser"
-            />
-
-            {effectiveStatus !== "loaded" ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                <SvgGlobe className="h-7 w-7 stroke-text-02" />
-                <div className="space-y-1">
-                  <Text>
-                    {effectiveStatus === "blocked"
-                      ? "This site does not allow embedded display."
-                      : effectiveStatus === "invalid-url"
-                        ? "Enter a valid HTTPS URL."
-                        : "Loading website..."}
-                  </Text>
-                  <Text text03 className="text-sm">
-                    {effectiveStatus === "blocked"
-                      ? "Open it in a new tab or try a different site."
-                      : currentUrl}
-                  </Text>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button tertiary size="md" onClick={handleOpenExternally}>
-                    Open externally
-                  </Button>
-                  <Button tertiary size="md" onClick={onRefresh}>
-                    Retry
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <div className="flex h-full min-h-[14rem] flex-col items-center justify-center gap-2 px-6 text-center">
-            <SvgGlobe className="h-7 w-7 stroke-text-02" />
-            <Text>Open a website inside Neural Apps.</Text>
-            <Text text03 className="text-sm">
-              Enter a public HTTPS URL to load it here.
-            </Text>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1240,14 +914,6 @@ export default function NeuralLabsPage() {
   const [isResizingNavigator, setIsResizingNavigator] = useState(false);
   const [isNavigatorCollapsed, setIsNavigatorCollapsed] = useState(false);
   const [isTerminalNavigatorCollapsed, setIsTerminalNavigatorCollapsed] = useState(false);
-  const [activeNeuralApp, setActiveNeuralApp] = useState<NeuralAppId | null>(null);
-  const [textEditorValue, setTextEditorValue] = useState("");
-  const [textEditorStatusMessage, setTextEditorStatusMessage] = useState<string | null>(null);
-  const [isSavingTextEditor, setIsSavingTextEditor] = useState(false);
-  const [browserInputValue, setBrowserInputValue] = useState("");
-  const [browserCurrentUrl, setBrowserCurrentUrl] = useState<string | null>(null);
-  const [browserStatus, setBrowserStatus] = useState<BrowserAppStatus>("idle");
-  const [browserNavigationKey, setBrowserNavigationKey] = useState(0);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
   const fileUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -1483,52 +1149,45 @@ export default function NeuralLabsPage() {
     if (isDesktopLayout && isNavigatorCollapsed) {
       setIsNavigatorCollapsed(false);
     }
-    setActiveNeuralApp("text-editor");
-    setTextEditorStatusMessage((previousStatus) => previousStatus ?? "Ready");
-  }, [isDesktopLayout, isNavigatorCollapsed]);
+    highestPreviewZIndexRef.current += 1;
+    const width =
+      workspaceBounds.width > 0
+        ? Math.min(700, Math.max(460, workspaceBounds.width * 0.58))
+        : 700;
+    const height =
+      workspaceBounds.height > 0
+        ? Math.min(560, Math.max(340, workspaceBounds.height * 0.62))
+        : 520;
+    const offset = previewWindows.filter(
+      (windowState) => windowState.preview_kind === "app-text-editor"
+    ).length * 24;
 
-  const openBrowserApp = useCallback(() => {
-    if (isDesktopLayout && isNavigatorCollapsed) {
-      setIsNavigatorCollapsed(false);
-    }
-    setActiveNeuralApp("browser");
-    setBrowserStatus((previousStatus) =>
-      previousStatus === "invalid-url" ? "ready" : previousStatus
-    );
-  }, [isDesktopLayout, isNavigatorCollapsed]);
+    setPreviewWindows((previousWindows) => [
+      ...previousWindows,
+      {
+        id: createLocalId(),
+        path: `__app__/text-editor/${createLocalId()}`,
+        name: "Text Editor",
+        mime_type: null,
+        preview_kind: "app-text-editor",
+        x: 36 + offset,
+        y: 36 + offset,
+        width,
+        height,
+        z_index: highestPreviewZIndexRef.current,
+        snapped_zone: null,
+      },
+    ]);
+  }, [
+    isDesktopLayout,
+    isNavigatorCollapsed,
+    previewWindows,
+    workspaceBounds.height,
+    workspaceBounds.width,
+  ]);
 
-  const saveTextEditorToFile = useCallback(async () => {
-    const promptDefault = currentPath ? `${currentPath}/untitled.txt` : "untitled.txt";
-    const targetInput = window.prompt("Save text as:", promptDefault);
-    if (targetInput === null) {
-      return;
-    }
-
-    let targetPath = "";
-    try {
-      targetPath = resolveEditorSavePath(targetInput, currentPath);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Invalid file name");
-      return;
-    }
-
-    setIsSavingTextEditor(true);
-    setTextEditorStatusMessage("Saving...");
-
-    try {
-      const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/content`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          path: targetPath,
-          content: textEditorValue,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(await getFetchErrorMessage(response));
-      }
-
+  const handleTextFileSaved = useCallback(
+    async (targetPath: string) => {
       const parentPath = getParentPath(targetPath);
       const expandedAncestors = parentPath ? getAncestorPaths(parentPath) : [];
 
@@ -1539,43 +1198,10 @@ export default function NeuralLabsPage() {
       });
       setCurrentPath(parentPath);
       setSelectedPath(targetPath);
-      setTextEditorStatusMessage("Saved");
       await refreshDirectory();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to save text file";
-      setTextEditorStatusMessage(message);
-      toast.error(message);
-    } finally {
-      setIsSavingTextEditor(false);
-    }
-  }, [currentPath, refreshDirectory, textEditorValue]);
-
-  const submitBrowserUrl = useCallback(() => {
-    let normalizedUrl = "";
-    try {
-      normalizedUrl = normalizeBrowserUrl(browserInputValue);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Enter a valid HTTPS URL";
-      setBrowserStatus("invalid-url");
-      toast.error(message);
-      return;
-    }
-
-    setBrowserInputValue(normalizedUrl);
-    setBrowserCurrentUrl(normalizedUrl);
-    setBrowserStatus("loading");
-    setBrowserNavigationKey((previousKey) => previousKey + 1);
-  }, [browserInputValue]);
-
-  const refreshBrowser = useCallback(() => {
-    if (!browserCurrentUrl) {
-      return;
-    }
-    setBrowserStatus("loading");
-    setBrowserNavigationKey((previousKey) => previousKey + 1);
-  }, [browserCurrentUrl]);
+    },
+    [refreshDirectory]
+  );
 
   const navigateUp = useCallback(async () => {
     if (!currentPath) {
@@ -2690,32 +2316,7 @@ export default function NeuralLabsPage() {
 
               <div className="min-h-[18rem]">
                 <NeuralAppsPanel
-                  currentDirectory={currentPath}
-                  activeApp={activeNeuralApp}
-                  textEditorValue={textEditorValue}
-                  browserInputValue={browserInputValue}
-                  browserCurrentUrl={browserCurrentUrl}
-                  browserStatus={browserStatus}
-                  browserNavigationKey={browserNavigationKey}
-                  isSaving={isSavingTextEditor}
-                  statusMessage={textEditorStatusMessage}
                   onActivateTextEditor={openTextEditorApp}
-                  onActivateBrowser={openBrowserApp}
-                  onChangeTextEditorValue={(value) => {
-                    setTextEditorValue(value);
-                    setTextEditorStatusMessage(value.trim() ? "Unsaved changes" : "Ready");
-                  }}
-                  onChangeBrowserInputValue={(value) => {
-                    setBrowserInputValue(value);
-                    setBrowserStatus(value.trim() ? "ready" : "idle");
-                  }}
-                  onClearTextEditor={() => {
-                    setTextEditorValue("");
-                    setTextEditorStatusMessage("Ready");
-                  }}
-                  onSaveTextEditor={() => void saveTextEditorToFile()}
-                  onSubmitBrowserUrl={submitBrowserUrl}
-                  onRefreshBrowser={refreshBrowser}
                 />
               </div>
             </div>
@@ -2783,16 +2384,6 @@ export default function NeuralLabsPage() {
                   title="Text Editor"
                   aria-label="Text Editor"
                   onClick={openTextEditorApp}
-                />
-              </IconActionButton>
-              <IconActionButton label="Browser">
-                <Button
-                  tertiary
-                  size="md"
-                  leftIcon={SvgGlobe}
-                  title="Browser"
-                  aria-label="Browser"
-                  onClick={openBrowserApp}
                 />
               </IconActionButton>
             </aside>
@@ -2921,10 +2512,11 @@ export default function NeuralLabsPage() {
                 <NeuralLabsPreviewWindows
                   windows={previewWindows}
                   workspaceBounds={workspaceBounds}
+                  currentDirectory={currentPath}
                   onCloseWindow={closePreviewWindow}
                   onFocusWindow={focusPreviewWindow}
-                  onTextFileSaved={() => {
-                    void refreshDirectory();
+                  onTextFileSaved={(path) => {
+                    void handleTextFileSaved(path);
                   }}
                   onUpdateWindow={updatePreviewWindow}
                 />

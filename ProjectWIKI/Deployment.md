@@ -98,10 +98,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - split terminal tabs/panes
   - file action icons expose hover helper text for create/upload/refresh
   - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls
-  - Neural Apps includes:
-    - a Text Editor that saves pasted text into workspace files via the existing file-content API
-    - a lightweight Browser for public `https://` URLs with a single address bar and no tabs
-  - browser embedding is best-effort only; iframe-blocked sites fall back to an inline blocked state with an external-open action
+  - Neural Apps includes a Text Editor that opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API
   - floating preview windows with snap/resize for text, image, PDF, HTML, KMZ, and XLSX
   - HTML previews allow scripts and same-origin access so self-contained generated graph pages can render
   - refresh/focus restores terminal layout by reconciling browser-saved tabs with live backend terminal IDs to reduce stale or ghost panes after reload

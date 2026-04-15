@@ -25,6 +25,7 @@ interface WorkspaceBounds {
 interface NeuralLabsPreviewWindowsProps {
   windows: PreviewWindowState[];
   workspaceBounds: WorkspaceBounds;
+  currentDirectory: string;
   onCloseWindow: (windowId: string) => void;
   onFocusWindow: (windowId: string) => void;
   onTextFileSaved?: (path: string) => void;
@@ -650,6 +651,120 @@ function TextEditorContent({
   );
 }
 
+function AppTextEditorContent({
+  currentDirectory,
+  onTextFileSaved,
+}: {
+  currentDirectory: string;
+  onTextFileSaved?: (path: string) => void;
+}) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>("Ready");
+  const [textValue, setTextValue] = useState("");
+
+  const saveText = useCallback(async () => {
+    const promptDefault = currentDirectory
+      ? `${currentDirectory}/untitled.txt`
+      : "untitled.txt";
+    const targetInput = window.prompt("Save text as:", promptDefault);
+    if (targetInput === null) {
+      return;
+    }
+
+    const trimmedTarget = targetInput.trim().replace(/^\/+/, "");
+    if (!trimmedTarget) {
+      setStatusMessage("File name cannot be empty");
+      return;
+    }
+
+    const targetPath =
+      currentDirectory && !trimmedTarget.includes("/")
+        ? `${currentDirectory}/${trimmedTarget}`
+        : trimmedTarget;
+
+    setIsSaving(true);
+    setStatusMessage("Saving...");
+
+    try {
+      const response = await fetch(CONTENT_API_PREFIX, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: targetPath,
+          content: textValue,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readResponseError(response));
+      }
+
+      setStatusMessage("Saved");
+      onTextFileSaved?.(targetPath);
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Unable to save file"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentDirectory, onTextFileSaved, textValue]);
+
+  return (
+    <div className="flex h-full w-full flex-col bg-background-neutral-00">
+      <div className="flex items-center justify-between border-b border-border-01 px-2 py-1.5">
+        <Text text03 className="truncate text-xs">
+          {isSaving
+            ? "Saving..."
+            : statusMessage ?? (textValue.trim() ? "Unsaved changes" : "Ready")}
+        </Text>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              setTextValue("");
+              setStatusMessage("Ready");
+            }}
+            disabled={!textValue.trim() || isSaving}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => void saveText()}
+            disabled={!textValue.trim() || isSaving}
+          >
+            Save to File
+          </button>
+        </div>
+      </div>
+      <div className="border-b border-border-01 px-2 py-1.5">
+        <Text text03 className="truncate text-xs">
+          {`Saving to: ${currentDirectory ? `~/${currentDirectory}` : "~"}`}
+        </Text>
+      </div>
+      <textarea
+        spellCheck={false}
+        value={textValue}
+        onChange={(event) => {
+          setTextValue(event.target.value);
+          setStatusMessage(null);
+        }}
+        onKeyDown={(event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+            event.preventDefault();
+            void saveText();
+          }
+        }}
+        placeholder="Paste or type text here..."
+        className="h-[calc(100%-4.5rem)] w-full resize-none border-0 bg-background-neutral-00 px-3 py-2 font-mono text-sm leading-5 text-text-00 outline-none"
+      />
+    </div>
+  );
+}
+
 function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -907,11 +1022,22 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
 
 function WindowContent({
   windowState,
+  currentDirectory,
   onTextFileSaved,
 }: {
   windowState: PreviewWindowState;
+  currentDirectory: string;
   onTextFileSaved?: (path: string) => void;
 }) {
+  if (windowState.preview_kind === "app-text-editor") {
+    return (
+      <AppTextEditorContent
+        currentDirectory={currentDirectory}
+        onTextFileSaved={onTextFileSaved}
+      />
+    );
+  }
+
   if (windowState.preview_kind === "text") {
     return (
       <TextEditorContent
@@ -1019,6 +1145,7 @@ function WindowContent({
 function PreviewWindow({
   windowState,
   workspaceBounds,
+  currentDirectory,
   onCloseWindow,
   onFocusWindow,
   onTextFileSaved,
@@ -1026,6 +1153,7 @@ function PreviewWindow({
 }: {
   windowState: PreviewWindowState;
   workspaceBounds: WorkspaceBounds;
+  currentDirectory: string;
   onCloseWindow: (windowId: string) => void;
   onFocusWindow: (windowId: string) => void;
   onTextFileSaved?: (path: string) => void;
@@ -1218,6 +1346,8 @@ function PreviewWindow({
   const previewLabel =
     displayWindow.preview_kind === "image"
       ? "Image Preview"
+      : displayWindow.preview_kind === "app-text-editor"
+        ? "Neural App"
       : displayWindow.preview_kind === "pdf"
         ? "PDF Preview"
       : displayWindow.preview_kind === "kmz"
@@ -1283,6 +1413,7 @@ function PreviewWindow({
       <div className="h-[calc(100%-2.75rem)] w-full">
         <WindowContent
           windowState={displayWindow}
+          currentDirectory={currentDirectory}
           onTextFileSaved={onTextFileSaved}
         />
       </div>
@@ -1301,6 +1432,7 @@ function PreviewWindow({
 export default function NeuralLabsPreviewWindows({
   windows,
   workspaceBounds,
+  currentDirectory,
   onCloseWindow,
   onFocusWindow,
   onTextFileSaved,
@@ -1313,6 +1445,7 @@ export default function NeuralLabsPreviewWindows({
           key={windowState.id}
           windowState={windowState}
           workspaceBounds={workspaceBounds}
+          currentDirectory={currentDirectory}
           onCloseWindow={onCloseWindow}
           onFocusWindow={onFocusWindow}
           onTextFileSaved={onTextFileSaved}
