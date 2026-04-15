@@ -1,0 +1,1 @@
+Always update the wiki in WardGPT.wiki with technical/user documentation and check for stale entries. Push the github changes.

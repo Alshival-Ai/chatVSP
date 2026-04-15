@@ -1,0 +1,140 @@
+{% load static %}
+<header class="topbar">
+  <div class="brand">
+    <button class="mobile-menu-btn" type="button" aria-label="Toggle sidebar" aria-expanded="false" data-sidebar-toggle>☰</button>
+    <div class="brand-mark">
+      <img class="brand-mark__img" src="{% static 'img/branding/alshival-logo-256x256.png' %}" alt="Alshival logo" />
+    </div>
+    <span class="brand-title">Alshival</span>
+  </div>
+  <div class="topbar-actions">
+    <label
+      class="search"
+      data-topbar-search
+      data-search-url="{% url 'search_kb_suggestions' %}"
+      {% if request.resolver_match and request.resolver_match.kwargs.resource_uuid %}
+      data-resource-uuid="{{ request.resolver_match.kwargs.resource_uuid }}"
+      {% endif %}>
+      <span class="search-icon">⌕</span>
+      <input
+        type="search"
+        placeholder="Search resources and wiki"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Search knowledge base"
+        data-topbar-search-input />
+      <section class="topbar-search-dropdown" hidden data-topbar-search-dropdown>
+        <div class="topbar-search-results" data-topbar-search-results></div>
+        <p class="topbar-search-empty" data-topbar-search-empty>Type at least 2 characters.</p>
+      </section>
+    </label>
+    <div
+      class="notification-menu"
+      data-notification-menu
+      data-list-url="{% url 'notifications_feed' %}"
+      data-mark-read-url="{% url 'notifications_mark_all_read' %}"
+      data-clear-url="{% url 'notifications_clear_all' %}">
+      <button
+        class="icon-btn notification-toggle"
+        type="button"
+        aria-label="Open notifications"
+        aria-haspopup="true"
+        aria-expanded="false"
+        data-notification-toggle>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0" />
+        </svg>
+        <span
+          class="notification-badge{% if sidebar_workspace_widget.unread_notifications|default:0 < 1 %} d-none{% endif %}"
+          data-notification-badge>{{ sidebar_workspace_widget.unread_notifications|default:0 }}</span>
+      </button>
+      <section class="notification-dropdown" hidden data-notification-dropdown>
+        <header class="notification-dropdown__header">
+          <h3 class="notification-dropdown__title">Notifications</h3>
+          <div class="notification-dropdown__actions">
+            <button class="notification-dropdown__clear" type="button" data-notification-mark-read>Mark read</button>
+            <button class="notification-dropdown__trash" type="button" aria-label="Clear all notifications" data-notification-clear-all>Clear</button>
+          </div>
+        </header>
+        <div class="notification-list" data-notification-list>
+          <p class="notification-empty">Loading notifications...</p>
+        </div>
+      </section>
+    </div>
+    <label class="theme-switcher" aria-label="Light/Dark Mode">
+      <input class="theme__toggle theme-switcher__input" type="checkbox" role="switch" name="theme" value="dark">
+      <span class="theme-switcher__slider">
+        <span class="theme-switcher__sun-moon">
+          <span class="theme-switcher__sun-moon-core">
+            <svg class="theme-switcher__moon-dot theme-switcher__moon-dot--1" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__moon-dot theme-switcher__moon-dot--2" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__moon-dot theme-switcher__moon-dot--3" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__light-ray theme-switcher__light-ray--1" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__light-ray theme-switcher__light-ray--2" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__light-ray theme-switcher__light-ray--3" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__cloud theme-switcher__cloud--dark theme-switcher__cloud--1" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__cloud theme-switcher__cloud--dark theme-switcher__cloud--2" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__cloud theme-switcher__cloud--dark theme-switcher__cloud--3" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__cloud theme-switcher__cloud--light theme-switcher__cloud--4" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__cloud theme-switcher__cloud--light theme-switcher__cloud--5" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+            <svg class="theme-switcher__cloud theme-switcher__cloud--light theme-switcher__cloud--6" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+          </span>
+        </span>
+        <span class="theme-switcher__stars">
+          <svg class="theme-switcher__star theme-switcher__star--1" viewBox="0 0 20 20">
+            <path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path>
+          </svg>
+          <svg class="theme-switcher__star theme-switcher__star--2" viewBox="0 0 20 20">
+            <path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path>
+          </svg>
+          <svg class="theme-switcher__star theme-switcher__star--3" viewBox="0 0 20 20">
+            <path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path>
+          </svg>
+          <svg class="theme-switcher__star theme-switcher__star--4" viewBox="0 0 20 20">
+            <path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path>
+          </svg>
+        </span>
+      </span>
+    </label>
+    <details class="user-menu">
+      <summary class="user-menu__toggle" aria-label="Open user menu">
+        {% if topbar_user_menu.avatar_url %}
+        <img class="user-menu__avatar" src="{{ topbar_user_menu.avatar_url }}" alt="Your avatar">
+        {% else %}
+        <span class="user-menu__avatar-fallback" aria-hidden="true">{{ topbar_user_menu.initial }}</span>
+        {% endif %}
+      </summary>
+      <div class="user-menu__dropdown">
+        <a class="user-menu__item{% if '/settings/' in request.path %} is-active{% endif %}" href="{% url 'app_settings' %}">Settings</a>
+        <form method="post" action="{% url 'account_logout' %}">
+          {% csrf_token %}
+          <button class="user-menu__item user-menu__item-btn" type="submit">Log out</button>
+        </form>
+      </div>
+    </details>
+  </div>
+</header>

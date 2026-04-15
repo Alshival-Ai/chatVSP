@@ -1,0 +1,28 @@
+deprecated/
+
+# Local secrets and env files
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# JavaScript artifacts
+node_modules/
+
+# Logs and temp files
+*.log
+*.tmp

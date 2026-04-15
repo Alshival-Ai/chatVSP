@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+if [[ -d "${REPO_ROOT}/onyx-main/deployment/docker_compose" ]]; then
+  PROJECT_ROOT="${REPO_ROOT}/onyx-main"
+  COMPOSE_DIR="${PROJECT_ROOT}/deployment/docker_compose"
+elif [[ -d "${REPO_ROOT}/deployment/docker_compose" ]]; then
+  PROJECT_ROOT="${REPO_ROOT}"
+  COMPOSE_DIR="${PROJECT_ROOT}/deployment/docker_compose"
+else
+  echo "Could not find deployment/docker_compose under ${REPO_ROOT}" >&2
+  exit 1
+fi
+
+if [[ -f "${PROJECT_ROOT}/docker-bake.hcl" ]]; then
+  BAKE_FILE="${PROJECT_ROOT}/docker-bake.hcl"
+elif [[ -f "${REPO_ROOT}/docker-bake.hcl" ]]; then
+  BAKE_FILE="${REPO_ROOT}/docker-bake.hcl"
+else
+  echo "Could not find docker-bake.hcl under ${PROJECT_ROOT} or ${REPO_ROOT}" >&2
+  exit 1
+fi
+
+ENV_FILE="${COMPOSE_DIR}/.env"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./tools/bake.sh [buildx-bake-targets-and-flags] [--compose-up|--compose-restart] [--compose-file FILE] [--compose-up-service SERVICE]
+
+Examples:
+  ./tools/bake.sh --compose-restart
+  ./tools/bake.sh
+  ./tools/bake.sh web
+  ENABLE_CRAFT=true ./tools/bake.sh backend --compose-restart --compose-file docker-compose.dev.yml
+  ./tools/bake.sh --compose-restart --compose-file docker-compose.prod.yml
+  ./tools/bake.sh web --compose-up --compose-file docker-compose.prod.yml --compose-up-service web_server
+
+Notes:
+  - For docker-compose.prod.yml, first-run Let's Encrypt initialization is automatic.
+  - Set SKIP_CERTBOT_INIT=true to bypass cert bootstrap.
+EOF
+}
+
+maybe_init_prod_certbot() {
+  local compose_basename="$1"
+  local compose_file_path="$2"
+  local compose_service="$3"
+
+  if [[ "$compose_basename" != "docker-compose.prod.yml" ]]; then
+    return
+  fi
+
+  local skip_certbot_init="${SKIP_CERTBOT_INIT:-false}"
+  if [[ "${skip_certbot_init,,}" == "true" || "$skip_certbot_init" == "1" ]]; then
+    return
+  fi
+
+  if [[ -n "$compose_service" && "$compose_service" != "nginx" ]]; then
+    return
+  fi
+
+  local certbot_init_script="${COMPOSE_DIR}/ensure-letsencrypt.sh"
+  if [[ ! -f "$certbot_init_script" ]]; then
+    echo "Missing certbot bootstrap script: $certbot_init_script" >&2
+    exit 1
+  fi
+
+  chmod +x "$certbot_init_script"
+  "$certbot_init_script" --compose-file "$compose_file_path"
+}
+
+if [[ -f "$ENV_FILE" ]]; then
+  set +e
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE" >/dev/null 2>&1
+  source_status=$?
+  set +a
+  set -e
+  if [[ $source_status -ne 0 ]]; then
+    echo "Warning: failed to source ${ENV_FILE}; continuing with current environment." >&2
+  fi
+fi
+
+set_repo_from_image() {
+  local image_ref="$1"
+  local repo_var="$2"
+
+  if [[ -z "$image_ref" ]]; then
+    return
+  fi
+
+  local repo="$image_ref"
+  local tag=""
+
+  # Digest-pinned refs do not have a tag component.
+  if [[ "$image_ref" == *@* ]]; then
+    repo="${image_ref%@*}"
+  else
+    local last_path_segment="${image_ref##*/}"
+    # Only treat ":" as a tag delimiter if it appears after the final "/".
+    if [[ "$last_path_segment" == *:* ]]; then
+      repo="${image_ref%:*}"
+      tag="${image_ref##*:}"
+    fi
+  fi
+
+  printf -v "$repo_var" "%s" "$repo"
+  export "$repo_var"
+
+  if [[ -n "$tag" && -z "${TAG:-}" ]]; then
+    export TAG="$tag"
+  fi
+}
+
+# Keep compose image names and bake repository targets aligned.
+set_repo_from_image "${ONYX_BACKEND_IMAGE:-}" BACKEND_REPOSITORY
+set_repo_from_image "${ONYX_WEB_SERVER_IMAGE:-}" WEB_SERVER_REPOSITORY
+set_repo_from_image "${ONYX_MODEL_SERVER_IMAGE:-}" MODEL_SERVER_REPOSITORY
+
+# Keep TAG (bake) and IMAGE_TAG (compose) synchronized.
+if [[ -n "${TAG:-}" ]]; then
+  export IMAGE_TAG="$TAG"
+elif [[ -n "${IMAGE_TAG:-}" ]]; then
+  export TAG="$IMAGE_TAG"
+fi
+
+compose_action=""
+compose_file="${BAKE_DEFAULT_COMPOSE_FILE:-docker-compose.yml}"
+compose_service=""
+declare -a bake_args
+bake_args=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --compose-up)
+      compose_action="up"
+      shift
+      ;;
+    --compose-restart)
+      compose_action="restart"
+      shift
+      ;;
+    --compose-file)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --compose-file" >&2
+        exit 1
+      fi
+      compose_file="$2"
+      shift 2
+      ;;
+    --compose-up-service)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --compose-up-service" >&2
+        exit 1
+      fi
+      compose_service="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      bake_args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ -n "$compose_service" && -z "$compose_action" ]]; then
+  echo "--compose-up-service requires --compose-up or --compose-restart" >&2
+  exit 1
+fi
+
+(
+  cd "$PROJECT_ROOT"
+  docker buildx bake -f "$BAKE_FILE" "${bake_args[@]}"
+)
+
+if [[ -n "$compose_action" ]]; then
+  if [[ "$compose_file" = /* ]]; then
+    compose_file_path="$compose_file"
+  elif [[ -f "$compose_file" ]]; then
+    compose_file_path="$(cd -- "$(dirname -- "$compose_file")" && pwd)/$(basename -- "$compose_file")"
+  elif [[ -f "${COMPOSE_DIR}/${compose_file}" ]]; then
+    compose_file_path="${COMPOSE_DIR}/${compose_file}"
+  elif [[ -f "${PROJECT_ROOT}/${compose_file}" ]]; then
+    compose_file_path="${PROJECT_ROOT}/${compose_file}"
+  elif [[ -f "${REPO_ROOT}/${compose_file}" ]]; then
+    compose_file_path="${REPO_ROOT}/${compose_file}"
+  else
+    echo "Compose file not found: $compose_file" >&2
+    exit 1
+  fi
+
+  compose_cmd=(docker compose)
+  if [[ -f "$ENV_FILE" ]]; then
+    compose_cmd+=(--env-file "$ENV_FILE")
+  fi
+  compose_basename="$(basename -- "$compose_file_path")"
+  compose_dir="$(dirname -- "$compose_file_path")"
+  if [[ "$compose_basename" == "docker-compose.dev.yml" ]]; then
+    base_compose="${compose_dir}/docker-compose.yml"
+    if [[ ! -f "$base_compose" ]]; then
+      echo "Base compose file not found for dev override: $base_compose" >&2
+      exit 1
+    fi
+    compose_cmd+=(-f "$base_compose" -f "$compose_file_path")
+  else
+    compose_cmd+=(-f "$compose_file_path")
+  fi
+
+  maybe_init_prod_certbot "$compose_basename" "$compose_file_path" "$compose_service"
+
+  compose_cmd+=(up -d)
+  if [[ "$compose_action" == "restart" ]]; then
+    compose_cmd+=(--force-recreate --remove-orphans)
+  fi
+  if [[ -n "$compose_service" ]]; then
+    compose_cmd+=("$compose_service")
+  fi
+  "${compose_cmd[@]}"
+fi
