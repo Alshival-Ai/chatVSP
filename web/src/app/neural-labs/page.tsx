@@ -234,14 +234,14 @@ function getPreviewKind(entry: NeuralLabsFileEntry): PreviewKind | null {
   }
 
   if (mimeType.startsWith("text/") || TEXT_PREVIEW_MIME_TYPES.has(mimeType)) {
-    return "text";
+    return "app-text-editor";
   }
 
   if (TEXT_PREVIEW_EXTENSIONS.has(extension)) {
-    return "text";
+    return "app-text-editor";
   }
   if (TEXT_PREVIEW_FILENAMES.has(lowerName)) {
-    return "text";
+    return "app-text-editor";
   }
   return null;
 }
@@ -468,7 +468,13 @@ function persistPreviewWindows(windows: PreviewWindowState[]): void {
   window.localStorage.setItem(
     PREVIEW_WINDOWS_STORAGE_KEY,
     JSON.stringify(
-      windows.filter((windowState) => windowState.preview_kind !== "app-text-editor")
+      windows.filter(
+        (windowState) =>
+          !(
+            windowState.preview_kind === "app-text-editor" &&
+            windowState.path.startsWith("__app__/")
+          )
+      )
     )
   );
 }

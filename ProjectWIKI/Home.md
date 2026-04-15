@@ -45,7 +45,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - Neural Labs action hover text now uses the themed white tooltip only; browser-native duplicate tooltips were removed and tooltip positioning is clamped within the viewport above floating windows
     - terminal and group deletion now lives in the Terminal Navigator via trash actions instead of top-bar close controls; standalone terminal and group delete icons are red, while in-group terminal delete icons remain neutral
     - Neural Apps currently includes a Text Editor that opens as its own floating app window over the workspace and can save pasted text directly into the workspace as a file; the sidebar launcher is now icon+name when expanded and icon-only when collapsed
-    - floating preview windows (snap/drag/resize) for text, image, PDF, HTML, KMZ, and XLSX
+    - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
+    - floating preview windows (snap/drag/resize) for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
     - HTML preview iframe now allows scripts and same-origin access so generated graph outputs can render instead of falling back to a blank/non-interactive frame
     - terminal refresh/focus flow now reconciles saved layout against live backend sessions to reduce stale pane or ghost-terminal behavior after reload
     - KMZ/Leaflet preview is loaded client-only to avoid `window is not defined` SSR failures on `/neural-labs`

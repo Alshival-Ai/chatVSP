@@ -502,18 +502,23 @@ function columnIndexToLabel(index: number): string {
   return label;
 }
 
-function TextEditorContent({
+function EditorWindowContent({
   windowState,
+  currentDirectory,
   onTextFileSaved,
 }: {
   windowState: PreviewWindowState;
+  currentDirectory: string;
   onTextFileSaved?: (path: string) => void;
 }) {
+  const isScratchEditor = windowState.path.startsWith("__app__/");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isScratchEditor);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(
+    isScratchEditor ? "Ready" : null
+  );
   const [textValue, setTextValue] = useState("");
   const [savedValue, setSavedValue] = useState("");
 
@@ -523,6 +528,13 @@ function TextEditorContent({
   }, [refreshKey, windowState.path]);
 
   const loadText = useCallback(async () => {
+    if (isScratchEditor) {
+      setIsLoading(false);
+      setErrorMessage(null);
+      setSavedValue("");
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
     setStatusMessage(null);
@@ -547,13 +559,15 @@ function TextEditorContent({
     } finally {
       setIsLoading(false);
     }
-  }, [contentUrl]);
+  }, [contentUrl, isScratchEditor]);
 
   useEffect(() => {
     void loadText();
   }, [loadText]);
 
-  const hasUnsavedChanges = textValue !== savedValue;
+  const hasUnsavedChanges = isScratchEditor
+    ? textValue.trim().length > 0
+    : textValue !== savedValue;
 
   const saveText = useCallback(async () => {
     if (isSaving || isLoading || !hasUnsavedChanges) {
@@ -564,11 +578,38 @@ function TextEditorContent({
     setErrorMessage(null);
     setStatusMessage(null);
     try {
+      const targetPath = isScratchEditor
+        ? (() => {
+            const promptDefault = currentDirectory
+              ? `${currentDirectory}/untitled.txt`
+              : "untitled.txt";
+            const targetInput = window.prompt("Save text as:", promptDefault);
+            if (targetInput === null) {
+              return null;
+            }
+
+            const trimmedTarget = targetInput.trim().replace(/^\/+/, "");
+            if (!trimmedTarget) {
+              throw new Error("File name cannot be empty");
+            }
+
+            return currentDirectory && !trimmedTarget.includes("/")
+              ? `${currentDirectory}/${trimmedTarget}`
+              : trimmedTarget;
+          })()
+        : windowState.path;
+
+      if (targetPath === null) {
+        setStatusMessage("Ready");
+        setIsSaving(false);
+        return;
+      }
+
       const response = await fetch(CONTENT_API_PREFIX, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: windowState.path,
+          path: targetPath,
           content: textValue,
         }),
       });
@@ -579,7 +620,7 @@ function TextEditorContent({
 
       setSavedValue(textValue);
       setStatusMessage("Saved");
-      onTextFileSaved?.(windowState.path);
+      onTextFileSaved?.(targetPath);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to save file"
@@ -588,8 +629,10 @@ function TextEditorContent({
       setIsSaving(false);
     }
   }, [
+    currentDirectory,
     hasUnsavedChanges,
     isLoading,
+    isScratchEditor,
     isSaving,
     onTextFileSaved,
     textValue,
@@ -608,24 +651,45 @@ function TextEditorContent({
                 ? "Saving..."
                 : hasUnsavedChanges
                   ? "Unsaved changes"
-                  : statusMessage ?? "Ready"}
+                  : statusMessage ??
+                    (isScratchEditor
+                      ? currentDirectory
+                        ? `Saving to: ~/${currentDirectory}`
+                        : "Saving to: ~"
+                      : "Ready")}
         </Text>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01"
-            onClick={() => setRefreshKey((value) => value + 1)}
-            disabled={isLoading || isSaving}
-          >
-            Reload
-          </button>
+          {!isScratchEditor ? (
+            <button
+              type="button"
+              className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01"
+              onClick={() => setRefreshKey((value) => value + 1)}
+              disabled={isLoading || isSaving}
+            >
+              Reload
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => {
+                setTextValue("");
+                setSavedValue("");
+                setStatusMessage("Ready");
+                setErrorMessage(null);
+              }}
+              disabled={!textValue.trim() || isSaving}
+            >
+              Clear
+            </button>
+          )}
           <button
             type="button"
             className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => void saveText()}
             disabled={!hasUnsavedChanges || isSaving || isLoading}
           >
-            Save
+            {isScratchEditor ? "Save to File" : "Save"}
           </button>
         </div>
       </div>
@@ -644,121 +708,8 @@ function TextEditorContent({
             void saveText();
           }
         }}
+        placeholder={isScratchEditor ? "Paste or type text here..." : undefined}
         className="h-[calc(100%-2.25rem)] w-full resize-none border-0 bg-background-neutral-00 px-3 py-2 font-mono text-sm leading-5 text-text-00 outline-none"
-      />
-    </div>
-  );
-}
-
-function AppTextEditorContent({
-  currentDirectory,
-  onTextFileSaved,
-}: {
-  currentDirectory: string;
-  onTextFileSaved?: (path: string) => void;
-}) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>("Ready");
-  const [textValue, setTextValue] = useState("");
-
-  const saveText = useCallback(async () => {
-    const promptDefault = currentDirectory
-      ? `${currentDirectory}/untitled.txt`
-      : "untitled.txt";
-    const targetInput = window.prompt("Save text as:", promptDefault);
-    if (targetInput === null) {
-      return;
-    }
-
-    const trimmedTarget = targetInput.trim().replace(/^\/+/, "");
-    if (!trimmedTarget) {
-      setStatusMessage("File name cannot be empty");
-      return;
-    }
-
-    const targetPath =
-      currentDirectory && !trimmedTarget.includes("/")
-        ? `${currentDirectory}/${trimmedTarget}`
-        : trimmedTarget;
-
-    setIsSaving(true);
-    setStatusMessage("Saving...");
-
-    try {
-      const response = await fetch(CONTENT_API_PREFIX, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          path: targetPath,
-          content: textValue,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(await readResponseError(response));
-      }
-
-      setStatusMessage("Saved");
-      onTextFileSaved?.(targetPath);
-    } catch (error) {
-      setStatusMessage(
-        error instanceof Error ? error.message : "Unable to save file"
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }, [currentDirectory, onTextFileSaved, textValue]);
-
-  return (
-    <div className="flex h-full w-full flex-col bg-background-neutral-00">
-      <div className="flex items-center justify-between border-b border-border-01 px-2 py-1.5">
-        <Text text03 className="truncate text-xs">
-          {isSaving
-            ? "Saving..."
-            : statusMessage ?? (textValue.trim() ? "Unsaved changes" : "Ready")}
-        </Text>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => {
-              setTextValue("");
-              setStatusMessage("Ready");
-            }}
-            disabled={!textValue.trim() || isSaving}
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => void saveText()}
-            disabled={!textValue.trim() || isSaving}
-          >
-            Save to File
-          </button>
-        </div>
-      </div>
-      <div className="border-b border-border-01 px-2 py-1.5">
-        <Text text03 className="truncate text-xs">
-          {`Saving to: ${currentDirectory ? `~/${currentDirectory}` : "~"}`}
-        </Text>
-      </div>
-      <textarea
-        spellCheck={false}
-        value={textValue}
-        onChange={(event) => {
-          setTextValue(event.target.value);
-          setStatusMessage(null);
-        }}
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
-            event.preventDefault();
-            void saveText();
-          }
-        }}
-        placeholder="Paste or type text here..."
-        className="h-[calc(100%-4.5rem)] w-full resize-none border-0 bg-background-neutral-00 px-3 py-2 font-mono text-sm leading-5 text-text-00 outline-none"
       />
     </div>
   );
@@ -1028,17 +979,9 @@ function WindowContent({
 }) {
   if (windowState.preview_kind === "app-text-editor") {
     return (
-      <AppTextEditorContent
-        currentDirectory={currentDirectory}
-        onTextFileSaved={onTextFileSaved}
-      />
-    );
-  }
-
-  if (windowState.preview_kind === "text") {
-    return (
-      <TextEditorContent
+      <EditorWindowContent
         windowState={windowState}
+        currentDirectory={currentDirectory}
         onTextFileSaved={onTextFileSaved}
       />
     );
@@ -1340,21 +1283,6 @@ function PreviewWindow({
     { direction: "w", className: "bottom-3 left-0 top-3 w-2 cursor-w-resize" },
     { direction: "nw", className: "left-0 top-0 h-3 w-3 cursor-nw-resize" },
   ];
-  const previewLabel =
-    displayWindow.preview_kind === "image"
-      ? "Image Preview"
-      : displayWindow.preview_kind === "app-text-editor"
-        ? "Neural App"
-      : displayWindow.preview_kind === "pdf"
-        ? "PDF Preview"
-      : displayWindow.preview_kind === "kmz"
-        ? "KMZ Map Preview"
-        : displayWindow.preview_kind === "xlsx"
-          ? "Spreadsheet Preview"
-        : displayWindow.preview_kind === "html"
-        ? "HTML Preview"
-        : "Text Editor";
-
   return (
     <div
       className="absolute overflow-hidden rounded-16 border border-border-04 bg-background-neutral-00 shadow-2xl"
@@ -1380,9 +1308,6 @@ function PreviewWindow({
           <div className="min-w-0 overflow-hidden">
             <Text className="truncate" title={displayWindow.name}>
               {displayWindow.name}
-            </Text>
-            <Text text03 className="truncate text-xs">
-              {previewLabel}
             </Text>
           </div>
         </div>

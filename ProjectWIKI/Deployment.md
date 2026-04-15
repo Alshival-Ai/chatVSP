@@ -101,7 +101,8 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - Neural Labs hover helper text now uses the themed white tooltip only; native browser duplicate tooltips are removed and tooltip positioning is clamped within the viewport above floating windows
   - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls; standalone terminal and group delete actions are red while in-group terminal delete actions stay neutral
   - Neural Apps includes a Text Editor that opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API; the launcher shows icon+name in the expanded sidebar and icon-only in the collapsed rail
-  - floating preview windows with snap/resize for text, image, PDF, HTML, KMZ, and XLSX
+  - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
+  - floating preview windows with snap/resize for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
   - HTML previews allow scripts and same-origin access so self-contained generated graph pages can render
   - refresh/focus restores terminal layout by reconciling browser-saved tabs with live backend terminal IDs to reduce stale or ghost panes after reload
   - KMZ preview uses a client-only Leaflet bundle to avoid server-side `window is not defined` crashes on the Neural Labs page
