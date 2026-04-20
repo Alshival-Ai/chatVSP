@@ -87,6 +87,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - configure an AWS Bedrock provider with IAM auth and region `us-east-1` to make Bedrock-backed Claude the preferred runtime
   - current Neural Labs Bedrock Opus default is `global.anthropic.claude-opus-4-6-v1`
     - this account currently rejects Opus 4.7 with AWS Marketplace entitlement errors, while Opus 4.6 invokes successfully
+  - current Onyx app Bedrock default chat model is also `global.anthropic.claude-opus-4-6-v1`
+    - live Bedrock Claude visibility is restricted to Opus 4.6 plus Haiku 4.5 so the app does not keep surfacing failing Sonnet 4.6 / Opus 4.7 entries
   - ensure the runtime EC2 role includes Bedrock Claude access:
     - `bedrock:ListFoundationModels`
       - required for Admin > LLM > Bedrock model discovery (`/api/admin/llm/bedrock/available-models`)

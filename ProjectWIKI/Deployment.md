@@ -149,6 +149,7 @@ Bedrock rollout notes:
 - current account status:
   - `global.anthropic.claude-opus-4-6-v1` invokes successfully from the runtime role
   - `global.anthropic.claude-opus-4-7` and `us.anthropic.claude-opus-4-7` currently fail with AWS Marketplace entitlement errors
+  - the live `clauddemo` Bedrock provider is pinned to `global.anthropic.claude-opus-4-6-v1` for chat defaults and only exposes Opus 4.6 plus Haiku 4.5 in the app UI
 - Bedrock Claude model access must be enabled in the AWS account before rollout
 
 Neural Labs also persists managed shell env into `~/.neural_labs_env` and sources it from

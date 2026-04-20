@@ -61,7 +61,7 @@ from shared_configs.configs import MULTI_TENANT
 
 logger = setup_logger()
 
-DEFAULT_BEDROCK_CLAUDE_CHAT_MODEL = "us.anthropic.claude-sonnet-4-6"
+DEFAULT_BEDROCK_CLAUDE_CHAT_MODEL = "global.anthropic.claude-opus-4-6-v1"
 
 
 def setup_onyx(
