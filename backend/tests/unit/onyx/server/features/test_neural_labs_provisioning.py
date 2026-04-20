@@ -148,3 +148,47 @@ def test_provision_neural_labs_home_prefers_foundry_over_bedrock(
         "CLAUDE_CODE_USE_FOUNDRY": "1",
         "ANTHROPIC_FOUNDRY_BASE_URL": "https://team-foundry.services.ai.azure.com/anthropic",
     }
+
+
+def test_build_shell_env_file_unsets_aws_keys_for_bedrock_iam() -> None:
+    env_text = provisioning._build_shell_env_file(
+        {
+            "CLAUDE_CODE_USE_BEDROCK": "1",
+            "AWS_REGION": "us-east-1",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-7",
+        }
+    )
+
+    assert "unset AWS_ACCESS_KEY_ID" in env_text
+    assert "unset AWS_SECRET_ACCESS_KEY" in env_text
+    assert "unset AWS_SESSION_TOKEN" in env_text
+    assert "export CLAUDE_CODE_USE_BEDROCK='1'" in env_text
+    assert "export AWS_REGION='us-east-1'" in env_text
+
+
+def test_provision_neural_labs_home_writes_shell_env_file(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(
+        provisioning,
+        "_resolve_openai_codex_settings",
+        lambda db_session: ("gpt-5.4", None),
+    )
+    monkeypatch.setattr(
+        provisioning,
+        "_resolve_bedrock_claude_settings",
+        lambda db_session: {
+            "CLAUDE_CODE_USE_BEDROCK": "1",
+            "AWS_REGION": "us-east-1",
+        },
+    )
+
+    provisioning.provision_neural_labs_home(tmp_path, db_session=None)
+
+    env_file = tmp_path / ".neural_labs_env"
+    assert env_file.exists()
+    env_text = env_file.read_text(encoding="utf-8")
+    assert 'export CLAUDE_CODE_USE_BEDROCK=' in env_text
+    assert '. "$HOME/.neural_labs_env"' in (tmp_path / ".bashrc").read_text(
+        encoding="utf-8"
+    )

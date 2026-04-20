@@ -84,6 +84,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
 - Important behavior:
   - Neural Labs no longer writes any MCP server entries into `~/.codex/config.toml`
   - this prevents legacy `onyx` / `wardgpt` MCP bootstrap leakage from imported Codex Labs examples
+  - Claude/OpenAI shell env is now persisted into `~/.neural_labs_env` and sourced from `~/.bashrc`
+  - Neural Labs recreates existing terminal sessions when managed env overrides change, so stale Claude provider/model state is not reused across launches
 - Current deployment requirement:
   - `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users

@@ -206,19 +206,13 @@ def _get_or_create_default_session(
         home_dir=home_dir,
     )
 
-    desired_token = env_overrides.get(NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR, "")
-    if desired_token:
-        for terminal_id, session in manager.list_sessions(tenant_id=tenant_id, user_id=user.id):
-            current_token = session.env_overrides.get(
-                NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR,
-                session.env_overrides.get(WARDGPT_MCP_BEARER_TOKEN_ENV_VAR, ""),
+    for terminal_id, session in manager.list_sessions(tenant_id=tenant_id, user_id=user.id):
+        if session.env_overrides != env_overrides:
+            manager.close_session(
+                tenant_id=tenant_id,
+                user_id=user.id,
+                terminal_id=terminal_id,
             )
-            if current_token != desired_token:
-                manager.close_session(
-                    tenant_id=tenant_id,
-                    user_id=user.id,
-                    terminal_id=terminal_id,
-                )
 
     return manager.ensure_default_session(
         tenant_id=tenant_id,

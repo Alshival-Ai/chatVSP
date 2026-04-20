@@ -156,6 +156,10 @@ Neural Labs intentionally does not write MCP server blocks into `~/.codex/config
 This avoids cross-app inheritance from imported WardGPT / Onyx examples and prevents stale
 `onyx` / `wardgpt` MCP startup failures in provisioned user shells.
 
+Neural Labs also persists managed shell env into `~/.neural_labs_env` and sources it from
+`~/.bashrc`. Existing terminal sessions are recreated when the managed env changes so Claude
+provider/model pins do not remain stale across relaunches.
+
 Operational note:
 
 - after recreating `api_server`, restart `nginx` as well so it refreshes the upstream container IP:

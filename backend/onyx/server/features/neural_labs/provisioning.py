@@ -42,6 +42,7 @@ WARDGPT_MCP_BEARER_TOKEN_ENV_VAR = "WARDGPT_MCP_BEARER_TOKEN"
 
 SHELL_BASHRC_FILENAME = ".bashrc"
 SHELL_BASH_PROFILE_FILENAME = ".bash_profile"
+SHELL_ENV_FILENAME = ".neural_labs_env"
 SHELL_BANNER_BLOCK_START = "# >>> neural-labs-banner >>>"
 SHELL_BANNER_BLOCK_END = "# <<< neural-labs-banner <<<"
 SHELL_BASH_PROFILE_BLOCK_START = "# >>> neural-labs-bash-profile >>>"
@@ -51,9 +52,6 @@ SHELL_BANNER_ENV_VAR = "NEURAL_LABS_BANNER_SHOWN"
 
 def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str, str]:
     """Provision managed Neural Labs files and return shell env overrides."""
-    _provision_shell_profile_banner(home_dir=home_dir)
-    _provision_bash_profile(home_dir=home_dir)
-
     model_name, openai_api_key = _resolve_openai_codex_settings(db_session)
     env_overrides: dict[str, str] = {}
     if openai_api_key:
@@ -74,6 +72,10 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
             anthropic_api_key = _resolve_anthropic_api_key(db_session)
             if anthropic_api_key:
                 env_overrides[ANTHROPIC_ENV_KEY_NAME] = anthropic_api_key
+
+    _provision_shell_env_file(home_dir=home_dir, env_overrides=env_overrides)
+    _provision_shell_profile_banner(home_dir=home_dir)
+    _provision_bash_profile(home_dir=home_dir)
     return env_overrides
 
 
@@ -246,6 +248,16 @@ def _provision_shell_profile_banner(home_dir: Path) -> None:
         logger.exception("Neural Labs failed writing shell profile: %s", bashrc_path)
 
 
+def _provision_shell_env_file(home_dir: Path, env_overrides: dict[str, str]) -> None:
+    env_path = home_dir / SHELL_ENV_FILENAME
+    env_text = _build_shell_env_file(env_overrides)
+    try:
+        env_path.write_text(env_text, encoding="utf-8")
+        env_path.chmod(0o600)
+    except OSError:
+        logger.exception("Neural Labs failed writing shell env file: %s", env_path)
+
+
 def _provision_bash_profile(home_dir: Path) -> None:
     bash_profile_path = home_dir / SHELL_BASH_PROFILE_FILENAME
     managed_block = _build_bash_profile_block()
@@ -313,6 +325,9 @@ def _build_shell_banner_block() -> str:
     )
     lines = [
         SHELL_BANNER_BLOCK_START,
+        'if [ -f "$HOME/.neural_labs_env" ]; then',
+        '  . "$HOME/.neural_labs_env"',
+        "fi",
         f'if [[ $- == *i* ]] && [[ -z "${{{SHELL_BANNER_ENV_VAR}:-}}" ]]; then',
         f"  export {SHELL_BANNER_ENV_VAR}=1",
         "  cat <<'NEURAL_LABS_BANNER'",
@@ -323,6 +338,31 @@ def _build_shell_banner_block() -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+def _build_shell_env_file(env_overrides: dict[str, str]) -> str:
+    lines = [
+        "# Managed by Neural Labs. Manual edits may be overwritten.",
+        "",
+    ]
+
+    if env_overrides.get(CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME) == "1":
+        lines.extend(
+            [
+                "# Force Bedrock IAM role auth over any stale shell-provided AWS credentials.",
+                "unset AWS_ACCESS_KEY_ID",
+                "unset AWS_SECRET_ACCESS_KEY",
+                "unset AWS_SESSION_TOKEN",
+                "unset AWS_PROFILE",
+                "unset AWS_DEFAULT_PROFILE",
+                "",
+            ]
+        )
+
+    for key in sorted(env_overrides):
+        lines.append(f"export {key}={_shell_quote(env_overrides[key])}")
+
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _build_bash_profile_block() -> str:
@@ -340,3 +380,7 @@ def _build_bash_profile_block() -> str:
 def _toml_quote(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
+
+
+def _shell_quote(value: str) -> str:
+    return "'" + value.replace("'", "'\"'\"'") + "'"
