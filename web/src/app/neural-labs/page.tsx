@@ -1797,6 +1797,8 @@ export default function NeuralLabsPage() {
     useState(false);
   const [isUploadingCustomBackground, setIsUploadingCustomBackground] =
     useState(false);
+  const [isDeletingCustomBackground, setIsDeletingCustomBackground] =
+    useState(false);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
   const desktopTerminalStatesRef = useRef<
@@ -3081,6 +3083,51 @@ export default function NeuralLabsPage() {
       createCustomDesktopBackgroundSelection(desktopCustomBackgroundPath)
     );
   }, [desktopCustomBackgroundPath]);
+
+  const deleteCustomBackground = useCallback(async () => {
+    if (!desktopCustomBackgroundPath) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Delete the uploaded desktop background "custom-background"?'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingCustomBackground(true);
+
+    try {
+      const response = await fetch(
+        `${NEURAL_LABS_API_PREFIX}/files?path=${encodeURIComponent(
+          desktopCustomBackgroundPath
+        )}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        throw new Error(await getFetchErrorMessage(response));
+      }
+
+      setDesktopCustomBackgroundPath(null);
+      if (desktopBackgroundId.startsWith(CUSTOM_DESKTOP_BACKGROUND_PREFIX)) {
+        setDesktopBackgroundId("sunset-grid");
+      }
+      await refreshDirectoryPaths([CUSTOM_DESKTOP_BACKGROUND_DIRECTORY], {
+        silent: true,
+      });
+      toast.success("Deleted uploaded background");
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Unable to delete custom background";
+      toast.error(message);
+    } finally {
+      setIsDeletingCustomBackground(false);
+    }
+  }, [desktopBackgroundId, desktopCustomBackgroundPath, refreshDirectoryPaths]);
 
   const downloadFile = useCallback((entry: NeuralLabsFileEntry) => {
     triggerBrowserDownload(entry.path, entry.name);
@@ -4447,7 +4494,9 @@ export default function NeuralLabsPage() {
             onSelectBackground={setDesktopBackgroundId}
             onSelectCustomBackground={selectCustomBackground}
             onUploadCustomBackground={uploadCustomBackground}
+            onDeleteCustomBackground={deleteCustomBackground}
             isUploadingCustomBackground={isUploadingCustomBackground}
+            isDeletingCustomBackground={isDeletingCustomBackground}
           />
         );
       }

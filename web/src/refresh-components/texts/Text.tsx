@@ -95,6 +95,16 @@ export interface TextProps extends Omit<HTMLAttributes<HTMLElement>, "as"> {
   as?: "p" | "span" | "li";
 }
 
+function shouldAutoBlock(className?: string): boolean {
+  if (!className) {
+    return false;
+  }
+
+  return /(^|\s)(mt-|mb-|ml-|mr-|mx-|my-|pt-|pb-|pl-|pr-|px-|py-|w-|min-w-|max-w-|h-|min-h-|max-h-|flex|grid|truncate|line-clamp-|text-center|text-left|text-right|break-|whitespace-|items-|justify-|self-)/.test(
+    className
+  );
+}
+
 export default function Text({
   nowrap,
   headingH1,
@@ -189,6 +199,7 @@ export default function Text({
                     : "text05";
 
   const Tag = as ?? "span";
+  const autoBlock = !as && shouldAutoBlock(className);
 
   return (
     <Tag
@@ -196,6 +207,7 @@ export default function Text({
       className={cn(
         fonts[font],
         inverted ? colors.inverted[color] : colors[color],
+        autoBlock && "block",
         nowrap && "whitespace-nowrap",
         className
       )}
