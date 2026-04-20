@@ -42,9 +42,11 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - legacy mode keeps the fixed `File Navigator` / `Neural Apps` / `Terminal Navigator` structure, including the existing collapsed rails
     - desktop mode replaces those fixed sidebars with a browser-OS shell: a pill taskbar on the bottom with icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, and `Desktop Settings` apps
     - taskbar apps now show their names on hover via the Neural Labs tooltip treatment instead of always rendering text labels inline
+    - desktop taskbar icons restore minimized app windows, focus the front-most running instance on left click, and expose `New Window` on right click for multi-window apps such as `Terminal`, `File Explorer`, and `Text Editor`
     - desktop `Terminal` app reuses the same multi-terminal tabs, split panes, status polling, and terminal navigator controls inside the app window
     - desktop `File Explorer` app reuses the existing file tree/actions and opens previews/editors in floating windows
     - desktop settings currently allow choosing a persisted desktop background preset
+    - desktop app windows now support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snapping (`N/NE/E/SE/S/SW/W/NW`), and minimize-to-taskbar behavior
     - Terminal Navigator now shows a lone terminal as `Terminal 1` without wrapping it in a group; grouped views only appear when a tab actually has multiple panes
     - file action icons now show explicit hover helper text for folder creation, upload, and refresh
     - Neural Labs action hover text now uses the themed white tooltip only; browser-native duplicate tooltips were removed and tooltip positioning is clamped within the viewport above floating windows

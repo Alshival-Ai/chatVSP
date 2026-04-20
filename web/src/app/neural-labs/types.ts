@@ -46,6 +46,7 @@ export interface PreviewWindowState {
   z_index: number;
   snapped_zone: PreviewSnapZone | null;
   is_maximized: boolean;
+  is_minimized: boolean;
   restore_bounds?: {
     x: number;
     y: number;
@@ -69,11 +70,14 @@ export interface DesktopWindowState {
   width: number;
   height: number;
   z_index: number;
+  snapped_zone: PreviewSnapZone | null;
   is_maximized: boolean;
+  is_minimized: boolean;
   restore_bounds?: {
     x: number;
     y: number;
     width: number;
     height: number;
+    snapped_zone: PreviewSnapZone | null;
   } | null;
 }

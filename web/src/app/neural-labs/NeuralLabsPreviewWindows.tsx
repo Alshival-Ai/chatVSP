@@ -39,6 +39,7 @@ interface NeuralLabsPreviewWindowsProps {
   currentDirectory: string;
   onCloseWindow: (windowId: string) => void;
   onFocusWindow: (windowId: string) => void;
+  onMinimizeWindow?: (windowId: string) => void;
   onTextFileSaved?: (path: string) => void;
   onUpdateWindow: (
     windowId: string,
@@ -1181,6 +1182,7 @@ function PreviewWindow({
   currentDirectory,
   onCloseWindow,
   onFocusWindow,
+  onMinimizeWindow,
   onTextFileSaved,
   onUpdateWindow,
 }: {
@@ -1189,6 +1191,7 @@ function PreviewWindow({
   currentDirectory: string;
   onCloseWindow: (windowId: string) => void;
   onFocusWindow: (windowId: string) => void;
+  onMinimizeWindow?: (windowId: string) => void;
   onTextFileSaved?: (path: string) => void;
   onUpdateWindow: (
     windowId: string,
@@ -1456,6 +1459,17 @@ function PreviewWindow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 rounded-full border border-border-01 bg-background-neutral-00/95 px-1 py-1 shadow-sm">
+          {displayWindow.preview_kind === "app-text-editor" &&
+          onMinimizeWindow ? (
+            <NeuralLabsTooltip label="Minimize window">
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02"
+                onClick={() => onMinimizeWindow(windowState.id)}
+                aria-label="Minimize window"
+              />
+            </NeuralLabsTooltip>
+          ) : null}
           <NeuralLabsTooltip
             label={
               displayWindow.is_maximized ? "Restore window" : "Maximize window"
@@ -1531,23 +1545,27 @@ export default function NeuralLabsPreviewWindows({
   currentDirectory,
   onCloseWindow,
   onFocusWindow,
+  onMinimizeWindow,
   onTextFileSaved,
   onUpdateWindow,
 }: NeuralLabsPreviewWindowsProps) {
   return (
     <>
-      {windows.map((windowState) => (
-        <PreviewWindow
-          key={windowState.id}
-          windowState={windowState}
-          workspaceBounds={workspaceBounds}
-          currentDirectory={currentDirectory}
-          onCloseWindow={onCloseWindow}
-          onFocusWindow={onFocusWindow}
-          onTextFileSaved={onTextFileSaved}
-          onUpdateWindow={onUpdateWindow}
-        />
-      ))}
+      {windows
+        .filter((windowState) => !windowState.is_minimized)
+        .map((windowState) => (
+          <PreviewWindow
+            key={windowState.id}
+            windowState={windowState}
+            workspaceBounds={workspaceBounds}
+            currentDirectory={currentDirectory}
+            onCloseWindow={onCloseWindow}
+            onFocusWindow={onFocusWindow}
+            onMinimizeWindow={onMinimizeWindow}
+            onTextFileSaved={onTextFileSaved}
+            onUpdateWindow={onUpdateWindow}
+          />
+        ))}
     </>
   );
 }

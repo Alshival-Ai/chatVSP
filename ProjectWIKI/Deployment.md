@@ -99,6 +99,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - legacy layout still uses the fixed File Navigator / Neural Apps / Terminal Navigator structure, including collapsed rails
   - desktop layout replaces fixed sidebars with a pill taskbar using icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, and `Desktop Settings` apps
   - taskbar icons expose app names on hover through the same themed Neural Labs tooltip treatment
+  - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps
   - split terminal tabs/panes
   - Terminal Navigator shows a single terminal as `Terminal 1` without a group wrapper; group cards only render when a tab contains multiple panes
   - file action icons expose hover helper text for create/upload/refresh
@@ -106,6 +107,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls; standalone terminal and group delete actions are red while in-group terminal delete actions stay neutral
   - Text Editor still opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API; desktop mode also launches it from the taskbar
   - desktop settings currently provide persisted background preset selection for the Neural Labs desktop shell
+  - desktop app windows support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snap zones, and minimize-to-taskbar behavior
   - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
   - floating preview windows with snap/resize for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
   - preview windows include a maximize/restore control that preserves the prior bounds when returning from maximized state

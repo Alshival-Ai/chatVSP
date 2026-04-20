@@ -43,7 +43,8 @@
   - if a persisted directory no longer exists, the frontend clears that stale entry when the API returns `404`
 - Frontend window model:
   - file preview/editor windows continue to use the persisted floating preview-window model
-  - desktop-only app windows (`File Explorer`, `Terminal`) are client-side windows layered into the same workspace and focus ordering
+  - desktop-only app windows (`File Explorer`, `Terminal`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
+  - desktop app windows track snapped, maximized, and minimized state on the client so taskbar restore/focus behavior does not require backend changes
   - desktop presentation preferences such as the selected background preset persist in browser storage on the client
 
 ## SSH Path

@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type ReactElement,
@@ -119,6 +120,12 @@ interface TerminalPaneProps {
   terminalId: string;
   isActive: boolean;
   onFocus: () => void;
+}
+
+interface TaskbarMenuState {
+  appKind: DesktopWindowState["app_kind"] | "text-editor";
+  x: number;
+  y: number;
 }
 
 function IconActionButton({
@@ -551,6 +558,8 @@ function loadPersistedPreviewWindows(): PreviewWindowState[] {
             typeof candidate.snapped_zone === "string") &&
           (candidate.is_maximized === undefined ||
             typeof candidate.is_maximized === "boolean") &&
+          (candidate.is_minimized === undefined ||
+            typeof candidate.is_minimized === "boolean") &&
           (candidate.restore_bounds === undefined ||
             candidate.restore_bounds === null ||
             (typeof candidate.restore_bounds === "object" &&
@@ -572,6 +581,7 @@ function loadPersistedPreviewWindows(): PreviewWindowState[] {
       .map((entry) => ({
         ...entry,
         is_maximized: entry.is_maximized ?? false,
+        is_minimized: entry.is_minimized ?? false,
         restore_bounds: entry.restore_bounds ?? null,
       }));
   } catch {
@@ -1583,6 +1593,7 @@ export default function NeuralLabsPage() {
   const [desktopWindows, setDesktopWindows] = useState<DesktopWindowState[]>(
     []
   );
+  const [taskbarMenu, setTaskbarMenu] = useState<TaskbarMenuState | null>(null);
   const [workspaceBounds, setWorkspaceBounds] = useState({
     width: 0,
     height: 0,
@@ -1665,6 +1676,21 @@ export default function NeuralLabsPage() {
       desktopBackgroundId
     );
   }, [desktopBackgroundId]);
+
+  useEffect(() => {
+    if (!taskbarMenu) {
+      return;
+    }
+
+    const clearMenu = () => setTaskbarMenu(null);
+    window.addEventListener("click", clearMenu);
+    window.addEventListener("contextmenu", clearMenu);
+
+    return () => {
+      window.removeEventListener("click", clearMenu);
+      window.removeEventListener("contextmenu", clearMenu);
+    };
+  }, [taskbarMenu]);
 
   const isDesktopModeActive = isDesktopLayout && uiMode === "desktop";
 
@@ -1905,6 +1931,7 @@ export default function NeuralLabsPage() {
         z_index: highestPreviewZIndexRef.current,
         snapped_zone: null,
         is_maximized: false,
+        is_minimized: false,
         restore_bounds: null,
       },
     ]);
@@ -1980,24 +2007,15 @@ export default function NeuralLabsPage() {
     setPreviewWindows((previousWindows) =>
       previousWindows.map((windowState) =>
         windowState.id === windowId
-          ? { ...windowState, z_index: highestPreviewZIndexRef.current }
+          ? {
+              ...windowState,
+              is_minimized: false,
+              z_index: highestPreviewZIndexRef.current,
+            }
           : windowState
       )
     );
   }, []);
-
-  const openOrFocusTextEditorApp = useCallback(() => {
-    const existingEditorWindow = [...previewWindows]
-      .filter((windowState) => windowState.preview_kind === "app-text-editor")
-      .sort((left, right) => right.z_index - left.z_index)[0];
-
-    if (existingEditorWindow) {
-      focusPreviewWindow(existingEditorWindow.id);
-      return;
-    }
-
-    openTextEditorApp();
-  }, [focusPreviewWindow, openTextEditorApp, previewWindows]);
 
   const updatePreviewWindow = useCallback(
     (
@@ -2029,12 +2047,54 @@ export default function NeuralLabsPage() {
     );
   }, []);
 
+  const minimizePreviewWindow = useCallback((windowId: string) => {
+    setPreviewWindows((previousWindows) =>
+      previousWindows.map((windowState) =>
+        windowState.id === windowId
+          ? { ...windowState, is_minimized: true }
+          : windowState
+      )
+    );
+  }, []);
+
+  const restorePreviewWindow = useCallback((windowId: string) => {
+    highestPreviewZIndexRef.current += 1;
+    setPreviewWindows((previousWindows) =>
+      previousWindows.map((windowState) =>
+        windowState.id === windowId
+          ? {
+              ...windowState,
+              is_minimized: false,
+              z_index: highestPreviewZIndexRef.current,
+            }
+          : windowState
+      )
+    );
+  }, []);
+
+  const focusOrRestoreLatestTextEditor = useCallback(() => {
+    const latestEditorWindow = [...previewWindows]
+      .filter((windowState) => windowState.preview_kind === "app-text-editor")
+      .sort((left, right) => right.z_index - left.z_index)[0];
+
+    if (!latestEditorWindow) {
+      openTextEditorApp();
+      return;
+    }
+
+    restorePreviewWindow(latestEditorWindow.id);
+  }, [openTextEditorApp, previewWindows, restorePreviewWindow]);
+
   const focusDesktopWindow = useCallback((windowId: string) => {
     highestPreviewZIndexRef.current += 1;
     setDesktopWindows((previousWindows) =>
       previousWindows.map((windowState) =>
         windowState.id === windowId
-          ? { ...windowState, z_index: highestPreviewZIndexRef.current }
+          ? {
+              ...windowState,
+              is_minimized: false,
+              z_index: highestPreviewZIndexRef.current,
+            }
           : windowState
       )
     );
@@ -2070,15 +2130,32 @@ export default function NeuralLabsPage() {
     );
   }, []);
 
+  const minimizeDesktopWindow = useCallback((windowId: string) => {
+    setDesktopWindows((previousWindows) =>
+      previousWindows.map((windowState) =>
+        windowState.id === windowId
+          ? { ...windowState, is_minimized: true }
+          : windowState
+      )
+    );
+  }, []);
+
   const openDesktopApp = useCallback(
-    (appKind: DesktopWindowState["app_kind"]) => {
-      const existingWindow = desktopWindows.find(
-        (windowState) => windowState.app_kind === appKind
-      );
-      if (existingWindow) {
+    (
+      appKind: DesktopWindowState["app_kind"],
+      options?: { forceNew?: boolean }
+    ) => {
+      const existingWindow = desktopWindows
+        .filter((windowState) => windowState.app_kind === appKind)
+        .sort((left, right) => right.z_index - left.z_index)[0];
+      if (existingWindow && !options?.forceNew) {
         focusDesktopWindow(existingWindow.id);
         return;
       }
+
+      const existingWindowCount = desktopWindows.filter(
+        (windowState) => windowState.app_kind === appKind
+      ).length;
 
       highestPreviewZIndexRef.current += 1;
       const isFileExplorerApp = appKind === "file-explorer";
@@ -2124,9 +2201,7 @@ export default function NeuralLabsPage() {
               )
             : DEFAULT_TERMINAL_WINDOW.height;
 
-      const existingOffset =
-        desktopWindows.filter((windowState) => windowState.app_kind === appKind)
-          .length * 24;
+      const existingOffset = existingWindowCount * 24;
 
       setDesktopWindows((previousWindows) => [
         ...previousWindows,
@@ -2134,10 +2209,14 @@ export default function NeuralLabsPage() {
           id: createLocalId(),
           app_kind: appKind,
           title: isFileExplorerApp
-            ? "File Explorer"
+            ? existingWindowCount > 0
+              ? `File Explorer ${existingWindowCount + 1}`
+              : "File Explorer"
             : isSettingsApp
               ? "Desktop Settings"
-              : "Terminal Workspace",
+              : existingWindowCount > 0
+                ? `Terminal Workspace ${existingWindowCount + 1}`
+                : "Terminal Workspace",
           x: isFileExplorerApp
             ? 42 + existingOffset
             : isSettingsApp
@@ -2147,7 +2226,9 @@ export default function NeuralLabsPage() {
           width,
           height,
           z_index: highestPreviewZIndexRef.current,
+          snapped_zone: null,
           is_maximized: false,
+          is_minimized: false,
           restore_bounds: null,
         },
       ]);
@@ -2203,6 +2284,7 @@ export default function NeuralLabsPage() {
           z_index: highestPreviewZIndexRef.current,
           snapped_zone: null,
           is_maximized: false,
+          is_minimized: false,
           restore_bounds: null,
         },
       ]);
@@ -3174,18 +3256,61 @@ export default function NeuralLabsPage() {
     ]
   );
 
+  const handleTaskbarContextMenu = useCallback(
+    (
+      event: ReactMouseEvent<HTMLButtonElement>,
+      appKind: TaskbarMenuState["appKind"]
+    ) => {
+      event.preventDefault();
+      setTaskbarMenu({ appKind, x: event.clientX, y: event.clientY });
+    },
+    []
+  );
+
+  const activateTaskbarDesktopApp = useCallback(
+    (appKind: DesktopWindowState["app_kind"]) => {
+      const latestWindow = [...desktopWindows]
+        .filter((windowState) => windowState.app_kind === appKind)
+        .sort((left, right) => right.z_index - left.z_index)[0];
+
+      if (!latestWindow) {
+        openDesktopApp(appKind);
+        return;
+      }
+
+      focusDesktopWindow(latestWindow.id);
+    },
+    [desktopWindows, focusDesktopWindow, openDesktopApp]
+  );
+
   if (isDesktopModeActive) {
-    const hasTextEditorWindow = previewWindows.some(
+    const textEditorWindows = previewWindows.filter(
       (windowState) => windowState.preview_kind === "app-text-editor"
     );
-    const hasFileExplorerWindow = desktopWindows.some(
+    const hasTextEditorWindow = textEditorWindows.length > 0;
+    const hasVisibleTextEditorWindow = textEditorWindows.some(
+      (windowState) => !windowState.is_minimized
+    );
+    const fileExplorerWindows = desktopWindows.filter(
       (windowState) => windowState.app_kind === "file-explorer"
     );
-    const hasTerminalWindow = desktopWindows.some(
+    const terminalWindows = desktopWindows.filter(
       (windowState) => windowState.app_kind === "terminal-workspace"
     );
-    const hasSettingsWindow = desktopWindows.some(
+    const settingsWindows = desktopWindows.filter(
       (windowState) => windowState.app_kind === "desktop-settings"
+    );
+    const hasFileExplorerWindow = fileExplorerWindows.length > 0;
+    const hasVisibleFileExplorerWindow = fileExplorerWindows.some(
+      (windowState) => !windowState.is_minimized
+    );
+    const hasTerminalWindow = terminalWindows.length > 0;
+    const hasVisibleTerminalWindow = terminalWindows.some(
+      (windowState) => !windowState.is_minimized
+    );
+    const hasSettingsWindow = settingsWindows.length > 0;
+    const hasVisibleSettingsWindow = settingsWindows.some(
+      (windowState) => !windowState.is_minimized
     );
 
     return (
@@ -3260,6 +3385,7 @@ export default function NeuralLabsPage() {
               workspaceBounds={workspaceBounds}
               onCloseWindow={closeDesktopWindow}
               onFocusWindow={focusDesktopWindow}
+              onMinimizeWindow={minimizeDesktopWindow}
               onUpdateWindow={updateDesktopWindow}
               renderWindowContent={desktopWindowContent}
             />
@@ -3270,6 +3396,7 @@ export default function NeuralLabsPage() {
               currentDirectory={currentPath}
               onCloseWindow={closePreviewWindow}
               onFocusWindow={focusPreviewWindow}
+              onMinimizeWindow={minimizePreviewWindow}
               onTextFileSaved={(path) => {
                 void handleTextFileSaved(path);
               }}
@@ -3284,11 +3411,16 @@ export default function NeuralLabsPage() {
                   type="button"
                   aria-label="File Explorer"
                   className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasFileExplorerWindow
+                    hasVisibleFileExplorerWindow
                       ? "bg-white/16 text-white"
-                      : "text-white/80 hover:bg-white/10"
+                      : hasFileExplorerWindow
+                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
+                        : "text-white/80 hover:bg-white/10"
                   }`}
-                  onClick={() => openDesktopApp("file-explorer")}
+                  onClick={() => activateTaskbarDesktopApp("file-explorer")}
+                  onContextMenu={(event) =>
+                    handleTaskbarContextMenu(event, "file-explorer")
+                  }
                 >
                   <SvgFolder className="h-5 w-5 shrink-0 stroke-current" />
                 </button>
@@ -3298,11 +3430,18 @@ export default function NeuralLabsPage() {
                   type="button"
                   aria-label="Terminal"
                   className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasTerminalWindow
+                    hasVisibleTerminalWindow
                       ? "bg-white/16 text-white"
-                      : "text-white/80 hover:bg-white/10"
+                      : hasTerminalWindow
+                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
+                        : "text-white/80 hover:bg-white/10"
                   }`}
-                  onClick={() => openDesktopApp("terminal-workspace")}
+                  onClick={() =>
+                    activateTaskbarDesktopApp("terminal-workspace")
+                  }
+                  onContextMenu={(event) =>
+                    handleTaskbarContextMenu(event, "terminal-workspace")
+                  }
                 >
                   <SvgTerminal className="h-5 w-5 shrink-0 stroke-current" />
                 </button>
@@ -3312,11 +3451,16 @@ export default function NeuralLabsPage() {
                   type="button"
                   aria-label="Text Editor"
                   className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasTextEditorWindow
+                    hasVisibleTextEditorWindow
                       ? "bg-white/16 text-white"
-                      : "text-white/80 hover:bg-white/10"
+                      : hasTextEditorWindow
+                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
+                        : "text-white/80 hover:bg-white/10"
                   }`}
-                  onClick={openOrFocusTextEditorApp}
+                  onClick={focusOrRestoreLatestTextEditor}
+                  onContextMenu={(event) =>
+                    handleTaskbarContextMenu(event, "text-editor")
+                  }
                 >
                   <SvgFileText className="h-5 w-5 shrink-0 stroke-current" />
                 </button>
@@ -3327,17 +3471,48 @@ export default function NeuralLabsPage() {
                   type="button"
                   aria-label="Desktop Settings"
                   className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasSettingsWindow
+                    hasVisibleSettingsWindow
                       ? "bg-white/16 text-white"
-                      : "text-white/80 hover:bg-white/10"
+                      : hasSettingsWindow
+                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
+                        : "text-white/80 hover:bg-white/10"
                   }`}
-                  onClick={() => openDesktopApp("desktop-settings")}
+                  onClick={() => activateTaskbarDesktopApp("desktop-settings")}
                 >
                   <SvgSettings className="h-5 w-5 shrink-0 stroke-current" />
                 </button>
               </IconActionButton>
             </div>
           </div>
+
+          {taskbarMenu ? (
+            <div
+              className="absolute z-30 min-w-[11rem] rounded-16 border border-white/12 bg-[#0b1320]/96 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+              style={{
+                left: Math.max(16, taskbarMenu.x - 16),
+                top: Math.max(16, taskbarMenu.y - 72),
+              }}
+            >
+              {(taskbarMenu.appKind === "terminal-workspace" ||
+                taskbarMenu.appKind === "file-explorer" ||
+                taskbarMenu.appKind === "text-editor") && (
+                <button
+                  type="button"
+                  className="flex w-full items-center rounded-12 px-3 py-2 text-left text-sm text-white/85 transition hover:bg-white/10"
+                  onClick={() => {
+                    if (taskbarMenu.appKind === "text-editor") {
+                      openTextEditorApp();
+                    } else {
+                      openDesktopApp(taskbarMenu.appKind, { forceNew: true });
+                    }
+                    setTaskbarMenu(null);
+                  }}
+                >
+                  New Window
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -3562,6 +3737,7 @@ export default function NeuralLabsPage() {
                     currentDirectory={currentPath}
                     onCloseWindow={closePreviewWindow}
                     onFocusWindow={focusPreviewWindow}
+                    onMinimizeWindow={minimizePreviewWindow}
                     onTextFileSaved={(path) => {
                       void handleTextFileSaved(path);
                     }}
