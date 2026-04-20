@@ -52,12 +52,13 @@
   - desktop file explorer windows keep separate per-window navigation state (`current_path`, back/forward history, selection, and icon/list mode) while reusing the shared file API/cache layer
   - desktop terminal windows keep separate per-window terminal ownership and layout state (`tabs`, `active_tab_id`, split panes) so the Windows Terminal-style desktop app does not leak terminal sessions into the legacy terminal workspace
   - desktop editor windows keep separate per-window editor state (`tabs`, `active_tab_id`, sidebar visibility) while text-file loads/saves continue to use the existing file-content API
-  - desktop Neura windows keep separate per-window chat view state (`selected_conversation_id`, drafts, sidebar visibility, streaming state`) while the persisted conversation/message history lives under the user Neural Labs home
+  - desktop Neura windows keep separate per-window chat view state (`selected_conversation_id`, drafts, sidebar visibility, streaming state, pending image attachments`) while the persisted conversation/message history lives under the user Neural Labs home
   - text-like files now route into the desktop editor window model instead of the preview-window model
   - desktop explorer/terminal presentation colors now follow the shared app light/dark theme; the terminal xterm theme is switched client-side alongside the window chrome
   - desktop presentation preferences such as the selected preset/custom background choice persist in browser storage on the client
   - uploaded custom desktop background images are stored in the user Neural Labs workspace under `~/.neural-labs/backgrounds/` and served back through the existing file-content API
   - Neura uses separate Neural Labs endpoints under `/api/neural-labs/neura/*` and a local SQLite store at `~/.neural-labs/neura/neura.db`; it does not create Onyx chat sessions/messages or use the `query_and_chat` persistence model
+  - Neura image uploads are stored in `~/.neural-labs/neura/uploads/`, attached to user messages in the local SQLite metadata, and translated into multimodal message parts for Sonnet inference
 
 ## SSH Path
 

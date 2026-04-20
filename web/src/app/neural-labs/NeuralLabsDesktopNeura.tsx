@@ -1,19 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import { useTheme } from "next-themes";
 import Text from "@/refresh-components/texts/Text";
 import type {
   DesktopNeuraWindowState,
+  NeuraComposerAttachment,
   NeuraConversationSummary,
   NeuraMessage,
+  NeuraMessageAttachment,
 } from "@/app/neural-labs/types";
 import {
   SvgArrowUp,
+  SvgImage,
+  SvgPaperclip,
   SvgPlus,
   SvgSidebar,
   SvgSparkle,
   SvgTrash,
+  SvgX,
 } from "@opal/icons";
 
 interface NeuralLabsDesktopNeuraProps {
@@ -26,6 +37,12 @@ interface NeuralLabsDesktopNeuraProps {
   ) => Promise<void> | void;
   onUpdateDraft: (conversationId: string, draft: string) => void;
   onSendMessage: (conversationId: string) => Promise<void> | void;
+  onAddAttachments: (conversationId: string, files: File[]) => void;
+  onRemovePendingAttachment: (
+    conversationId: string,
+    attachmentId: string
+  ) => void;
+  getAttachmentContentUrl: (storagePath: string) => string;
 }
 
 function formatConversationTimestamp(value: string): string {
@@ -42,6 +59,90 @@ function formatConversationTimestamp(value: string): string {
   }).format(new Date(timestamp));
 }
 
+function formatBytes(size: number | null): string {
+  if (!size || size <= 0) {
+    return "";
+  }
+
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  const units = ["KB", "MB", "GB", "TB"];
+  let currentValue = size / 1024;
+  let unitIndex = 0;
+  while (currentValue >= 1024 && unitIndex < units.length - 1) {
+    currentValue /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${
+    currentValue >= 10 ? currentValue.toFixed(0) : currentValue.toFixed(1)
+  } ${units[unitIndex]}`;
+}
+
+function PersistedAttachmentPreview({
+  attachment,
+  getAttachmentContentUrl,
+}: {
+  attachment: NeuraMessageAttachment;
+  getAttachmentContentUrl: (storagePath: string) => string;
+}) {
+  const previewUrl = getAttachmentContentUrl(attachment.storage_path);
+  return (
+    <div className="overflow-hidden rounded-20 border border-black/5 bg-black/5 dark:border-white/10 dark:bg-white/[0.04]">
+      <img
+        src={previewUrl}
+        alt={attachment.file_name}
+        className="h-44 w-full object-cover"
+        loading="lazy"
+      />
+      <div className="flex items-center justify-between gap-3 px-3 py-2">
+        <Text className="truncate text-xs font-medium">
+          {attachment.file_name}
+        </Text>
+        <Text className="shrink-0 text-[11px] text-slate-500 dark:text-white/45">
+          {formatBytes(attachment.size)}
+        </Text>
+      </div>
+    </div>
+  );
+}
+
+function PendingAttachmentChip({
+  attachment,
+  onRemove,
+}: {
+  attachment: NeuraComposerAttachment;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-24 border border-black/5 bg-white/70 dark:border-white/10 dark:bg-white/[0.06]">
+      <img
+        src={attachment.preview_url}
+        alt={attachment.file_name}
+        className="h-24 w-28 object-cover"
+      />
+      <button
+        type="button"
+        aria-label={`Remove ${attachment.file_name}`}
+        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/70"
+        onClick={onRemove}
+      >
+        <SvgX className="h-3.5 w-3.5 stroke-current" />
+      </button>
+      <div className="px-3 py-2">
+        <Text className="truncate text-xs font-medium">
+          {attachment.file_name}
+        </Text>
+        <Text className="text-[11px] text-slate-500 dark:text-white/45">
+          {formatBytes(attachment.size)}
+        </Text>
+      </div>
+    </div>
+  );
+}
+
 export default function NeuralLabsDesktopNeura({
   windowState,
   onToggleSidebar,
@@ -50,9 +151,13 @@ export default function NeuralLabsDesktopNeura({
   onDeleteConversation,
   onUpdateDraft,
   onSendMessage,
+  onAddAttachments,
+  onRemovePendingAttachment,
+  getAttachmentContentUrl,
 }: NeuralLabsDesktopNeuraProps) {
   const { resolvedTheme } = useTheme();
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isDarkMode = resolvedTheme !== "light";
 
   const activeConversation =
@@ -71,6 +176,11 @@ export default function NeuralLabsDesktopNeura({
   const activeDraft = activeConversation
     ? windowState.draft_by_conversation_id[activeConversation.id] ?? ""
     : "";
+  const pendingAttachments = activeConversation
+    ? windowState.pending_attachments_by_conversation_id[
+        activeConversation.id
+      ] ?? []
+    : [];
 
   useEffect(() => {
     const timeline = timelineRef.current;
@@ -79,7 +189,12 @@ export default function NeuralLabsDesktopNeura({
     }
 
     timeline.scrollTop = timeline.scrollHeight;
-  }, [activeConversation?.id, activeMessages, windowState.is_streaming]);
+  }, [
+    activeConversation?.id,
+    activeMessages,
+    pendingAttachments.length,
+    windowState.is_streaming,
+  ]);
 
   const chromeClassName = isDarkMode
     ? "border-white/10 bg-[linear-gradient(180deg,rgba(11,18,31,0.92),rgba(7,11,21,0.92))] text-white"
@@ -87,10 +202,16 @@ export default function NeuralLabsDesktopNeura({
   const sidebarClassName = isDarkMode
     ? "border-white/10 bg-white/[0.04]"
     : "border-slate-200/80 bg-white/70";
-  const inputClassName = isDarkMode
-    ? "border-white/10 bg-black/20 text-white placeholder:text-white/35"
-    : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400";
   const mutedClassName = isDarkMode ? "text-white/55" : "text-slate-500";
+  const messageShellClassName = isDarkMode
+    ? "border-white/10 bg-[#0b1322]/85"
+    : "border-slate-200/90 bg-white/88";
+  const composerShellClassName = isDarkMode
+    ? "border-white/10 bg-[#0a1120]/92 shadow-[0_28px_60px_rgba(0,0,0,0.28)]"
+    : "border-slate-200/80 bg-white/95 shadow-[0_20px_45px_rgba(15,23,42,0.12)]";
+  const composerInputClassName = isDarkMode
+    ? "text-white placeholder:text-white/35"
+    : "text-slate-900 placeholder:text-slate-400";
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || !activeConversation) {
@@ -99,6 +220,19 @@ export default function NeuralLabsDesktopNeura({
 
     event.preventDefault();
     void onSendMessage(activeConversation.id);
+  };
+
+  const handleAttachmentInput = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!activeConversation) {
+      event.target.value = "";
+      return;
+    }
+
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (files.length > 0) {
+      onAddAttachments(activeConversation.id, files);
+    }
+    event.target.value = "";
   };
 
   return (
@@ -251,7 +385,7 @@ export default function NeuralLabsDesktopNeura({
                   </Text>
                   <Text className={`truncate text-xs ${mutedClassName}`}>
                     {windowState.assistant_name} •{" "}
-                    {windowState.default_model || "Sonnet"}
+                    {windowState.default_model || "Sonnet"} • Vision enabled
                   </Text>
                 </div>
               </div>
@@ -316,7 +450,8 @@ export default function NeuralLabsDesktopNeura({
                 </Text>
                 <Text className={`mt-2 text-sm ${mutedClassName}`}>
                   This chat is separate from Onyx and stored in your Neural Labs
-                  environment.
+                  environment. Image uploads are sent to Sonnet with the
+                  message.
                 </Text>
               </div>
             </div>
@@ -332,13 +467,11 @@ export default function NeuralLabsDesktopNeura({
                     }`}
                   >
                     <div
-                      className={`max-w-[82%] rounded-24 px-4 py-3 ${
+                      className={`max-w-[86%] rounded-[26px] border px-4 py-3 ${messageShellClassName} ${
                         isAssistant
-                          ? isDarkMode
-                            ? "border border-white/10 bg-white/[0.06]"
-                            : "border border-slate-200 bg-white"
+                          ? ""
                           : isDarkMode
-                            ? "bg-cyan-400/16 text-white"
+                            ? "bg-cyan-400/14 text-white"
                             : "bg-slate-900 text-white"
                       }`}
                     >
@@ -349,9 +482,22 @@ export default function NeuralLabsDesktopNeura({
                       >
                         {isAssistant ? windowState.assistant_name : "You"}
                       </div>
-                      <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6">
-                        {message.content}
-                      </pre>
+                      {message.attachments.length > 0 ? (
+                        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {message.attachments.map((attachment) => (
+                            <PersistedAttachmentPreview
+                              key={attachment.id}
+                              attachment={attachment}
+                              getAttachmentContentUrl={getAttachmentContentUrl}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                      {message.content ? (
+                        <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6">
+                          {message.content}
+                        </pre>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -359,11 +505,7 @@ export default function NeuralLabsDesktopNeura({
               {windowState.is_streaming ? (
                 <div className="flex justify-start">
                   <div
-                    className={`max-w-[82%] rounded-24 border px-4 py-3 ${
-                      isDarkMode
-                        ? "border-white/10 bg-white/[0.06]"
-                        : "border-slate-200 bg-white"
-                    }`}
+                    className={`max-w-[82%] rounded-[26px] border px-4 py-3 ${messageShellClassName}`}
                   >
                     <div
                       className={`mb-2 text-xs font-medium ${mutedClassName}`}
@@ -399,50 +541,113 @@ export default function NeuralLabsDesktopNeura({
                 {windowState.error_message}
               </div>
             ) : null}
-            <div className="flex items-end gap-3">
-              <textarea
-                value={activeDraft}
-                disabled={!activeConversation || windowState.is_streaming}
-                placeholder={
-                  activeConversation
-                    ? `Message ${windowState.assistant_name}...`
-                    : "Create a chat to start messaging"
-                }
-                className={`min-h-[104px] flex-1 resize-none rounded-24 border px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-cyan-400/40 ${inputClassName}`}
-                onChange={(event) => {
-                  if (!activeConversation) {
-                    return;
-                  }
-                  onUpdateDraft(activeConversation.id, event.target.value);
-                }}
-                onKeyDown={handleComposerKeyDown}
+
+            <div
+              className={`rounded-[30px] border p-3 ${composerShellClassName}`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleAttachmentInput}
               />
-              <button
-                type="button"
-                aria-label="Send message"
-                disabled={
-                  !activeConversation ||
-                  windowState.is_streaming ||
-                  !activeDraft.trim()
-                }
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  isDarkMode
-                    ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300"
-                    : "bg-slate-900 text-white hover:bg-slate-700"
-                }`}
-                onClick={() => {
-                  if (!activeConversation) {
-                    return;
+
+              {pendingAttachments.length > 0 ? (
+                <div className="mb-3 flex gap-3 overflow-x-auto pb-1">
+                  {pendingAttachments.map((attachment) => (
+                    <PendingAttachmentChip
+                      key={attachment.id}
+                      attachment={attachment}
+                      onRemove={() => {
+                        if (!activeConversation) {
+                          return;
+                        }
+                        onRemovePendingAttachment(
+                          activeConversation.id,
+                          attachment.id
+                        );
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="flex items-end gap-3">
+                <button
+                  type="button"
+                  aria-label="Attach image"
+                  disabled={!activeConversation || windowState.is_streaming}
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isDarkMode
+                      ? "bg-white/8 text-white hover:bg-white/12"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <SvgPaperclip className="h-4 w-4 stroke-current" />
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  <textarea
+                    value={activeDraft}
+                    disabled={!activeConversation || windowState.is_streaming}
+                    placeholder={
+                      activeConversation
+                        ? `Message ${windowState.assistant_name} or drop in images...`
+                        : "Create a chat to start messaging"
+                    }
+                    className={`min-h-[72px] w-full resize-none bg-transparent px-1 py-2 text-sm outline-none ${composerInputClassName}`}
+                    onChange={(event) => {
+                      if (!activeConversation) {
+                        return;
+                      }
+                      onUpdateDraft(activeConversation.id, event.target.value);
+                    }}
+                    onKeyDown={handleComposerKeyDown}
+                  />
+                  <div className="flex items-center gap-2 px-1 pb-1">
+                    <div
+                      className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] ${
+                        isDarkMode
+                          ? "bg-white/6 text-white/65"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <SvgImage className="h-3.5 w-3.5 stroke-current" />
+                      Image understanding enabled
+                    </div>
+                    <Text className={`text-[11px] ${mutedClassName}`}>
+                      Enter sends. Shift+Enter adds a new line.
+                    </Text>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  aria-label="Send message"
+                  disabled={
+                    !activeConversation ||
+                    windowState.is_streaming ||
+                    (!activeDraft.trim() && pendingAttachments.length === 0)
                   }
-                  void onSendMessage(activeConversation.id);
-                }}
-              >
-                <SvgArrowUp className="h-4 w-4 stroke-current" />
-              </button>
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isDarkMode
+                      ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+                      : "bg-slate-900 text-white hover:bg-slate-700"
+                  }`}
+                  onClick={() => {
+                    if (!activeConversation) {
+                      return;
+                    }
+                    void onSendMessage(activeConversation.id);
+                  }}
+                >
+                  <SvgArrowUp className="h-4 w-4 stroke-current" />
+                </button>
+              </div>
             </div>
-            <Text className={`text-xs ${mutedClassName}`}>
-              Enter sends. Shift+Enter adds a new line.
-            </Text>
           </div>
         </div>
       </div>

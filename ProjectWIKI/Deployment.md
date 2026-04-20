@@ -100,6 +100,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - desktop `Terminal` now uses a dedicated Windows Terminal-style app surface rather than the legacy terminal panel: independent terminal windows, top tabs, right-click tab actions, drag-reorder, move-tab-to-new-window, and in-window split controls
   - desktop `Text Editor` is now a dedicated Monaco-based app window instead of the former preview-window editor: per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
   - desktop `Neura` is now a dedicated Neural Labs chat app with a conversation sidebar, streaming replies, and taskbar `New Window` support; it is separate from the main Onyx assistant UI
+  - Neura now uses a modern pill-style composer with inline image uploads for Sonnet vision instead of a text-only chat bar
   - desktop explorer and terminal visuals now follow the app light/dark theme, including explicit theme-safe file/folder icon colors and xterm foreground/background switching
   - taskbar icons expose app names on hover through the same themed Neural Labs tooltip treatment
   - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps including `Neura`
@@ -123,6 +124,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
 - managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
 - Neura workspace-local persistence:
   - conversation history is stored in the user Neural Labs home at `~/.neural-labs/neura/neura.db`
+  - image uploads for Neura vision chats are stored in the same workspace at `~/.neural-labs/neura/uploads/`
   - Neura traffic stays on the dedicated `/api/neural-labs/neura/*` endpoints and does not write into Onyx chat-session/message tables
 - backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
   - `claude` via Anthropic native installer (`curl -fsSL https://claude.ai/install.sh | bash`)

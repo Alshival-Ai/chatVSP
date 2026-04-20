@@ -6,12 +6,15 @@ from datetime import timezone
 from pathlib import Path
 import sqlite3
 from typing import Iterator
+from typing import Sequence
 from uuid import uuid4
 
+from onyx.server.features.neural_labs.models import NeuraMessageAttachment
 from onyx.server.features.neural_labs.models import NeuraConversationSummary
 from onyx.server.features.neural_labs.models import NeuraMessage
 
 NEURA_DIRECTORY_RELATIVE_PATH = ".neural-labs/neura"
+NEURA_UPLOADS_RELATIVE_PATH = f"{NEURA_DIRECTORY_RELATIVE_PATH}/uploads"
 NEURA_DB_FILENAME = "neura.db"
 DEFAULT_NEURA_CONVERSATION_TITLE = "New Conversation"
 
@@ -103,10 +106,37 @@ def get_conversation(
             """,
             (conversation_id,),
         ).fetchall()
+        message_ids = [str(row["id"]) for row in message_rows]
+        attachment_rows = (
+            connection.execute(
+                f"""
+                SELECT id, message_id, file_name, storage_path, mime_type, size
+                FROM message_attachments
+                WHERE message_id IN ({",".join(["?"] * len(message_ids))})
+                ORDER BY id ASC
+                """,
+                message_ids,
+            ).fetchall()
+            if message_ids
+            else []
+        )
+
+    attachments_by_message_id: dict[str, list[NeuraMessageAttachment]] = {}
+    for row in attachment_rows:
+        attachment = _attachment_from_row(row)
+        attachments_by_message_id.setdefault(attachment.message_id, []).append(
+            attachment
+        )
 
     return (
         _conversation_summary_from_row(conversation_row),
-        [_message_from_row(row) for row in message_rows],
+        [
+            _message_from_row(
+                row,
+                attachments=attachments_by_message_id.get(str(row["id"]), []),
+            )
+            for row in message_rows
+        ],
     )
 
 
@@ -125,6 +155,7 @@ def append_message(
     conversation_id: str,
     role: str,
     content: str,
+    attachments: Sequence[dict[str, str | int | None]] | None = None,
 ) -> NeuraMessage:
     message_id = str(uuid4())
     now = _utc_now()
@@ -138,6 +169,37 @@ def append_message(
             """,
             (message_id, conversation_id, role, content, now),
         )
+        normalized_attachments: list[dict[str, str | int | None]] = []
+        for attachment in attachments or []:
+            attachment_id = str(attachment.get("id") or uuid4())
+            file_name = str(attachment.get("file_name") or "").strip()
+            storage_path = str(attachment.get("storage_path") or "").strip()
+            if not file_name or not storage_path:
+                continue
+
+            attachment_payload = {
+                "id": attachment_id,
+                "file_name": file_name,
+                "storage_path": storage_path,
+                "mime_type": attachment.get("mime_type"),
+                "size": attachment.get("size"),
+            }
+            normalized_attachments.append(attachment_payload)
+            connection.execute(
+                """
+                INSERT INTO message_attachments
+                (id, message_id, file_name, storage_path, mime_type, size)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    attachment_id,
+                    message_id,
+                    file_name,
+                    storage_path,
+                    attachment.get("mime_type"),
+                    attachment.get("size"),
+                ),
+            )
         connection.execute(
             "UPDATE conversations SET updated_at = ? WHERE id = ?",
             (now, conversation_id),
@@ -154,7 +216,28 @@ def append_message(
     if row is None:
         raise ValueError("Unable to create message")
 
-    return _message_from_row(row)
+    return _message_from_row(
+        row,
+        attachments=[
+            NeuraMessageAttachment(
+                id=str(attachment["id"]),
+                message_id=message_id,
+                file_name=str(attachment["file_name"]),
+                storage_path=str(attachment["storage_path"]),
+                mime_type=(
+                    str(attachment["mime_type"])
+                    if attachment.get("mime_type") is not None
+                    else None
+                ),
+                size=(
+                    int(attachment["size"])
+                    if attachment.get("size") is not None
+                    else None
+                ),
+            )
+            for attachment in normalized_attachments
+        ],
+    )
 
 
 def maybe_update_title_from_first_user_message(
@@ -228,6 +311,24 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
         ON conversations (updated_at)
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS message_attachments (
+            id TEXT PRIMARY KEY,
+            message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+            file_name TEXT NOT NULL,
+            storage_path TEXT NOT NULL,
+            mime_type TEXT,
+            size INTEGER
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_message_attachments_message_id
+        ON message_attachments (message_id)
+        """
+    )
 
 
 def _require_conversation(connection: sqlite3.Connection, conversation_id: str) -> None:
@@ -249,13 +350,29 @@ def _conversation_summary_from_row(row: sqlite3.Row) -> NeuraConversationSummary
     )
 
 
-def _message_from_row(row: sqlite3.Row) -> NeuraMessage:
+def _message_from_row(
+    row: sqlite3.Row,
+    *,
+    attachments: list[NeuraMessageAttachment] | None = None,
+) -> NeuraMessage:
     return NeuraMessage(
         id=str(row["id"]),
         conversation_id=str(row["conversation_id"]),
         role=str(row["role"]),
         content=str(row["content"]),
         created_at=_parse_timestamp(str(row["created_at"])),
+        attachments=attachments or [],
+    )
+
+
+def _attachment_from_row(row: sqlite3.Row) -> NeuraMessageAttachment:
+    return NeuraMessageAttachment(
+        id=str(row["id"]),
+        message_id=str(row["message_id"]),
+        file_name=str(row["file_name"]),
+        storage_path=str(row["storage_path"]),
+        mime_type=str(row["mime_type"]) if row["mime_type"] is not None else None,
+        size=int(row["size"]) if row["size"] is not None else None,
     )
 
 

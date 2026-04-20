@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from datetime import datetime
 from datetime import timezone
 import json
@@ -44,7 +45,6 @@ from onyx.server.features.neural_labs.models import NeuraConfigResponse
 from onyx.server.features.neural_labs.models import NeuraConversationListResponse
 from onyx.server.features.neural_labs.models import NeuraConversationResponse
 from onyx.server.features.neural_labs.models import NeuraCreateConversationRequest
-from onyx.server.features.neural_labs.models import NeuraSendMessageRequest
 from onyx.server.features.neural_labs.models import PathResponse
 from onyx.server.features.neural_labs.models import RenamePathRequest
 from onyx.server.features.neural_labs.models import TerminalDescriptor
@@ -63,6 +63,7 @@ from onyx.server.features.neural_labs.neura_store import delete_conversation
 from onyx.server.features.neural_labs.neura_store import get_conversation
 from onyx.server.features.neural_labs.neura_store import list_conversations
 from onyx.server.features.neural_labs.neura_store import maybe_update_title_from_first_user_message
+from onyx.server.features.neural_labs.neura_store import NEURA_UPLOADS_RELATIVE_PATH
 from onyx.server.features.neural_labs.provisioning import (
     ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME,
 )
@@ -102,6 +103,7 @@ from shared_configs.contextvars import get_current_tenant_id
 NEURAL_LABS_MCP_PAT_NAME = "neural-labs-mcp"
 NEURAL_LABS_MCP_PAT_FILE_RELATIVE_PATH = ".neural-labs/mcp_pat.token"
 NEURA_ASSISTANT_NAME = "Neura"
+NEURA_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 
 def require_neural_labs_enabled(user: User = Depends(current_user)) -> User:
@@ -305,20 +307,109 @@ def _build_neura_litellm_config(env_overrides: dict[str, str], model_name: str) 
 
 
 def _build_neura_messages_payload(
-    conversation_messages: list[dict[str, str]],
-) -> list[dict[str, str]]:
-    payload: list[dict[str, str]] = []
+    *,
+    home_dir: Path,
+    conversation_messages: list[Any],
+) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
     for message in conversation_messages:
-        role = message.get("role", "").strip()
-        content = message.get("content", "")
+        role = getattr(message, "role", "").strip()
+        content = getattr(message, "content", "")
         if role not in {"user", "assistant", "system"}:
             continue
+        attachments = getattr(message, "attachments", []) or []
+        if role == "user" and attachments:
+            content_parts: list[dict[str, Any]] = []
+            if content:
+                content_parts.append({"type": "text", "text": content})
+            for attachment in attachments:
+                mime_type = getattr(attachment, "mime_type", None)
+                storage_path = getattr(attachment, "storage_path", "")
+                if not mime_type or not mime_type.startswith("image/") or not storage_path:
+                    continue
+                content_parts.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": _encode_neura_attachment_as_data_url(
+                                home_dir=home_dir,
+                                storage_path=storage_path,
+                                mime_type=mime_type,
+                            )
+                        },
+                    }
+                )
+            payload.append(
+                {
+                    "role": role,
+                    "content": content_parts
+                    if content_parts
+                    else [{"type": "text", "text": ""}],
+                }
+            )
+            continue
+
         payload.append({"role": role, "content": content})
     return payload
 
 
 def _sse_event(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
+
+
+def _encode_neura_attachment_as_data_url(
+    *,
+    home_dir: Path,
+    storage_path: str,
+    mime_type: str,
+) -> str:
+    attachment_path = home_dir / storage_path
+    encoded_bytes = base64.b64encode(attachment_path.read_bytes()).decode("utf-8")
+    return f"data:{mime_type};base64,{encoded_bytes}"
+
+
+async def _save_neura_uploads(
+    *,
+    home_dir: Path,
+    files: list[UploadFile],
+) -> list[dict[str, str | int | None]]:
+    saved_attachments: list[dict[str, str | int | None]] = []
+    upload_root = home_dir / NEURA_UPLOADS_RELATIVE_PATH
+    upload_root.mkdir(parents=True, exist_ok=True)
+
+    for file in files:
+        mime_type = (file.content_type or "").strip()
+        if not mime_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{file.filename or 'Attachment'} is not a supported image file",
+            )
+
+        content = await file.read()
+        if len(content) > NEURA_MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{file.filename or 'Attachment'} exceeds the 20MB upload limit",
+            )
+
+        safe_name = sanitize_filename(file.filename or "image")
+        attachment_id = str(uuid4())
+        relative_path = f"{NEURA_UPLOADS_RELATIVE_PATH}/{attachment_id}-{safe_name}"
+        target_path = home_dir / relative_path
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_bytes(content)
+
+        saved_attachments.append(
+            {
+                "id": attachment_id,
+                "file_name": safe_name,
+                "storage_path": relative_path,
+                "mime_type": mime_type,
+                "size": len(content),
+            }
+        )
+
+    return saved_attachments
 
 
 @router.post("/warmup", response_model=WarmupResponse)
@@ -942,15 +1033,20 @@ def delete_neura_conversation(
 
 
 @router.post("/neura/conversations/{conversation_id}/messages/stream")
-def stream_neura_message(
+async def stream_neura_message(
     conversation_id: str,
-    request: NeuraSendMessageRequest,
+    content: str = Form(""),
+    files: list[UploadFile] | None = File(default=None),
     user: User = Depends(current_user),
     db_session: Session = Depends(get_session),
 ) -> StreamingResponse:
-    prompt = request.content.strip()
-    if not prompt:
-        raise HTTPException(status_code=400, detail="Message content cannot be empty")
+    prompt = content.strip()
+    incoming_files = files or []
+    if not prompt and not incoming_files:
+        raise HTTPException(
+            status_code=400,
+            detail="Message content or at least one image is required",
+        )
 
     tenant_id = get_current_tenant_id()
     home_dir = _get_neural_labs_home_dir(tenant_id=tenant_id, user=user)
@@ -961,11 +1057,18 @@ def stream_neura_message(
     except KeyError:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
+    saved_attachments = []
+    if incoming_files:
+        saved_attachments = await _save_neura_uploads(
+            home_dir=home_dir, files=incoming_files
+        )
+
     user_message = append_message(
         home_dir,
         conversation_id=conversation_id,
         role="user",
         content=prompt,
+        attachments=saved_attachments,
     )
     maybe_update_title_from_first_user_message(
         home_dir, conversation_id=conversation_id, content=prompt
@@ -990,10 +1093,8 @@ def stream_neura_message(
         )
 
         messages_payload = _build_neura_messages_payload(
-            [
-                {"role": message.role, "content": message.content}
-                for message in persisted_messages
-            ]
+            home_dir=home_dir,
+            conversation_messages=persisted_messages,
         )
         llm_config = _build_neura_litellm_config(
             env_overrides, conversation.model_name

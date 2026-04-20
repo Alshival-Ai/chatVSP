@@ -110,12 +110,31 @@ export interface NeuraConversationSummary {
   updated_at: string;
 }
 
+export interface NeuraMessageAttachment {
+  id: string;
+  message_id: string;
+  file_name: string;
+  storage_path: string;
+  mime_type: string | null;
+  size: number | null;
+}
+
 export interface NeuraMessage {
   id: string;
   conversation_id: string;
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  attachments: NeuraMessageAttachment[];
+}
+
+export interface NeuraComposerAttachment {
+  id: string;
+  file: File;
+  file_name: string;
+  mime_type: string;
+  size: number;
+  preview_url: string;
 }
 
 export interface DesktopNeuraWindowState {
@@ -123,6 +142,10 @@ export interface DesktopNeuraWindowState {
   selected_conversation_id: string | null;
   messages_by_conversation_id: Record<string, NeuraMessage[]>;
   draft_by_conversation_id: Record<string, string>;
+  pending_attachments_by_conversation_id: Record<
+    string,
+    NeuraComposerAttachment[]
+  >;
   is_sidebar_open: boolean;
   is_loading_conversations: boolean;
   is_loading_messages: boolean;

@@ -37,6 +37,7 @@ import type {
   DesktopTerminalWindowState,
   DesktopExplorerState,
   DesktopWindowState,
+  NeuraComposerAttachment,
   NeuraConversationSummary,
   NeuraMessage,
   TerminalLayoutState,
@@ -395,6 +396,7 @@ function createDefaultDesktopNeuraWindowState(): DesktopNeuraWindowState {
     selected_conversation_id: null,
     messages_by_conversation_id: {},
     draft_by_conversation_id: {},
+    pending_attachments_by_conversation_id: {},
     is_sidebar_open: true,
     is_loading_conversations: true,
     is_loading_messages: false,
@@ -2968,6 +2970,13 @@ export default function NeuralLabsPage() {
       if (!(windowId in previousStates)) {
         return previousStates;
       }
+      Object.values(
+        previousStates[windowId]?.pending_attachments_by_conversation_id ?? {}
+      )
+        .flat()
+        .forEach((attachment) => {
+          URL.revokeObjectURL(attachment.preview_url);
+        });
       const nextStates = { ...previousStates };
       delete nextStates[windowId];
       return nextStates;
@@ -3448,6 +3457,71 @@ export default function NeuralLabsPage() {
     [updateDesktopNeuraState]
   );
 
+  const addDesktopNeuraAttachments = useCallback(
+    (windowId: string, conversationId: string, files: File[]) => {
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      const rejectedCount = files.length - imageFiles.length;
+      if (rejectedCount > 0) {
+        toast.error("Neura currently supports image attachments only");
+      }
+      if (imageFiles.length === 0) {
+        return;
+      }
+
+      updateDesktopNeuraState(windowId, (currentState) => {
+        const nextAttachments = [
+          ...(currentState.pending_attachments_by_conversation_id[
+            conversationId
+          ] ?? []),
+          ...imageFiles.map((file) => ({
+            id: createLocalId(),
+            file,
+            file_name: file.name,
+            mime_type: file.type,
+            size: file.size,
+            preview_url: URL.createObjectURL(file),
+          })),
+        ];
+
+        return {
+          ...currentState,
+          pending_attachments_by_conversation_id: {
+            ...currentState.pending_attachments_by_conversation_id,
+            [conversationId]: nextAttachments,
+          },
+        };
+      });
+    },
+    [updateDesktopNeuraState]
+  );
+
+  const removeDesktopNeuraAttachment = useCallback(
+    (windowId: string, conversationId: string, attachmentId: string) => {
+      updateDesktopNeuraState(windowId, (currentState) => {
+        const existingAttachments =
+          currentState.pending_attachments_by_conversation_id[conversationId] ??
+          [];
+        const attachmentToRemove = existingAttachments.find(
+          (attachment) => attachment.id === attachmentId
+        );
+        if (attachmentToRemove) {
+          URL.revokeObjectURL(attachmentToRemove.preview_url);
+        }
+
+        return {
+          ...currentState,
+          pending_attachments_by_conversation_id: {
+            ...currentState.pending_attachments_by_conversation_id,
+            [conversationId]: existingAttachments.filter(
+              (attachment) => attachment.id !== attachmentId
+            ),
+          },
+        };
+      });
+    },
+    [updateDesktopNeuraState]
+  );
+
   const loadDesktopNeuraConversation = useCallback(
     async (windowId: string, conversationId: string) => {
       updateDesktopNeuraState(windowId, (currentState) => ({
@@ -3617,6 +3691,10 @@ export default function NeuralLabsPage() {
             ...currentState.draft_by_conversation_id,
             [payload.conversation.id]: "",
           },
+          pending_attachments_by_conversation_id: {
+            ...currentState.pending_attachments_by_conversation_id,
+            [payload.conversation.id]: [],
+          },
           error_message: null,
         }));
         focusDesktopWindow(windowId);
@@ -3669,12 +3747,22 @@ export default function NeuralLabsPage() {
           delete nextMessages[conversation.id];
           const nextDrafts = { ...currentState.draft_by_conversation_id };
           delete nextDrafts[conversation.id];
+          const nextPendingAttachments = {
+            ...currentState.pending_attachments_by_conversation_id,
+          };
+          (nextPendingAttachments[conversation.id] ?? []).forEach(
+            (attachment) => {
+              URL.revokeObjectURL(attachment.preview_url);
+            }
+          );
+          delete nextPendingAttachments[conversation.id];
           return {
             ...currentState,
             conversations: nextConversations,
             selected_conversation_id: nextSelectedConversationId,
             messages_by_conversation_id: nextMessages,
             draft_by_conversation_id: nextDrafts,
+            pending_attachments_by_conversation_id: nextPendingAttachments,
             error_message: null,
           };
         });
@@ -3705,10 +3793,22 @@ export default function NeuralLabsPage() {
       const currentState = desktopNeuraStatesRef.current[windowId];
       const draft =
         currentState?.draft_by_conversation_id[conversationId] ?? "";
+      const pendingAttachments =
+        currentState?.pending_attachments_by_conversation_id[conversationId] ??
+        [];
       const trimmedDraft = draft.trim();
-      if (!trimmedDraft || currentState?.is_streaming) {
+      if (
+        (!trimmedDraft && pendingAttachments.length === 0) ||
+        currentState?.is_streaming
+      ) {
         return;
       }
+
+      const formData = new FormData();
+      formData.append("content", trimmedDraft);
+      pendingAttachments.forEach((attachment) => {
+        formData.append("files", attachment.file);
+      });
 
       updateDesktopNeuraState(windowId, (state) => ({
         ...state,
@@ -3717,6 +3817,10 @@ export default function NeuralLabsPage() {
         draft_by_conversation_id: {
           ...state.draft_by_conversation_id,
           [conversationId]: "",
+        },
+        pending_attachments_by_conversation_id: {
+          ...state.pending_attachments_by_conversation_id,
+          [conversationId]: [],
         },
       }));
 
@@ -3728,10 +3832,9 @@ export default function NeuralLabsPage() {
           {
             method: "POST",
             headers: {
-              "Content-Type": "application/json",
               Accept: "text/event-stream",
             },
-            body: JSON.stringify({ content: trimmedDraft }),
+            body: formData,
           }
         );
         if (!response.ok) {
@@ -3899,6 +4002,9 @@ export default function NeuralLabsPage() {
           }
         });
 
+        pendingAttachments.forEach((attachment) => {
+          URL.revokeObjectURL(attachment.preview_url);
+        });
         updateDesktopNeuraState(windowId, (state) => ({
           ...state,
           is_streaming: false,
@@ -3909,6 +4015,10 @@ export default function NeuralLabsPage() {
           draft_by_conversation_id: {
             ...state.draft_by_conversation_id,
             [conversationId]: trimmedDraft,
+          },
+          pending_attachments_by_conversation_id: {
+            ...state.pending_attachments_by_conversation_id,
+            [conversationId]: pendingAttachments,
           },
           is_streaming: false,
           error_message:
@@ -5993,6 +6103,17 @@ export default function NeuralLabsPage() {
             onSendMessage={(conversationId) =>
               sendDesktopNeuraMessage(windowState.id, conversationId)
             }
+            onAddAttachments={(conversationId, files) =>
+              addDesktopNeuraAttachments(windowState.id, conversationId, files)
+            }
+            onRemovePendingAttachment={(conversationId, attachmentId) =>
+              removeDesktopNeuraAttachment(
+                windowState.id,
+                conversationId,
+                attachmentId
+              )
+            }
+            getAttachmentContentUrl={getDesktopBackgroundContentUrl}
           />
         );
       }
@@ -6049,6 +6170,7 @@ export default function NeuralLabsPage() {
       createFolderAtPath,
       createDesktopNeuraConversation,
       downloadFile,
+      addDesktopNeuraAttachments,
       desktopExplorerStates,
       desktopNeuraStates,
       desktopTerminalStates,
@@ -6068,6 +6190,7 @@ export default function NeuralLabsPage() {
       navigateDesktopExplorerToPath,
       navigateDesktopExplorerUp,
       openPreview,
+      removeDesktopNeuraAttachment,
       reorderDesktopTerminalTabs,
       renameDesktopTerminalTab,
       refreshDirectoryPaths,

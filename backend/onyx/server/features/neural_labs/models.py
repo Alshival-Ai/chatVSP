@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel
+from pydantic import Field
 
 
 class WarmupResponse(BaseModel):
@@ -111,12 +112,22 @@ class NeuraConversationListResponse(BaseModel):
     conversations: list[NeuraConversationSummary]
 
 
+class NeuraMessageAttachment(BaseModel):
+    id: str
+    message_id: str
+    file_name: str
+    storage_path: str
+    mime_type: str | None = None
+    size: int | None = None
+
+
 class NeuraMessage(BaseModel):
     id: str
     conversation_id: str
     role: str
     content: str
     created_at: datetime
+    attachments: list[NeuraMessageAttachment] = Field(default_factory=list)
 
 
 class NeuraConversationResponse(BaseModel):
