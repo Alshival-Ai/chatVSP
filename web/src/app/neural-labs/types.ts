@@ -55,7 +55,10 @@ export interface PreviewWindowState {
   } | null;
 }
 
-export type NeuralLabsDesktopAppKind = "file-explorer" | "terminal-workspace";
+export type NeuralLabsDesktopAppKind =
+  | "file-explorer"
+  | "terminal-workspace"
+  | "desktop-settings";
 
 export interface DesktopWindowState {
   id: string;

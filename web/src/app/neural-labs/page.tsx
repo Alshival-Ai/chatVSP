@@ -37,6 +37,7 @@ import {
   SvgFolder,
   SvgFolderPlus,
   SvgRefreshCw,
+  SvgSettings,
   SvgTerminal,
   SvgTrash,
   SvgUploadCloud,
@@ -73,6 +74,11 @@ interface TerminalWebSocketTokenResponse {
 }
 
 type NeuralLabsUiMode = "legacy" | "desktop";
+type DesktopBackgroundPresetId =
+  | "aurora"
+  | "graphite"
+  | "sunset-grid"
+  | "ocean-night";
 
 type SplitMode = "none" | "horizontal" | "vertical";
 
@@ -131,6 +137,7 @@ const LAYOUT_STORAGE_KEY = "neural-labs-layout-v1";
 const TREE_STATE_STORAGE_KEY = "neural-labs-tree-v1";
 const PREVIEW_WINDOWS_STORAGE_KEY = "neural-labs-previews-v1";
 const UI_MODE_STORAGE_KEY = "neural-labs-ui-mode-v1";
+const DESKTOP_BACKGROUND_STORAGE_KEY = "neural-labs-desktop-background-v1";
 const NAVIGATOR_WIDTH_STORAGE_KEY = "neural-labs-navigator-width-v1";
 const NAVIGATOR_COLLAPSED_STORAGE_KEY = "neural-labs-navigator-collapsed-v1";
 const TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY =
@@ -149,6 +156,49 @@ const DEFAULT_TERMINAL_WINDOW = {
   width: 980,
   height: 640,
 };
+const DEFAULT_SETTINGS_WINDOW = {
+  width: 520,
+  height: 420,
+};
+const DESKTOP_BACKGROUND_PRESETS: {
+  id: DesktopBackgroundPresetId;
+  name: string;
+  previewClassName: string;
+  desktopClassName: string;
+}[] = [
+  {
+    id: "aurora",
+    name: "Aurora",
+    previewClassName:
+      "bg-[radial-gradient(circle_at_top_left,rgba(76,152,255,0.85),transparent_35%),radial-gradient(circle_at_top_right,rgba(0,212,170,0.65),transparent_32%),linear-gradient(180deg,#0a1220_0%,#060b16_55%,#05070f_100%)]",
+    desktopClassName:
+      "bg-[radial-gradient(circle_at_top_left,rgba(76,152,255,0.22),transparent_34%),radial-gradient(circle_at_top_right,rgba(0,212,170,0.18),transparent_28%),linear-gradient(180deg,#0a1220_0%,#060b16_55%,#05070f_100%)]",
+  },
+  {
+    id: "graphite",
+    name: "Graphite",
+    previewClassName:
+      "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_34%),linear-gradient(140deg,#161a22_0%,#0d1017_45%,#05070c_100%)]",
+    desktopClassName:
+      "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),linear-gradient(140deg,#161a22_0%,#0d1017_45%,#05070c_100%)]",
+  },
+  {
+    id: "sunset-grid",
+    name: "Sunset Grid",
+    previewClassName:
+      "bg-[linear-gradient(135deg,#2b1021_0%,#451835_35%,#1f1f49_100%)]",
+    desktopClassName:
+      "bg-[linear-gradient(135deg,#2b1021_0%,#451835_35%,#1f1f49_100%)]",
+  },
+  {
+    id: "ocean-night",
+    name: "Ocean Night",
+    previewClassName:
+      "bg-[radial-gradient(circle_at_bottom_left,rgba(25,134,194,0.45),transparent_32%),radial-gradient(circle_at_top_right,rgba(39,209,154,0.26),transparent_25%),linear-gradient(180deg,#08131f_0%,#07111a_45%,#03070c_100%)]",
+    desktopClassName:
+      "bg-[radial-gradient(circle_at_bottom_left,rgba(25,134,194,0.2),transparent_32%),radial-gradient(circle_at_top_right,rgba(39,209,154,0.14),transparent_25%),linear-gradient(180deg,#08131f_0%,#07111a_45%,#03070c_100%)]",
+  },
+];
 const TEXT_PREVIEW_EXTENSIONS = new Set([
   ".txt",
   ".toml",
@@ -1468,9 +1518,58 @@ function NeuralLabsTerminalWorkspacePanel({
   );
 }
 
+function NeuralLabsDesktopSettingsPanel({
+  selectedBackgroundId,
+  onSelectBackground,
+}: {
+  selectedBackgroundId: DesktopBackgroundPresetId;
+  onSelectBackground: (backgroundId: DesktopBackgroundPresetId) => void;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background-neutral-02">
+      <div className="border-b border-border-01 bg-background-neutral-01 px-4 py-3">
+        <Text mainUiAction>Desktop Settings</Text>
+        <Text text03 className="mt-1">
+          Choose a background for the Neural Labs desktop workspace.
+        </Text>
+      </div>
+
+      <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {DESKTOP_BACKGROUND_PRESETS.map((preset) => {
+            const isSelected = preset.id === selectedBackgroundId;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className={`overflow-hidden rounded-16 border text-left transition ${
+                  isSelected
+                    ? "border-border-04 bg-background-tint-03/40"
+                    : "border-border-01 bg-background-neutral-01 hover:bg-background-neutral-00"
+                }`}
+                onClick={() => onSelectBackground(preset.id)}
+              >
+                <div className={`h-28 w-full ${preset.previewClassName}`} />
+                <div className="px-3 py-3">
+                  <Text className="font-medium">{preset.name}</Text>
+                  <Text text03 className="mt-1 text-xs">
+                    {isSelected ? "Selected background" : "Use this background"}
+                  </Text>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NeuralLabsPage() {
   const router = useRouter();
   const [uiMode, setUiMode] = useState<NeuralLabsUiMode>("legacy");
+  const [desktopBackgroundId, setDesktopBackgroundId] =
+    useState<DesktopBackgroundPresetId>("aurora");
   const [currentPath, setCurrentPath] = useState("");
   const [treeEntries, setTreeEntries] = useState<
     Record<string, NeuralLabsFileEntry[]>
@@ -1547,6 +1646,25 @@ export default function NeuralLabsPage() {
   useEffect(() => {
     window.localStorage.setItem(UI_MODE_STORAGE_KEY, uiMode);
   }, [uiMode]);
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(DESKTOP_BACKGROUND_STORAGE_KEY);
+    if (
+      raw === "aurora" ||
+      raw === "graphite" ||
+      raw === "sunset-grid" ||
+      raw === "ocean-night"
+    ) {
+      setDesktopBackgroundId(raw);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      DESKTOP_BACKGROUND_STORAGE_KEY,
+      desktopBackgroundId
+    );
+  }, [desktopBackgroundId]);
 
   const isDesktopModeActive = isDesktopLayout && uiMode === "desktop";
 
@@ -1963,28 +2081,42 @@ export default function NeuralLabsPage() {
       }
 
       highestPreviewZIndexRef.current += 1;
-      const width =
-        appKind === "file-explorer"
+      const isFileExplorerApp = appKind === "file-explorer";
+      const isSettingsApp = appKind === "desktop-settings";
+      const width = isFileExplorerApp
+        ? workspaceBounds.width > 0
+          ? Math.min(
+              DEFAULT_FILE_EXPLORER_WINDOW.width,
+              Math.max(400, workspaceBounds.width * 0.34)
+            )
+          : DEFAULT_FILE_EXPLORER_WINDOW.width
+        : isSettingsApp
           ? workspaceBounds.width > 0
             ? Math.min(
-                DEFAULT_FILE_EXPLORER_WINDOW.width,
-                Math.max(400, workspaceBounds.width * 0.34)
+                DEFAULT_SETTINGS_WINDOW.width,
+                Math.max(420, workspaceBounds.width * 0.38)
               )
-            : DEFAULT_FILE_EXPLORER_WINDOW.width
+            : DEFAULT_SETTINGS_WINDOW.width
           : workspaceBounds.width > 0
             ? Math.min(
                 DEFAULT_TERMINAL_WINDOW.width,
                 Math.max(760, workspaceBounds.width * 0.72)
               )
             : DEFAULT_TERMINAL_WINDOW.width;
-      const height =
-        appKind === "file-explorer"
+      const height = isFileExplorerApp
+        ? workspaceBounds.height > 0
+          ? Math.min(
+              DEFAULT_FILE_EXPLORER_WINDOW.height,
+              Math.max(460, workspaceBounds.height * 0.78)
+            )
+          : DEFAULT_FILE_EXPLORER_WINDOW.height
+        : isSettingsApp
           ? workspaceBounds.height > 0
             ? Math.min(
-                DEFAULT_FILE_EXPLORER_WINDOW.height,
-                Math.max(460, workspaceBounds.height * 0.78)
+                DEFAULT_SETTINGS_WINDOW.height,
+                Math.max(340, workspaceBounds.height * 0.54)
               )
-            : DEFAULT_FILE_EXPLORER_WINDOW.height
+            : DEFAULT_SETTINGS_WINDOW.height
           : workspaceBounds.height > 0
             ? Math.min(
                 DEFAULT_TERMINAL_WINDOW.height,
@@ -2001,15 +2133,17 @@ export default function NeuralLabsPage() {
         {
           id: createLocalId(),
           app_kind: appKind,
-          title:
-            appKind === "file-explorer"
-              ? "File Explorer"
+          title: isFileExplorerApp
+            ? "File Explorer"
+            : isSettingsApp
+              ? "Desktop Settings"
               : "Terminal Workspace",
-          x:
-            appKind === "file-explorer"
-              ? 42 + existingOffset
+          x: isFileExplorerApp
+            ? 42 + existingOffset
+            : isSettingsApp
+              ? Math.max(72, Math.round((workspaceBounds.width - width) / 2))
               : Math.max(56, Math.round((workspaceBounds.width - width) / 2)),
-          y: appKind === "file-explorer" ? 42 + existingOffset : 54,
+          y: isFileExplorerApp ? 42 + existingOffset : isSettingsApp ? 72 : 54,
           width,
           height,
           z_index: highestPreviewZIndexRef.current,
@@ -2935,6 +3069,14 @@ export default function NeuralLabsPage() {
     };
   }, [activeTerminalId, activeTerminalStatus?.state, isInitializingTerminals]);
 
+  const currentDesktopBackground = useMemo(() => {
+    return (
+      DESKTOP_BACKGROUND_PRESETS.find(
+        (preset) => preset.id === desktopBackgroundId
+      ) ?? DESKTOP_BACKGROUND_PRESETS[0]!
+    );
+  }, [desktopBackgroundId]);
+
   const desktopWindowContent = useCallback(
     (windowState: DesktopWindowState) => {
       if (windowState.app_kind === "file-explorer") {
@@ -2965,6 +3107,15 @@ export default function NeuralLabsPage() {
             onTriggerUpload={triggerUpload}
             onActivateTextEditor={openTextEditorApp}
             className="h-full"
+          />
+        );
+      }
+
+      if (windowState.app_kind === "desktop-settings") {
+        return (
+          <NeuralLabsDesktopSettingsPanel
+            selectedBackgroundId={desktopBackgroundId}
+            onSelectBackground={setDesktopBackgroundId}
           />
         );
       }
@@ -3014,6 +3165,7 @@ export default function NeuralLabsPage() {
       selectedPath,
       setActivePane,
       setActiveTab,
+      desktopBackgroundId,
       splitActiveTab,
       toggleDirectory,
       treeEntries,
@@ -3032,10 +3184,15 @@ export default function NeuralLabsPage() {
     const hasTerminalWindow = desktopWindows.some(
       (windowState) => windowState.app_kind === "terminal-workspace"
     );
+    const hasSettingsWindow = desktopWindows.some(
+      (windowState) => windowState.app_kind === "desktop-settings"
+    );
 
     return (
       <div className="relative h-[100dvh] w-full overflow-hidden bg-[#060b16] text-white">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(76,152,255,0.22),transparent_34%),radial-gradient(circle_at_top_right,rgba(0,212,170,0.18),transparent_28%),linear-gradient(180deg,#0a1220_0%,#060b16_55%,#05070f_100%)]" />
+        <div
+          className={`absolute inset-0 ${currentDesktopBackground.desktopClassName}`}
+        />
         <div className="absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent)]" />
 
         <div className="relative z-10 flex h-full flex-col">
@@ -3122,42 +3279,63 @@ export default function NeuralLabsPage() {
 
           <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
             <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-[#0a1220]/88 px-3 py-2 shadow-[0_18px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-              <button
-                type="button"
-                className={`flex min-w-[92px] items-center gap-2 rounded-full px-4 py-2 transition ${
-                  hasFileExplorerWindow
-                    ? "bg-white/16 text-white"
-                    : "text-white/80 hover:bg-white/10"
-                }`}
-                onClick={() => openDesktopApp("file-explorer")}
-              >
-                <SvgFolder className="h-4 w-4 shrink-0 stroke-current" />
-                <Text className="text-sm text-current">Explorer</Text>
-              </button>
-              <button
-                type="button"
-                className={`flex min-w-[92px] items-center gap-2 rounded-full px-4 py-2 transition ${
-                  hasTerminalWindow
-                    ? "bg-white/16 text-white"
-                    : "text-white/80 hover:bg-white/10"
-                }`}
-                onClick={() => openDesktopApp("terminal-workspace")}
-              >
-                <SvgTerminal className="h-4 w-4 shrink-0 stroke-current" />
-                <Text className="text-sm text-current">Terminal</Text>
-              </button>
-              <button
-                type="button"
-                className={`flex min-w-[92px] items-center gap-2 rounded-full px-4 py-2 transition ${
-                  hasTextEditorWindow
-                    ? "bg-white/16 text-white"
-                    : "text-white/80 hover:bg-white/10"
-                }`}
-                onClick={openOrFocusTextEditorApp}
-              >
-                <SvgFileText className="h-4 w-4 shrink-0 stroke-current" />
-                <Text className="text-sm text-current">Editor</Text>
-              </button>
+              <IconActionButton label="File Explorer">
+                <button
+                  type="button"
+                  aria-label="File Explorer"
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
+                    hasFileExplorerWindow
+                      ? "bg-white/16 text-white"
+                      : "text-white/80 hover:bg-white/10"
+                  }`}
+                  onClick={() => openDesktopApp("file-explorer")}
+                >
+                  <SvgFolder className="h-5 w-5 shrink-0 stroke-current" />
+                </button>
+              </IconActionButton>
+              <IconActionButton label="Terminal">
+                <button
+                  type="button"
+                  aria-label="Terminal"
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
+                    hasTerminalWindow
+                      ? "bg-white/16 text-white"
+                      : "text-white/80 hover:bg-white/10"
+                  }`}
+                  onClick={() => openDesktopApp("terminal-workspace")}
+                >
+                  <SvgTerminal className="h-5 w-5 shrink-0 stroke-current" />
+                </button>
+              </IconActionButton>
+              <IconActionButton label="Text Editor">
+                <button
+                  type="button"
+                  aria-label="Text Editor"
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
+                    hasTextEditorWindow
+                      ? "bg-white/16 text-white"
+                      : "text-white/80 hover:bg-white/10"
+                  }`}
+                  onClick={openOrFocusTextEditorApp}
+                >
+                  <SvgFileText className="h-5 w-5 shrink-0 stroke-current" />
+                </button>
+              </IconActionButton>
+              <div className="mx-1 h-8 w-px bg-white/12" />
+              <IconActionButton label="Desktop Settings">
+                <button
+                  type="button"
+                  aria-label="Desktop Settings"
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
+                    hasSettingsWindow
+                      ? "bg-white/16 text-white"
+                      : "text-white/80 hover:bg-white/10"
+                  }`}
+                  onClick={() => openDesktopApp("desktop-settings")}
+                >
+                  <SvgSettings className="h-5 w-5 shrink-0 stroke-current" />
+                </button>
+              </IconActionButton>
             </div>
           </div>
         </div>

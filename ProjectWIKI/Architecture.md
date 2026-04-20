@@ -44,6 +44,7 @@
 - Frontend window model:
   - file preview/editor windows continue to use the persisted floating preview-window model
   - desktop-only app windows (`File Explorer`, `Terminal`) are client-side windows layered into the same workspace and focus ordering
+  - desktop presentation preferences such as the selected background preset persist in browser storage on the client
 
 ## SSH Path
 
