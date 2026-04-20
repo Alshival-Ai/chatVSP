@@ -81,6 +81,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - per-user access enabled from Admin Users
   - configure an AWS Bedrock provider with IAM auth and region `us-east-1` to make Bedrock-backed Claude the preferred runtime
   - ensure the runtime EC2 role includes Bedrock Claude access:
+    - `bedrock:ListFoundationModels`
+      - required for Admin > LLM > Bedrock model discovery (`/api/admin/llm/bedrock/available-models`)
     - `bedrock:InvokeModel`
     - `bedrock:InvokeModelWithResponseStream`
     - `bedrock:ListInferenceProfiles`

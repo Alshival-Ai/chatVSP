@@ -134,6 +134,8 @@ Bedrock rollout notes:
 - preferred admin/provider setup for Claude is `Bedrock` with `IAM` auth and region `us-east-1`
 - runtime Claude defaults now prefer a configured Bedrock provider over direct Anthropic for chat defaults
 - the EC2/runtime role must include at least:
+  - `bedrock:ListFoundationModels`
+    - required for the admin Bedrock "available models" endpoint and provider setup validation
   - `bedrock:InvokeModel`
   - `bedrock:InvokeModelWithResponseStream`
   - `bedrock:ListInferenceProfiles`
