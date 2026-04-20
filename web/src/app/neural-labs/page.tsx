@@ -95,6 +95,8 @@ interface TerminalWebSocketTokenResponse {
   ws_path: string;
 }
 
+type DesktopEnvironmentState = "initializing" | "ready" | "error";
+
 type DesktopBackgroundPresetId =
   | "aurora"
   | "graphite"
@@ -1995,6 +1997,8 @@ export default function NeuralLabsPage() {
   });
   const [layout, setLayout] = useState<TerminalLayoutState | null>(null);
   const [isInitializingTerminals, setIsInitializingTerminals] = useState(true);
+  const [desktopEnvironmentState, setDesktopEnvironmentState] =
+    useState<DesktopEnvironmentState>("initializing");
   const [activeTerminalStatus, setActiveTerminalStatus] =
     useState<TerminalStatusResponse | null>(null);
   const [navigatorWidth, setNavigatorWidth] = useState(
@@ -5507,6 +5511,47 @@ export default function NeuralLabsPage() {
   }, [hasLoadedUiMode, isDesktopModeActive, reconcileLiveTerminals]);
 
   useEffect(() => {
+    if (!hasLoadedUiMode || !isDesktopModeActive) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const initializeDesktopEnvironment = async () => {
+      setDesktopEnvironmentState("initializing");
+      setIsInitializingTerminals(false);
+
+      try {
+        const warmupResponse = await fetch(`${NEURAL_LABS_API_PREFIX}/warmup`, {
+          method: "POST",
+        });
+        if (!warmupResponse.ok) {
+          throw new Error(await getFetchErrorMessage(warmupResponse));
+        }
+
+        if (!isCancelled) {
+          setDesktopEnvironmentState("ready");
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setDesktopEnvironmentState("error");
+          toast.error(
+            `Unable to initialize Neural Labs environment: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`
+          );
+        }
+      }
+    };
+
+    void initializeDesktopEnvironment();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [hasLoadedUiMode, isDesktopModeActive]);
+
+  useEffect(() => {
     if (!layout) {
       return;
     }
@@ -5662,6 +5707,25 @@ export default function NeuralLabsPage() {
 
   const canSplitActiveTab = Boolean(activeTab && activeTab.panes.length === 1);
   const environmentStatus = useMemo(() => {
+    if (isDesktopModeActive) {
+      if (desktopEnvironmentState === "ready") {
+        return {
+          label: "Environment: Ready",
+          dotClass: "bg-green-500",
+        };
+      }
+      if (desktopEnvironmentState === "error") {
+        return {
+          label: "Environment: Error",
+          dotClass: "bg-red-500",
+        };
+      }
+      return {
+        label: "Environment: Initializing",
+        dotClass: "bg-yellow-500",
+      };
+    }
+
     if (isInitializingTerminals || !activeTerminalId) {
       return {
         label: "Environment: Initializing",
@@ -5686,7 +5750,13 @@ export default function NeuralLabsPage() {
       label: "Environment: Initializing",
       dotClass: "bg-yellow-500",
     };
-  }, [activeTerminalId, activeTerminalStatus?.state, isInitializingTerminals]);
+  }, [
+    activeTerminalId,
+    activeTerminalStatus?.state,
+    desktopEnvironmentState,
+    isDesktopModeActive,
+    isInitializingTerminals,
+  ]);
 
   const currentDesktopBackground = useMemo(() => {
     if (isDesktopBackgroundPresetId(desktopBackgroundId)) {
