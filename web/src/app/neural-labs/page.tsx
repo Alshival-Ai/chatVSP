@@ -2026,19 +2026,6 @@ export default function NeuralLabsPage() {
     ]
   );
 
-  useEffect(() => {
-    if (!isDesktopModeActive) {
-      return;
-    }
-
-    const hasTerminalWindow = desktopWindows.some(
-      (windowState) => windowState.app_kind === "terminal-workspace"
-    );
-    if (!hasTerminalWindow) {
-      openDesktopApp("terminal-workspace");
-    }
-  }, [desktopWindows, isDesktopModeActive, openDesktopApp]);
-
   const openPreview = useCallback(
     (entry: NeuralLabsFileEntry) => {
       const previewKind = getPreviewKind(entry);
