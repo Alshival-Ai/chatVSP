@@ -26,6 +26,9 @@
 ## Neural Labs Runtime Path
 
 - Web route: `/neural-labs`
+- UI presentation:
+  - same route serves both the legacy workspace layout and the new desktop shell
+  - frontend persists the selected mode in browser storage and falls back to legacy on smaller screens
 - API prefix: `/api/neural-labs/*`
 - Terminal websocket path returned by token API:
   - `/api/neural-labs/terminal/ws?token=<auth_token>&terminal_token=<terminal_ticket>`
@@ -38,6 +41,9 @@
 - Frontend tree state recovery:
   - the Neural Labs file tree persists expanded and selected paths in browser storage
   - if a persisted directory no longer exists, the frontend clears that stale entry when the API returns `404`
+- Frontend window model:
+  - file preview/editor windows continue to use the persisted floating preview-window model
+  - desktop-only app windows (`File Explorer`, `Terminal`) are client-side windows layered into the same workspace and focus ordering
 
 ## SSH Path
 

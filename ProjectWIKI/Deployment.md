@@ -94,16 +94,20 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - file list/content/download/upload/folder create/rename/move/text save/delete
 - browser UI for:
   - tree navigator with context actions and drag/drop move
-  - left sidebar splits into File Navigator + Neural Apps, with app icons available in the collapsed rail
+  - same-route legacy + desktop Neural Labs UI, with legacy as the default and a persisted `Try out the new Desktop UI` switch
+  - desktop mode is only active at desktop breakpoints; smaller screens continue to use the legacy layout
+  - legacy layout still uses the fixed File Navigator / Neural Apps / Terminal Navigator structure, including collapsed rails
+  - desktop layout replaces fixed sidebars with a pill taskbar plus windowed `File Explorer`, `Terminal`, and `Text Editor` apps
   - split terminal tabs/panes
   - Terminal Navigator shows a single terminal as `Terminal 1` without a group wrapper; group cards only render when a tab contains multiple panes
   - file action icons expose hover helper text for create/upload/refresh
   - Neural Labs hover helper text now uses the themed white tooltip only; native browser duplicate tooltips are removed and tooltip positioning is clamped within the viewport above floating windows
   - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls; standalone terminal and group delete actions are red while in-group terminal delete actions stay neutral
-  - Neural Apps includes a Text Editor that opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API; the launcher shows icon+name in the expanded sidebar and icon-only in the collapsed rail
+  - Text Editor still opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API; desktop mode also launches it from the taskbar
   - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
   - floating preview windows with snap/resize for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
   - preview windows include a maximize/restore control that preserves the prior bounds when returning from maximized state
+  - desktop app windows share focus / z-index behavior with existing preview windows so app windows and file previews layer together cleanly
   - HTML previews use a path-based `/api/neural-labs/files/content/<path>` route so relative assets load from the previewed workspace folder
   - HTML preview sandbox keeps scripts enabled but drops `allow-same-origin` to avoid the browser escape warning on generated sites
   - the web app `Permissions-Policy` header is restricted to currently supported directives so Chromium no longer logs unsupported-feature warnings
@@ -180,7 +184,6 @@ sudo docker compose -f docker-compose.prod.yml exec api_server bash -lc 'echo "$
   - `claude --version` prints the installed version
 
 Neural Labs parity currently focuses on application/backend behavior. Deployment-level service topology changes (compose/nginx/runtime restructuring) remain a separate rollout decision.
-
 
 ## Enterprise Feature Toggle (Applied 2026-03-24)
 

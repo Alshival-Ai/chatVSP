@@ -54,3 +54,23 @@ export interface PreviewWindowState {
     snapped_zone: PreviewSnapZone | null;
   } | null;
 }
+
+export type NeuralLabsDesktopAppKind = "file-explorer" | "terminal-workspace";
+
+export interface DesktopWindowState {
+  id: string;
+  app_kind: NeuralLabsDesktopAppKind;
+  title: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z_index: number;
+  is_maximized: boolean;
+  restore_bounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+}

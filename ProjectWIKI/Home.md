@@ -36,18 +36,22 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - file list/content/download/upload/create directory/rename/move/edit/delete
     - missing file or directory paths return `404` so stale browser tree state self-heals correctly
   - modular web UI with:
+    - legacy and desktop presentations now coexist on the same `/neural-labs` route; legacy remains the default and exposes a `Try out the new Desktop UI` switch
+    - desktop mode is desktop-breakpoint only and persists the selected presentation mode in browser storage
     - tree-based file navigator (expand/collapse, context menu, drag/drop move, hidden file toggle)
-    - independently collapsible file navigator and terminal navigator with thin icon rails when collapsed
-    - left sidebar now stacks `File Navigator` over `Neural Apps`; when collapsed, Neural Apps surface as rail icons
-    - multi-terminal tabs with split panes, consistent terminal/pane terminology, and navigator grouping that mirrors split orientation
+    - legacy mode keeps the fixed `File Navigator` / `Neural Apps` / `Terminal Navigator` structure, including the existing collapsed rails
+    - desktop mode replaces those fixed sidebars with a browser-OS shell: a pill taskbar on the bottom plus windowed `File Explorer`, `Terminal`, and `Text Editor` apps
+    - desktop `Terminal` app reuses the same multi-terminal tabs, split panes, status polling, and terminal navigator controls inside the app window
+    - desktop `File Explorer` app reuses the existing file tree/actions and opens previews/editors in floating windows
     - Terminal Navigator now shows a lone terminal as `Terminal 1` without wrapping it in a group; grouped views only appear when a tab actually has multiple panes
     - file action icons now show explicit hover helper text for folder creation, upload, and refresh
     - Neural Labs action hover text now uses the themed white tooltip only; browser-native duplicate tooltips were removed and tooltip positioning is clamped within the viewport above floating windows
     - terminal and group deletion now lives in the Terminal Navigator via trash actions instead of top-bar close controls; standalone terminal and group delete icons are red, while in-group terminal delete icons remain neutral
-    - Neural Apps currently includes a Text Editor that opens as its own floating app window over the workspace and can save pasted text directly into the workspace as a file; the sidebar launcher is now icon+name when expanded and icon-only when collapsed
+    - Text Editor continues to open as a floating window and can save pasted text directly into the workspace as a file; in desktop mode it is also launched from the taskbar
     - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
     - floating preview windows (snap/drag/resize) for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
     - floating preview windows now include a maximize/restore control that preserves the prior bounds when returning from maximized state
+    - desktop app windows use separate desktop-window chrome and share focus / z-index behavior with existing preview windows
     - HTML preview iframe now uses a path-based `/api/neural-labs/files/content/<path>` URL so relative `style.css`, `app.js`, and sibling asset requests resolve inside the selected workspace folder instead of collapsing to `/api/neural-labs/files/*`
     - HTML preview iframe keeps script execution enabled but no longer grants `allow-same-origin`, removing the browser sandbox escape warning from generated site previews
     - web security headers now use a trimmed `Permissions-Policy` set that avoids unsupported directives rejected by current Chromium builds

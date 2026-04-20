@@ -10,16 +10,20 @@ import {
   useState,
   type ChangeEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type ReactElement,
+  type RefObject,
 } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/refresh-components/buttons/Button";
 import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
+import NeuralLabsDesktopWindows from "@/app/neural-labs/NeuralLabsDesktopWindows";
 import NeuralLabsFileTree from "@/app/neural-labs/NeuralLabsFileTree";
 import NeuralLabsPreviewWindows from "@/app/neural-labs/NeuralLabsPreviewWindows";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import type {
+  DesktopWindowState,
   NeuralLabsFileEntry,
   DirectoryResponse,
   PreviewKind,
@@ -67,6 +71,8 @@ interface TerminalWebSocketTokenResponse {
   token: string;
   ws_path: string;
 }
+
+type NeuralLabsUiMode = "legacy" | "desktop";
 
 type SplitMode = "none" | "horizontal" | "vertical";
 
@@ -124,6 +130,7 @@ const NEURAL_LABS_TERMINAL_WS_PATH = "/api/neural-labs/terminal/ws";
 const LAYOUT_STORAGE_KEY = "neural-labs-layout-v1";
 const TREE_STATE_STORAGE_KEY = "neural-labs-tree-v1";
 const PREVIEW_WINDOWS_STORAGE_KEY = "neural-labs-previews-v1";
+const UI_MODE_STORAGE_KEY = "neural-labs-ui-mode-v1";
 const NAVIGATOR_WIDTH_STORAGE_KEY = "neural-labs-navigator-width-v1";
 const NAVIGATOR_COLLAPSED_STORAGE_KEY = "neural-labs-navigator-collapsed-v1";
 const TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY =
@@ -134,6 +141,14 @@ const MIN_NAVIGATOR_WIDTH_PX = 260;
 const MAX_NAVIGATOR_WIDTH_PX = 860;
 const MAX_NAVIGATOR_WIDTH_RATIO = 0.7;
 const COLLAPSED_NAVIGATOR_RAIL_PX = 52;
+const DEFAULT_FILE_EXPLORER_WINDOW = {
+  width: 460,
+  height: 620,
+};
+const DEFAULT_TERMINAL_WINDOW = {
+  width: 980,
+  height: 640,
+};
 const TEXT_PREVIEW_EXTENSIONS = new Set([
   ".txt",
   ".toml",
@@ -938,8 +953,524 @@ function NeuralAppsPanel({
   );
 }
 
+function NeuralLabsFileExplorerPanel({
+  currentPath,
+  pathLabel,
+  treeEntries,
+  expandedPaths,
+  loadingPaths,
+  selectedPath,
+  isPreviewable,
+  fileUploadInputRef,
+  onSelectEntry,
+  onToggleDirectory,
+  onActivateEntry,
+  onPreviewEntry,
+  onDownloadEntry,
+  onCopyPath,
+  onRenameEntry,
+  onDeleteEntry,
+  onMoveEntry,
+  onUploadFiles,
+  onUploadInputChange,
+  onNavigateUp,
+  onCreateFolder,
+  onRefreshDirectory,
+  onTriggerUpload,
+  onActivateTextEditor,
+  showNeuralAppsPanel = false,
+  className = "",
+}: {
+  currentPath: string;
+  pathLabel: string;
+  treeEntries: Record<string, NeuralLabsFileEntry[]>;
+  expandedPaths: string[];
+  loadingPaths: string[];
+  selectedPath: string | null;
+  isPreviewable: (entry: NeuralLabsFileEntry) => boolean;
+  fileUploadInputRef: RefObject<HTMLInputElement | null>;
+  onSelectEntry: (entry: NeuralLabsFileEntry) => void;
+  onToggleDirectory: (entry: NeuralLabsFileEntry) => void;
+  onActivateEntry: (entry: NeuralLabsFileEntry) => void;
+  onPreviewEntry: (entry: NeuralLabsFileEntry) => void;
+  onDownloadEntry: (entry: NeuralLabsFileEntry) => void;
+  onCopyPath: (entry: NeuralLabsFileEntry) => void;
+  onRenameEntry: (entry: NeuralLabsFileEntry) => void;
+  onDeleteEntry: (entry: NeuralLabsFileEntry) => void;
+  onMoveEntry: (entry: NeuralLabsFileEntry, destinationPath: string) => void;
+  onUploadFiles: (
+    files: File[],
+    destinationPath: string
+  ) => Promise<void> | void;
+  onUploadInputChange: (
+    event: ChangeEvent<HTMLInputElement>
+  ) => Promise<void> | void;
+  onNavigateUp: () => Promise<void> | void;
+  onCreateFolder: () => Promise<void> | void;
+  onRefreshDirectory: () => Promise<void> | void;
+  onTriggerUpload: () => void;
+  onActivateTextEditor: () => void;
+  showNeuralAppsPanel?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex min-h-0 flex-1 flex-col bg-background-neutral-02 ${className}`}
+    >
+      <div className="border-b border-border-01 bg-background-neutral-01 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex items-center gap-2">
+            <SvgFolder className="h-4 w-4 shrink-0 stroke-text-03" />
+            <Text mainUiAction>File Explorer</Text>
+          </div>
+          <Text
+            className="truncate max-w-[14rem] md:max-w-[18rem]"
+            text03
+            title={pathLabel}
+          >
+            {pathLabel}
+          </Text>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <Button
+            tertiary
+            size="md"
+            leftIcon={SvgChevronLeft}
+            disabled={!currentPath}
+            onClick={() => void onNavigateUp()}
+          >
+            Up
+          </Button>
+          <div className="flex items-center gap-1.5">
+            <IconActionButton label="New folder">
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgFolderPlus}
+                aria-label="New folder"
+                onClick={() => void onCreateFolder()}
+              />
+            </IconActionButton>
+            <IconActionButton label="Upload files">
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgUploadCloud}
+                aria-label="Upload files"
+                onClick={onTriggerUpload}
+              />
+            </IconActionButton>
+            <IconActionButton label="Refresh files">
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgRefreshCw}
+                aria-label="Refresh files"
+                onClick={() => void onRefreshDirectory()}
+              />
+            </IconActionButton>
+          </div>
+        </div>
+      </div>
+
+      <input
+        ref={fileUploadInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          void onUploadInputChange(event);
+        }}
+      />
+
+      <div className="min-h-0 flex flex-1 flex-col">
+        <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-2">
+          <NeuralLabsFileTree
+            entriesByPath={treeEntries}
+            expandedPaths={expandedPaths}
+            loadingPaths={loadingPaths}
+            selectedPath={selectedPath}
+            onSelectEntry={onSelectEntry}
+            onToggleDirectory={onToggleDirectory}
+            onActivateEntry={onActivateEntry}
+            onPreviewEntry={onPreviewEntry}
+            onDownloadEntry={onDownloadEntry}
+            onCopyPath={onCopyPath}
+            onRenameEntry={onRenameEntry}
+            onDeleteEntry={onDeleteEntry}
+            onMoveEntry={onMoveEntry}
+            onUploadFiles={onUploadFiles}
+            canPreviewEntry={isPreviewable}
+          />
+        </div>
+
+        {showNeuralAppsPanel ? (
+          <div className="min-h-[18rem]">
+            <NeuralAppsPanel onActivateTextEditor={onActivateTextEditor} />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function NeuralLabsTerminalWorkspacePanel({
+  layout,
+  activeTab,
+  activePane,
+  isInitializingTerminals,
+  environmentStatus,
+  canSplitActiveTab,
+  onAddTab,
+  onSplitActiveTab,
+  onSetActiveTab,
+  onSetActivePane,
+  onCloseTabById,
+  onClosePaneById,
+  isTerminalNavigatorVisible = true,
+  onCollapseTerminalNavigator,
+  overlayChildren,
+}: {
+  layout: TerminalLayoutState | null;
+  activeTab: TabState | null;
+  activePane: PaneState | null;
+  isInitializingTerminals: boolean;
+  environmentStatus: { label: string; dotClass: string };
+  canSplitActiveTab: boolean;
+  onAddTab: () => Promise<void> | void;
+  onSplitActiveTab: (
+    direction: "horizontal" | "vertical"
+  ) => Promise<void> | void;
+  onSetActiveTab: (tabId: string) => void;
+  onSetActivePane: (tabId: string, paneId: string) => void;
+  onCloseTabById: (tabId: string) => Promise<void> | void;
+  onClosePaneById: (tabId: string, paneId: string) => Promise<void> | void;
+  isTerminalNavigatorVisible?: boolean;
+  onCollapseTerminalNavigator?: () => void;
+  overlayChildren?: ReactNode;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background-neutral-02">
+      <div className="flex items-center justify-between gap-2 border-b border-border-01 bg-background-neutral-01 p-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
+            <Text mainUiAction className="truncate">
+              {activeTab
+                ? activeTab.split_mode === "none"
+                  ? `Terminal ${
+                      layout?.tabs.findIndex(
+                        (tab) => tab.tab_id === activeTab.tab_id
+                      )! + 1
+                    }`
+                  : `Group ${
+                      layout?.tabs.findIndex(
+                        (tab) => tab.tab_id === activeTab.tab_id
+                      )! + 1
+                    }`
+                : "Terminal Workspace"}
+            </Text>
+          </div>
+          {activeTab ? (
+            activeTab.split_mode !== "none" && activePane ? (
+              <Text text03 className="truncate text-xs">
+                {`Pane ${
+                  activeTab.panes.findIndex(
+                    (pane) => pane.pane_id === activePane.pane_id
+                  ) + 1
+                } · Terminal ${
+                  activeTab.panes.findIndex(
+                    (pane) => pane.pane_id === activePane.pane_id
+                  ) + 1
+                } active`}
+              </Text>
+            ) : activeTab.split_mode === "none" ? (
+              <Text text03 className="truncate text-xs">
+                {`Terminal ${
+                  layout?.tabs.findIndex(
+                    (tab) => tab.tab_id === activeTab.tab_id
+                  )! + 1
+                } active`}
+              </Text>
+            ) : null
+          ) : (
+            <Text text03 className="truncate text-xs">
+              No active terminal
+            </Text>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <div className="hidden items-center gap-1 rounded-08 border border-border-01 px-2 py-1 md:flex">
+            <span
+              className={`h-2 w-2 rounded-full ${environmentStatus.dotClass}`}
+            />
+            <Text text03 className="whitespace-nowrap">
+              {environmentStatus.label}
+            </Text>
+          </div>
+          <Button tertiary size="md" onClick={() => void onAddTab()}>
+            New Terminal
+          </Button>
+          <Button
+            tertiary
+            size="md"
+            disabled={!canSplitActiveTab}
+            onClick={() => void onSplitActiveTab("vertical")}
+          >
+            Split Vertical
+          </Button>
+          <Button
+            tertiary
+            size="md"
+            disabled={!canSplitActiveTab}
+            onClick={() => void onSplitActiveTab("horizontal")}
+          >
+            Split Horizontal
+          </Button>
+          {isTerminalNavigatorVisible && onCollapseTerminalNavigator ? (
+            <IconActionButton label="Hide terminal navigator">
+              <Button
+                tertiary
+                size="md"
+                aria-label="Hide terminal navigator"
+                onClick={onCollapseTerminalNavigator}
+              >
+                <SvgChevronRight className="h-4 w-4 stroke-text-03" />
+              </Button>
+            </IconActionButton>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex flex-1">
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+          {isInitializingTerminals ? (
+            <div className="flex h-full w-full items-center justify-center p-3">
+              <Text text03>Initializing terminals...</Text>
+            </div>
+          ) : !layout || layout.tabs.length === 0 ? (
+            <div className="flex h-full w-full items-center justify-center p-3">
+              <Text text03>No terminal tabs available.</Text>
+            </div>
+          ) : (
+            layout.tabs.map((tab) => {
+              const isActiveTab = layout.active_tab_id === tab.tab_id;
+              const splitClass =
+                tab.split_mode === "vertical"
+                  ? "grid grid-cols-1 md:grid-cols-2"
+                  : tab.split_mode === "horizontal"
+                    ? "grid grid-rows-2"
+                    : "grid grid-cols-1";
+
+              return (
+                <div
+                  key={tab.tab_id}
+                  className={isActiveTab ? "h-full" : "hidden"}
+                >
+                  <div className={`h-full ${splitClass}`}>
+                    {tab.panes.map((pane) => {
+                      const isActivePane =
+                        isActiveTab && tab.active_pane_id === pane.pane_id;
+
+                      return (
+                        <div
+                          key={pane.pane_id}
+                          className={`min-h-0 border border-border-01 ${
+                            isActivePane ? "ring-1 ring-border-04" : "ring-0"
+                          }`}
+                          onMouseDown={() =>
+                            onSetActivePane(tab.tab_id, pane.pane_id)
+                          }
+                        >
+                          <TerminalPane
+                            terminalId={pane.terminal_id}
+                            isActive={isActivePane}
+                            onFocus={() =>
+                              onSetActivePane(tab.tab_id, pane.pane_id)
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          {overlayChildren}
+        </div>
+
+        {isTerminalNavigatorVisible ? (
+          <aside className="hidden w-[248px] shrink-0 border-l border-border-01 bg-background-neutral-01 md:flex md:flex-col">
+            <div className="flex items-center justify-between border-b border-border-01 px-3 py-2">
+              <Text mainUiAction>Terminal Navigator</Text>
+              {onCollapseTerminalNavigator ? (
+                <IconActionButton label="Collapse terminal navigator">
+                  <Button
+                    tertiary
+                    size="md"
+                    aria-label="Collapse terminal navigator"
+                    onClick={onCollapseTerminalNavigator}
+                  >
+                    <SvgChevronRight className="h-4 w-4 stroke-text-03" />
+                  </Button>
+                </IconActionButton>
+              ) : null}
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-2">
+              <div className="flex flex-col gap-2">
+                {(layout?.tabs ?? []).map((tab, tabIndex) => {
+                  const isActiveTab = layout?.active_tab_id === tab.tab_id;
+                  const isGroupedTab = tab.panes.length > 1;
+                  const paneLayoutClass =
+                    tab.split_mode === "horizontal"
+                      ? "grid grid-cols-2"
+                      : "flex flex-col";
+
+                  if (!isGroupedTab) {
+                    const pane = tab.panes[0]!;
+                    const isActivePane =
+                      isActiveTab && tab.active_pane_id === pane.pane_id;
+
+                    return (
+                      <div
+                        key={tab.tab_id}
+                        className={`rounded-12 border ${
+                          isActivePane
+                            ? "border-border-04 bg-background-tint-03/60"
+                            : "border-border-01 bg-background-neutral-02"
+                        }`}
+                      >
+                        <div className="flex min-w-0 items-center gap-1 p-1.5">
+                          <button
+                            type="button"
+                            className="flex min-w-0 flex-1 items-center gap-2 rounded-10 px-2 py-1.5 text-left hover:bg-background-neutral-01/70"
+                            onClick={() => {
+                              onSetActiveTab(tab.tab_id);
+                              onSetActivePane(tab.tab_id, pane.pane_id);
+                            }}
+                          >
+                            <span
+                              className={`h-2 w-2 shrink-0 rounded-full ${
+                                isActivePane ? "bg-green-500" : "bg-border-03"
+                              }`}
+                            />
+                            <Text className="min-w-0 truncate">
+                              Terminal {tabIndex + 1}
+                            </Text>
+                          </button>
+                          <IconActionButton label="Delete terminal">
+                            <button
+                              type="button"
+                              className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
+                              aria-label="Delete terminal"
+                              onClick={() =>
+                                void onClosePaneById(tab.tab_id, pane.pane_id)
+                              }
+                            >
+                              <SvgTrash className="h-4 w-4 stroke-red-500" />
+                            </button>
+                          </IconActionButton>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={tab.tab_id}
+                      className={`rounded-12 border ${
+                        isActiveTab
+                          ? "border-border-04 bg-background-tint-03/60"
+                          : "border-border-01 bg-background-neutral-02"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1 border-b border-border-01 px-1.5 py-1">
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 items-center gap-2 rounded-08 px-1.5 py-1 text-left hover:bg-background-neutral-01/70"
+                          onClick={() => onSetActiveTab(tab.tab_id)}
+                        >
+                          <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
+                          <Text className="truncate">Group {tabIndex + 1}</Text>
+                        </button>
+                        <IconActionButton label="Delete group">
+                          <button
+                            type="button"
+                            className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
+                            aria-label="Delete group"
+                            onClick={() => void onCloseTabById(tab.tab_id)}
+                          >
+                            <SvgTrash className="h-4 w-4 stroke-red-500" />
+                          </button>
+                        </IconActionButton>
+                      </div>
+                      <div className={`gap-1 p-1.5 ${paneLayoutClass}`}>
+                        {tab.panes.map((pane, paneIndex) => {
+                          const isActivePane =
+                            isActiveTab && tab.active_pane_id === pane.pane_id;
+                          return (
+                            <div
+                              key={pane.pane_id}
+                              className={`flex min-w-0 items-center gap-1 rounded-10 border px-1.5 py-1 ${
+                                isActivePane
+                                  ? "border-border-04 bg-background-neutral-00"
+                                  : "border-border-01 bg-background-neutral-01"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                className="flex min-w-0 flex-1 items-center gap-2 rounded-08 px-1.5 py-1 text-left hover:bg-background-neutral-00/70"
+                                onClick={() =>
+                                  onSetActivePane(tab.tab_id, pane.pane_id)
+                                }
+                              >
+                                <span
+                                  className={`h-2 w-2 shrink-0 rounded-full ${
+                                    isActivePane
+                                      ? "bg-green-500"
+                                      : "bg-border-03"
+                                  }`}
+                                />
+                                <Text className="truncate">
+                                  Terminal {paneIndex + 1}
+                                </Text>
+                              </button>
+                              <IconActionButton label="Delete terminal">
+                                <button
+                                  type="button"
+                                  className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
+                                  aria-label="Delete terminal"
+                                  onClick={() =>
+                                    void onClosePaneById(
+                                      tab.tab_id,
+                                      pane.pane_id
+                                    )
+                                  }
+                                >
+                                  <SvgTrash className="h-4 w-4 stroke-text-03" />
+                                </button>
+                              </IconActionButton>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function NeuralLabsPage() {
   const router = useRouter();
+  const [uiMode, setUiMode] = useState<NeuralLabsUiMode>("legacy");
   const [currentPath, setCurrentPath] = useState("");
   const [treeEntries, setTreeEntries] = useState<
     Record<string, NeuralLabsFileEntry[]>
@@ -948,6 +1479,9 @@ export default function NeuralLabsPage() {
   const [expandedPaths, setExpandedPaths] = useState<string[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [previewWindows, setPreviewWindows] = useState<PreviewWindowState[]>(
+    []
+  );
+  const [desktopWindows, setDesktopWindows] = useState<DesktopWindowState[]>(
     []
   );
   const [workspaceBounds, setWorkspaceBounds] = useState({
@@ -1002,6 +1536,19 @@ export default function NeuralLabsPage() {
       mediaQuery.removeEventListener("change", syncLayoutMode);
     };
   }, []);
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(UI_MODE_STORAGE_KEY);
+    if (raw === "desktop" || raw === "legacy") {
+      setUiMode(raw);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(UI_MODE_STORAGE_KEY, uiMode);
+  }, [uiMode]);
+
+  const isDesktopModeActive = isDesktopLayout && uiMode === "desktop";
 
   useEffect(() => {
     const raw = window.localStorage.getItem(NAVIGATOR_WIDTH_STORAGE_KEY);
@@ -1208,7 +1755,7 @@ export default function NeuralLabsPage() {
   );
 
   const openTextEditorApp = useCallback(() => {
-    if (isDesktopLayout && isNavigatorCollapsed) {
+    if (!isDesktopModeActive && isDesktopLayout && isNavigatorCollapsed) {
       setIsNavigatorCollapsed(false);
     }
     highestPreviewZIndexRef.current += 1;
@@ -1244,6 +1791,7 @@ export default function NeuralLabsPage() {
       },
     ]);
   }, [
+    isDesktopModeActive,
     isDesktopLayout,
     isNavigatorCollapsed,
     previewWindows,
@@ -1320,6 +1868,19 @@ export default function NeuralLabsPage() {
     );
   }, []);
 
+  const openOrFocusTextEditorApp = useCallback(() => {
+    const existingEditorWindow = [...previewWindows]
+      .filter((windowState) => windowState.preview_kind === "app-text-editor")
+      .sort((left, right) => right.z_index - left.z_index)[0];
+
+    if (existingEditorWindow) {
+      focusPreviewWindow(existingEditorWindow.id);
+      return;
+    }
+
+    openTextEditorApp();
+  }, [focusPreviewWindow, openTextEditorApp, previewWindows]);
+
   const updatePreviewWindow = useCallback(
     (
       windowId: string,
@@ -1349,6 +1910,134 @@ export default function NeuralLabsPage() {
       previousWindows.filter((windowState) => windowState.id !== windowId)
     );
   }, []);
+
+  const focusDesktopWindow = useCallback((windowId: string) => {
+    highestPreviewZIndexRef.current += 1;
+    setDesktopWindows((previousWindows) =>
+      previousWindows.map((windowState) =>
+        windowState.id === windowId
+          ? { ...windowState, z_index: highestPreviewZIndexRef.current }
+          : windowState
+      )
+    );
+  }, []);
+
+  const updateDesktopWindow = useCallback(
+    (
+      windowId: string,
+      update:
+        | Partial<DesktopWindowState>
+        | ((windowState: DesktopWindowState) => DesktopWindowState)
+    ) => {
+      setDesktopWindows((previousWindows) =>
+        previousWindows.map((windowState) => {
+          if (windowState.id !== windowId) {
+            return windowState;
+          }
+
+          if (typeof update === "function") {
+            return update(windowState);
+          }
+
+          return { ...windowState, ...update };
+        })
+      );
+    },
+    []
+  );
+
+  const closeDesktopWindow = useCallback((windowId: string) => {
+    setDesktopWindows((previousWindows) =>
+      previousWindows.filter((windowState) => windowState.id !== windowId)
+    );
+  }, []);
+
+  const openDesktopApp = useCallback(
+    (appKind: DesktopWindowState["app_kind"]) => {
+      const existingWindow = desktopWindows.find(
+        (windowState) => windowState.app_kind === appKind
+      );
+      if (existingWindow) {
+        focusDesktopWindow(existingWindow.id);
+        return;
+      }
+
+      highestPreviewZIndexRef.current += 1;
+      const width =
+        appKind === "file-explorer"
+          ? workspaceBounds.width > 0
+            ? Math.min(
+                DEFAULT_FILE_EXPLORER_WINDOW.width,
+                Math.max(400, workspaceBounds.width * 0.34)
+              )
+            : DEFAULT_FILE_EXPLORER_WINDOW.width
+          : workspaceBounds.width > 0
+            ? Math.min(
+                DEFAULT_TERMINAL_WINDOW.width,
+                Math.max(760, workspaceBounds.width * 0.72)
+              )
+            : DEFAULT_TERMINAL_WINDOW.width;
+      const height =
+        appKind === "file-explorer"
+          ? workspaceBounds.height > 0
+            ? Math.min(
+                DEFAULT_FILE_EXPLORER_WINDOW.height,
+                Math.max(460, workspaceBounds.height * 0.78)
+              )
+            : DEFAULT_FILE_EXPLORER_WINDOW.height
+          : workspaceBounds.height > 0
+            ? Math.min(
+                DEFAULT_TERMINAL_WINDOW.height,
+                Math.max(520, workspaceBounds.height * 0.78)
+              )
+            : DEFAULT_TERMINAL_WINDOW.height;
+
+      const existingOffset =
+        desktopWindows.filter((windowState) => windowState.app_kind === appKind)
+          .length * 24;
+
+      setDesktopWindows((previousWindows) => [
+        ...previousWindows,
+        {
+          id: createLocalId(),
+          app_kind: appKind,
+          title:
+            appKind === "file-explorer"
+              ? "File Explorer"
+              : "Terminal Workspace",
+          x:
+            appKind === "file-explorer"
+              ? 42 + existingOffset
+              : Math.max(56, Math.round((workspaceBounds.width - width) / 2)),
+          y: appKind === "file-explorer" ? 42 + existingOffset : 54,
+          width,
+          height,
+          z_index: highestPreviewZIndexRef.current,
+          is_maximized: false,
+          restore_bounds: null,
+        },
+      ]);
+    },
+    [
+      desktopWindows,
+      focusDesktopWindow,
+      workspaceBounds.height,
+      workspaceBounds.width,
+    ]
+  );
+
+  useEffect(() => {
+    if (!isDesktopModeActive) {
+      return;
+    }
+
+    const hasTerminalWindow = desktopWindows.some(
+      (windowState) => windowState.app_kind === "terminal-workspace"
+    );
+    if (!hasTerminalWindow) {
+      openDesktopApp("terminal-workspace");
+    }
+  }, [desktopWindows, isDesktopModeActive, openDesktopApp]);
 
   const openPreview = useCallback(
     (entry: NeuralLabsFileEntry) => {
@@ -1740,7 +2429,7 @@ export default function NeuralLabsPage() {
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [isDesktopModeActive]);
 
   useEffect(() => {
     persistTreeState({
@@ -2259,10 +2948,240 @@ export default function NeuralLabsPage() {
     };
   }, [activeTerminalId, activeTerminalStatus?.state, isInitializingTerminals]);
 
+  const desktopWindowContent = useCallback(
+    (windowState: DesktopWindowState) => {
+      if (windowState.app_kind === "file-explorer") {
+        return (
+          <NeuralLabsFileExplorerPanel
+            currentPath={currentPath}
+            pathLabel={pathLabel}
+            treeEntries={treeEntries}
+            expandedPaths={expandedPaths}
+            loadingPaths={loadingPaths}
+            selectedPath={selectedPath}
+            isPreviewable={isPreviewable}
+            fileUploadInputRef={fileUploadInputRef}
+            onSelectEntry={selectEntry}
+            onToggleDirectory={toggleDirectory}
+            onActivateEntry={activateTreeEntry}
+            onPreviewEntry={openPreview}
+            onDownloadEntry={downloadFile}
+            onCopyPath={copyPath}
+            onRenameEntry={renamePath}
+            onDeleteEntry={deletePath}
+            onMoveEntry={moveEntry}
+            onUploadFiles={uploadFilesToPath}
+            onUploadInputChange={uploadFile}
+            onNavigateUp={navigateUp}
+            onCreateFolder={createFolder}
+            onRefreshDirectory={refreshDirectory}
+            onTriggerUpload={triggerUpload}
+            onActivateTextEditor={openTextEditorApp}
+            className="h-full"
+          />
+        );
+      }
+
+      return (
+        <NeuralLabsTerminalWorkspacePanel
+          layout={layout}
+          activeTab={activeTab}
+          activePane={activePane}
+          isInitializingTerminals={isInitializingTerminals}
+          environmentStatus={environmentStatus}
+          canSplitActiveTab={canSplitActiveTab}
+          onAddTab={addTab}
+          onSplitActiveTab={splitActiveTab}
+          onSetActiveTab={setActiveTab}
+          onSetActivePane={setActivePane}
+          onCloseTabById={closeTabById}
+          onClosePaneById={closePaneById}
+          isTerminalNavigatorVisible
+        />
+      );
+    },
+    [
+      activePane,
+      activeTab,
+      activateTreeEntry,
+      addTab,
+      canSplitActiveTab,
+      closePaneById,
+      closeTabById,
+      copyPath,
+      createFolder,
+      currentPath,
+      deletePath,
+      downloadFile,
+      environmentStatus,
+      expandedPaths,
+      layout,
+      loadingPaths,
+      moveEntry,
+      navigateUp,
+      openPreview,
+      pathLabel,
+      refreshDirectory,
+      renamePath,
+      selectEntry,
+      selectedPath,
+      setActivePane,
+      setActiveTab,
+      splitActiveTab,
+      toggleDirectory,
+      treeEntries,
+      uploadFile,
+      uploadFilesToPath,
+    ]
+  );
+
+  if (isDesktopModeActive) {
+    const hasTextEditorWindow = previewWindows.some(
+      (windowState) => windowState.preview_kind === "app-text-editor"
+    );
+    const hasFileExplorerWindow = desktopWindows.some(
+      (windowState) => windowState.app_kind === "file-explorer"
+    );
+    const hasTerminalWindow = desktopWindows.some(
+      (windowState) => windowState.app_kind === "terminal-workspace"
+    );
+
+    return (
+      <div className="relative h-[100dvh] w-full overflow-hidden bg-[#060b16] text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(76,152,255,0.22),transparent_34%),radial-gradient(circle_at_top_right,rgba(0,212,170,0.18),transparent_28%),linear-gradient(180deg,#0a1220_0%,#060b16_55%,#05070f_100%)]" />
+        <div className="absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent)]" />
+
+        <div className="relative z-10 flex h-full flex-col">
+          <div className="flex items-center justify-between gap-3 px-5 py-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <SvgTerminal className="h-4 w-4 shrink-0 stroke-white" />
+                <Text className="text-sm font-medium uppercase tracking-[0.22em] text-white/80">
+                  Neural Labs Desktop
+                </Text>
+              </div>
+              <Text className="mt-1 text-white/60">
+                Browser workspace mode with windowed apps and live terminals.
+              </Text>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="hidden items-center gap-1 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 md:flex">
+                <span
+                  className={`h-2 w-2 rounded-full ${environmentStatus.dotClass}`}
+                />
+                <Text className="whitespace-nowrap text-sm text-white/80">
+                  {environmentStatus.label}
+                </Text>
+              </div>
+              <Button
+                tertiary
+                size="md"
+                leftIcon={SvgArrowLeft}
+                className="!border-white/15 !bg-white/10"
+                onClick={() => router.push("/app")}
+              >
+                Back to Main Chat
+              </Button>
+              <Button
+                tertiary
+                size="md"
+                className="!border-white/15 !bg-white/10"
+                onClick={() => setUiMode("legacy")}
+              >
+                Back to Legacy UI
+              </Button>
+            </div>
+          </div>
+
+          <div
+            ref={previewWorkspaceRef}
+            className="relative min-h-0 flex-1 overflow-hidden px-4 pb-28"
+          >
+            {desktopWindows.length === 0 && previewWindows.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center p-8">
+                <div className="max-w-xl rounded-[28px] border border-white/12 bg-white/8 px-8 py-7 text-center backdrop-blur-xl">
+                  <Text className="text-lg font-medium text-white">
+                    Desktop mode is ready
+                  </Text>
+                  <Text className="mt-2 text-white/70">
+                    Launch File Explorer, Terminal, or Text Editor from the
+                    taskbar below.
+                  </Text>
+                </div>
+              </div>
+            ) : null}
+
+            <NeuralLabsDesktopWindows
+              windows={desktopWindows}
+              workspaceBounds={workspaceBounds}
+              onCloseWindow={closeDesktopWindow}
+              onFocusWindow={focusDesktopWindow}
+              onUpdateWindow={updateDesktopWindow}
+              renderWindowContent={desktopWindowContent}
+            />
+
+            <NeuralLabsPreviewWindows
+              windows={previewWindows}
+              workspaceBounds={workspaceBounds}
+              currentDirectory={currentPath}
+              onCloseWindow={closePreviewWindow}
+              onFocusWindow={focusPreviewWindow}
+              onTextFileSaved={(path) => {
+                void handleTextFileSaved(path);
+              }}
+              onUpdateWindow={updatePreviewWindow}
+            />
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
+            <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-[#0a1220]/88 px-3 py-2 shadow-[0_18px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <button
+                type="button"
+                className={`flex min-w-[92px] items-center gap-2 rounded-full px-4 py-2 transition ${
+                  hasFileExplorerWindow
+                    ? "bg-white/16 text-white"
+                    : "text-white/80 hover:bg-white/10"
+                }`}
+                onClick={() => openDesktopApp("file-explorer")}
+              >
+                <SvgFolder className="h-4 w-4 shrink-0 stroke-current" />
+                <Text className="text-sm text-current">Explorer</Text>
+              </button>
+              <button
+                type="button"
+                className={`flex min-w-[92px] items-center gap-2 rounded-full px-4 py-2 transition ${
+                  hasTerminalWindow
+                    ? "bg-white/16 text-white"
+                    : "text-white/80 hover:bg-white/10"
+                }`}
+                onClick={() => openDesktopApp("terminal-workspace")}
+              >
+                <SvgTerminal className="h-4 w-4 shrink-0 stroke-current" />
+                <Text className="text-sm text-current">Terminal</Text>
+              </button>
+              <button
+                type="button"
+                className={`flex min-w-[92px] items-center gap-2 rounded-full px-4 py-2 transition ${
+                  hasTextEditorWindow
+                    ? "bg-white/16 text-white"
+                    : "text-white/80 hover:bg-white/10"
+                }`}
+                onClick={openOrFocusTextEditorApp}
+              >
+                <SvgFileText className="h-4 w-4 shrink-0 stroke-current" />
+                <Text className="text-sm text-current">Editor</Text>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-[100dvh] w-full p-3 md:p-4 bg-background-neutral-01">
-      <div className="h-full w-full rounded-16 border border-border-01 bg-background-neutral-02 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between gap-2 p-2 border-b border-border-01 bg-background-neutral-01">
+    <div className="h-[100dvh] w-full bg-background-neutral-01 p-3 md:p-4">
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-16 border border-border-01 bg-background-neutral-02">
+        <div className="flex items-center justify-between gap-2 border-b border-border-01 bg-background-neutral-01 p-2">
           <div className="min-w-0 flex items-center gap-2">
             <Button
               tertiary
@@ -2273,12 +3192,17 @@ export default function NeuralLabsPage() {
               Back to Main Chat
             </Button>
             <div className="h-4 w-px bg-border-02" />
-            <SvgTerminal className="w-4 h-4 stroke-text-03 shrink-0" />
+            <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
             <Text mainUiAction className="truncate">
               Neural Labs
             </Text>
           </div>
           <div className="flex items-center gap-1.5">
+            {uiMode === "desktop" && !isDesktopLayout ? (
+              <Text text03 className="hidden md:block">
+                Desktop UI is only available on larger screens.
+              </Text>
+            ) : null}
             <div className="flex items-center gap-1 rounded-08 border border-border-01 px-2 py-1">
               <span
                 className={`h-2 w-2 rounded-full ${environmentStatus.dotClass}`}
@@ -2287,6 +3211,14 @@ export default function NeuralLabsPage() {
                 {environmentStatus.label}
               </Text>
             </div>
+            <Button
+              tertiary
+              size="md"
+              className="hidden md:inline-flex"
+              onClick={() => setUiMode("desktop")}
+            >
+              Try out the new Desktop UI
+            </Button>
             <Button tertiary size="md" onClick={() => void addTab()}>
               New Terminal
             </Button>
@@ -2317,114 +3249,38 @@ export default function NeuralLabsPage() {
         >
           {isNavigatorVisible ? (
             <aside
-              className="flex min-h-0 w-full md:w-auto md:shrink-0 flex-col border-b border-border-01 md:border-b-0"
+              className="flex min-h-0 w-full flex-col border-b border-border-01 md:w-auto md:shrink-0 md:border-b-0"
               style={
                 isDesktopLayout ? { width: `${navigatorWidth}px` } : undefined
               }
             >
-              <div className="p-2 border-b border-border-01 bg-background-neutral-01">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex items-center gap-1.5">
-                    <SvgFolder className="w-4 h-4 stroke-text-03 shrink-0" />
-                    <Text mainUiAction>File Navigator</Text>
-                  </div>
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Text
-                      className="truncate max-w-[10rem] md:max-w-[14rem]"
-                      text03
-                      title={pathLabel}
-                    >
-                      {pathLabel}
-                    </Text>
-                    {isDesktopLayout ? (
-                      <IconActionButton label="Collapse file navigator">
-                        <Button
-                          tertiary
-                          size="md"
-                          aria-label="Collapse file navigator"
-                          onClick={() => setIsNavigatorCollapsed(true)}
-                        >
-                          <SvgChevronLeft className="h-4 w-4 stroke-text-03" />
-                        </Button>
-                      </IconActionButton>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <Button
-                    tertiary
-                    size="md"
-                    leftIcon={SvgChevronLeft}
-                    disabled={!currentPath}
-                    onClick={() => void navigateUp()}
-                  >
-                    Up
-                  </Button>
-                  <div className="flex items-center gap-1.5">
-                    <IconActionButton label="New folder">
-                      <Button
-                        tertiary
-                        size="md"
-                        leftIcon={SvgFolderPlus}
-                        aria-label="New folder"
-                        onClick={() => void createFolder()}
-                      />
-                    </IconActionButton>
-                    <IconActionButton label="Upload files">
-                      <Button
-                        tertiary
-                        size="md"
-                        leftIcon={SvgUploadCloud}
-                        aria-label="Upload files"
-                        onClick={triggerUpload}
-                      />
-                    </IconActionButton>
-                    <IconActionButton label="Refresh files">
-                      <Button
-                        tertiary
-                        size="md"
-                        leftIcon={SvgRefreshCw}
-                        aria-label="Refresh files"
-                        onClick={() => void refreshDirectory()}
-                      />
-                    </IconActionButton>
-                  </div>
-                </div>
-              </div>
-
-              <input
-                ref={fileUploadInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={uploadFile}
+              <NeuralLabsFileExplorerPanel
+                currentPath={currentPath}
+                pathLabel={pathLabel}
+                treeEntries={treeEntries}
+                expandedPaths={expandedPaths}
+                loadingPaths={loadingPaths}
+                selectedPath={selectedPath}
+                isPreviewable={isPreviewable}
+                fileUploadInputRef={fileUploadInputRef}
+                onSelectEntry={selectEntry}
+                onToggleDirectory={toggleDirectory}
+                onActivateEntry={activateTreeEntry}
+                onPreviewEntry={openPreview}
+                onDownloadEntry={downloadFile}
+                onCopyPath={copyPath}
+                onRenameEntry={renamePath}
+                onDeleteEntry={deletePath}
+                onMoveEntry={moveEntry}
+                onUploadFiles={uploadFilesToPath}
+                onUploadInputChange={uploadFile}
+                onNavigateUp={navigateUp}
+                onCreateFolder={createFolder}
+                onRefreshDirectory={refreshDirectory}
+                onTriggerUpload={triggerUpload}
+                onActivateTextEditor={openTextEditorApp}
+                showNeuralAppsPanel
               />
-
-              <div className="min-h-0 flex flex-1 flex-col">
-                <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-1.5">
-                  <NeuralLabsFileTree
-                    entriesByPath={treeEntries}
-                    expandedPaths={expandedPaths}
-                    loadingPaths={loadingPaths}
-                    selectedPath={selectedPath}
-                    onSelectEntry={selectEntry}
-                    onToggleDirectory={toggleDirectory}
-                    onActivateEntry={activateTreeEntry}
-                    onPreviewEntry={openPreview}
-                    onDownloadEntry={downloadFile}
-                    onCopyPath={copyPath}
-                    onRenameEntry={renamePath}
-                    onDeleteEntry={deletePath}
-                    onMoveEntry={moveEntry}
-                    onUploadFiles={uploadFilesToPath}
-                    canPreviewEntry={isPreviewable}
-                  />
-                </div>
-
-                <div className="min-h-[18rem]">
-                  <NeuralAppsPanel onActivateTextEditor={openTextEditorApp} />
-                </div>
-              </div>
             </aside>
           ) : isDesktopLayout ? (
             <aside
@@ -2513,302 +3369,43 @@ export default function NeuralLabsPage() {
           ) : null}
 
           <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex items-center justify-between p-2 border-b border-border-01 bg-background-neutral-01 gap-2">
-              <div className="min-w-0">
-                <Text mainUiAction className="truncate">
-                  {activeTab
-                    ? activeTab.split_mode === "none"
-                      ? `Terminal ${
-                          layout?.tabs.findIndex(
-                            (tab) => tab.tab_id === activeTab.tab_id
-                          )! + 1
-                        }`
-                      : `Group ${
-                          layout?.tabs.findIndex(
-                            (tab) => tab.tab_id === activeTab.tab_id
-                          )! + 1
-                        }`
-                    : "Terminals"}
-                </Text>
-                {activeTab ? (
-                  activeTab.split_mode !== "none" && activePane ? (
-                    <Text text03 className="truncate text-xs">
-                      {`Pane ${
-                        activeTab.panes.findIndex(
-                          (pane) => pane.pane_id === activePane.pane_id
-                        ) + 1
-                      } · Terminal ${
-                        activeTab.panes.findIndex(
-                          (pane) => pane.pane_id === activePane.pane_id
-                        ) + 1
-                      } active`}
-                    </Text>
-                  ) : activeTab.split_mode === "none" ? (
-                    <Text text03 className="truncate text-xs">
-                      {`Terminal ${
-                        layout?.tabs.findIndex(
-                          (tab) => tab.tab_id === activeTab.tab_id
-                        )! + 1
-                      } active`}
-                    </Text>
-                  ) : null
-                ) : (
-                  <Text text03 className="truncate text-xs">
-                    No active terminal
-                  </Text>
-                )}
-              </div>
-            </div>
+            <div
+              ref={previewWorkspaceRef}
+              className="relative min-h-0 flex flex-1"
+            >
+              <NeuralLabsTerminalWorkspacePanel
+                layout={layout}
+                activeTab={activeTab}
+                activePane={activePane}
+                isInitializingTerminals={isInitializingTerminals}
+                environmentStatus={environmentStatus}
+                canSplitActiveTab={canSplitActiveTab}
+                onAddTab={addTab}
+                onSplitActiveTab={splitActiveTab}
+                onSetActiveTab={setActiveTab}
+                onSetActivePane={setActivePane}
+                onCloseTabById={closeTabById}
+                onClosePaneById={closePaneById}
+                isTerminalNavigatorVisible={isTerminalNavigatorVisible}
+                onCollapseTerminalNavigator={() =>
+                  setIsTerminalNavigatorCollapsed(true)
+                }
+                overlayChildren={
+                  <NeuralLabsPreviewWindows
+                    windows={previewWindows}
+                    workspaceBounds={workspaceBounds}
+                    currentDirectory={currentPath}
+                    onCloseWindow={closePreviewWindow}
+                    onFocusWindow={focusPreviewWindow}
+                    onTextFileSaved={(path) => {
+                      void handleTextFileSaved(path);
+                    }}
+                    onUpdateWindow={updatePreviewWindow}
+                  />
+                }
+              />
 
-            <div className="min-h-0 flex flex-1">
-              <div
-                ref={previewWorkspaceRef}
-                className="relative min-h-0 flex-1 overflow-hidden bg-black"
-              >
-                {isInitializingTerminals ? (
-                  <div className="h-full w-full flex items-center justify-center p-3">
-                    <Text text03>Initializing terminals...</Text>
-                  </div>
-                ) : !layout || layout.tabs.length === 0 ? (
-                  <div className="h-full w-full flex items-center justify-center p-3">
-                    <Text text03>No terminal tabs available.</Text>
-                  </div>
-                ) : (
-                  layout.tabs.map((tab) => {
-                    const isActiveTab = layout.active_tab_id === tab.tab_id;
-                    const splitClass =
-                      tab.split_mode === "vertical"
-                        ? "grid grid-cols-1 md:grid-cols-2"
-                        : tab.split_mode === "horizontal"
-                          ? "grid grid-rows-2"
-                          : "grid grid-cols-1";
-
-                    return (
-                      <div
-                        key={tab.tab_id}
-                        className={isActiveTab ? "h-full" : "hidden"}
-                      >
-                        <div className={`h-full ${splitClass}`}>
-                          {tab.panes.map((pane) => {
-                            const isActivePane =
-                              isActiveTab &&
-                              tab.active_pane_id === pane.pane_id;
-
-                            return (
-                              <div
-                                key={pane.pane_id}
-                                className={`min-h-0 border border-border-01 ${
-                                  isActivePane
-                                    ? "ring-1 ring-border-04"
-                                    : "ring-0"
-                                }`}
-                                onMouseDown={() =>
-                                  setActivePane(tab.tab_id, pane.pane_id)
-                                }
-                              >
-                                <TerminalPane
-                                  terminalId={pane.terminal_id}
-                                  isActive={isActivePane}
-                                  onFocus={() =>
-                                    setActivePane(tab.tab_id, pane.pane_id)
-                                  }
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-
-                <NeuralLabsPreviewWindows
-                  windows={previewWindows}
-                  workspaceBounds={workspaceBounds}
-                  currentDirectory={currentPath}
-                  onCloseWindow={closePreviewWindow}
-                  onFocusWindow={focusPreviewWindow}
-                  onTextFileSaved={(path) => {
-                    void handleTextFileSaved(path);
-                  }}
-                  onUpdateWindow={updatePreviewWindow}
-                />
-              </div>
-
-              {isTerminalNavigatorVisible ? (
-                <aside className="hidden w-[248px] shrink-0 border-l border-border-01 bg-background-neutral-01 md:flex md:flex-col">
-                  <div className="flex items-center justify-between border-b border-border-01 px-3 py-2">
-                    <Text mainUiAction>Terminal Navigator</Text>
-                    <IconActionButton label="Collapse terminal navigator">
-                      <Button
-                        tertiary
-                        size="md"
-                        aria-label="Collapse terminal navigator"
-                        onClick={() => setIsTerminalNavigatorCollapsed(true)}
-                      >
-                        <SvgChevronRight className="h-4 w-4 stroke-text-03" />
-                      </Button>
-                    </IconActionButton>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-auto p-2">
-                    <div className="flex flex-col gap-2">
-                      {(layout?.tabs ?? []).map((tab, tabIndex) => {
-                        const isActiveTab =
-                          layout?.active_tab_id === tab.tab_id;
-                        const isGroupedTab = tab.panes.length > 1;
-                        const paneLayoutClass =
-                          tab.split_mode === "horizontal"
-                            ? "grid grid-cols-2"
-                            : "flex flex-col";
-
-                        if (!isGroupedTab) {
-                          const pane = tab.panes[0]!;
-                          const isActivePane =
-                            isActiveTab && tab.active_pane_id === pane.pane_id;
-
-                          return (
-                            <div
-                              key={tab.tab_id}
-                              className={`rounded-12 border ${
-                                isActivePane
-                                  ? "border-border-04 bg-background-tint-03/60"
-                                  : "border-border-01 bg-background-neutral-02"
-                              }`}
-                            >
-                              <div className="flex min-w-0 items-center gap-1 p-1.5">
-                                <button
-                                  type="button"
-                                  className="flex min-w-0 flex-1 items-center gap-2 rounded-10 px-2 py-1.5 text-left hover:bg-background-neutral-01/70"
-                                  onClick={() => {
-                                    setActiveTab(tab.tab_id);
-                                    setActivePane(tab.tab_id, pane.pane_id);
-                                  }}
-                                >
-                                  <span
-                                    className={`h-2 w-2 shrink-0 rounded-full ${
-                                      isActivePane
-                                        ? "bg-green-500"
-                                        : "bg-border-03"
-                                    }`}
-                                  />
-                                  <Text className="min-w-0 truncate">
-                                    Terminal {tabIndex + 1}
-                                  </Text>
-                                </button>
-                                <IconActionButton label="Delete terminal">
-                                  <button
-                                    type="button"
-                                    className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
-                                    aria-label="Delete terminal"
-                                    onClick={() =>
-                                      void closePaneById(
-                                        tab.tab_id,
-                                        pane.pane_id
-                                      )
-                                    }
-                                  >
-                                    <SvgTrash className="h-4 w-4 stroke-red-500" />
-                                  </button>
-                                </IconActionButton>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={tab.tab_id}
-                            className={`rounded-12 border ${
-                              isActiveTab
-                                ? "border-border-04 bg-background-tint-03/60"
-                                : "border-border-01 bg-background-neutral-02"
-                            }`}
-                          >
-                            <div className="flex items-center gap-1 border-b border-border-01 px-1.5 py-1">
-                              <button
-                                type="button"
-                                className="flex min-w-0 flex-1 items-center gap-2 rounded-08 px-1.5 py-1 text-left hover:bg-background-neutral-01/70"
-                                onClick={() => setActiveTab(tab.tab_id)}
-                              >
-                                <SvgTerminal className="h-4 w-4 shrink-0 stroke-text-03" />
-                                <Text className="truncate">
-                                  Group {tabIndex + 1}
-                                </Text>
-                              </button>
-                              <IconActionButton label="Delete group">
-                                <button
-                                  type="button"
-                                  className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
-                                  aria-label="Delete group"
-                                  onClick={() => void closeTabById(tab.tab_id)}
-                                >
-                                  <SvgTrash className="h-4 w-4 stroke-red-500" />
-                                </button>
-                              </IconActionButton>
-                            </div>
-                            <div className={`gap-1 p-1.5 ${paneLayoutClass}`}>
-                              {tab.panes.map((pane, paneIndex) => {
-                                const isActivePane =
-                                  isActiveTab &&
-                                  tab.active_pane_id === pane.pane_id;
-
-                                return (
-                                  <div
-                                    key={pane.pane_id}
-                                    className={`flex min-w-0 items-center gap-1 rounded-10 ${
-                                      isActivePane
-                                        ? "bg-background-neutral-00 ring-1 ring-border-04"
-                                        : "hover:bg-background-neutral-01"
-                                    }`}
-                                  >
-                                    <button
-                                      type="button"
-                                      className={`flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left ${
-                                        tab.split_mode === "horizontal"
-                                          ? "justify-center"
-                                          : "w-full"
-                                      }`}
-                                      onClick={() =>
-                                        setActivePane(tab.tab_id, pane.pane_id)
-                                      }
-                                    >
-                                      <span
-                                        className={`h-2 w-2 shrink-0 rounded-full ${
-                                          isActivePane
-                                            ? "bg-green-500"
-                                            : "bg-border-03"
-                                        }`}
-                                      />
-                                      <Text className="min-w-0 truncate">
-                                        Terminal {paneIndex + 1}
-                                      </Text>
-                                    </button>
-                                    <IconActionButton label="Delete terminal">
-                                      <button
-                                        type="button"
-                                        className="flex h-7 w-7 items-center justify-center rounded-08 border border-border-01 bg-background-neutral-00 hover:bg-background-neutral-02"
-                                        aria-label="Delete terminal"
-                                        onClick={() =>
-                                          void closePaneById(
-                                            tab.tab_id,
-                                            pane.pane_id
-                                          )
-                                        }
-                                      >
-                                        <SvgTrash className="h-4 w-4 stroke-text-03" />
-                                      </button>
-                                    </IconActionButton>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </aside>
-              ) : isDesktopLayout ? (
+              {!isTerminalNavigatorVisible && isDesktopLayout ? (
                 <aside
                   className="hidden md:flex md:shrink-0 flex-col items-center gap-2 border-l border-border-01 bg-background-neutral-01 px-2 py-2"
                   style={{ width: `${COLLAPSED_NAVIGATOR_RAIL_PX}px` }}
