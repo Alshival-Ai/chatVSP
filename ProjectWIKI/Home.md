@@ -44,8 +44,10 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - taskbar apps now show their names on hover via the Neural Labs tooltip treatment instead of always rendering text labels inline
     - desktop taskbar icons restore minimized app windows, focus the front-most running instance on left click, and expose `New Window` on right click for multi-window apps such as `Terminal`, `File Explorer`, and `Text Editor`
     - desktop `Terminal` app is now a separate Windows Terminal-style surface instead of the legacy panel in a window: independent terminal windows, top tab strip, tab context menus, drag-reorder, move-tab-to-new-window, and in-window split controls
+    - desktop `Terminal` app now follows the app light/dark theme for both its window chrome and the xterm surface instead of staying hardcoded dark
     - desktop terminal windows keep their own tab and pane state; the desktop app no longer depends on the legacy Terminal Navigator
     - desktop `File Explorer` app now uses a Finder-style explorer instead of the legacy tree navigator: per-window folder history, breadcrumb navigation, sidebar locations, icon/list views, click-through folders, and drag/drop move or upload behavior
+    - desktop `File Explorer` iconography now uses explicit theme-aware folder/file colors so the same icon treatment stays readable in both light and dark mode
     - desktop file explorer windows keep their own path, history, selection, and view mode instead of sharing the legacy navigator state
     - previews and editor-backed files still open as separate floating windows from the desktop explorer
     - desktop settings now default to `Sunset Grid`, allow preset switching without extra per-card helper copy, and support uploading or deleting one custom desktop background image in the persisted Neural Labs workspace

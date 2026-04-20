@@ -31,6 +31,11 @@ import {
 } from "@opal/icons";
 
 const CONTEXT_MENU_MARGIN_PX = 8;
+const EXPLORER_FOLDER_ICON_CLASS = "stroke-sky-700 dark:stroke-sky-300";
+const EXPLORER_FILE_ICON_CLASS = "stroke-sky-700 dark:stroke-sky-300";
+const EXPLORER_HOME_ICON_CLASS = "stroke-violet-700 dark:stroke-violet-300";
+const EXPLORER_ICON_BADGE_CLASS =
+  "flex items-center justify-center rounded-14 bg-slate-100/90 text-slate-900 dark:bg-slate-800/90 dark:text-slate-100";
 
 interface ContextMenuState {
   entry: NeuralLabsFileEntry | null;
@@ -154,6 +159,46 @@ function isInvalidDestination(
     return true;
   }
   return destinationPath.startsWith(`${sourcePath}/`);
+}
+
+function ExplorerGlyph({
+  kind,
+  large = false,
+}: {
+  kind: "home" | "folder" | "folder-open" | "file";
+  large?: boolean;
+}) {
+  const sizeClass = large ? "h-9 w-9" : "h-4 w-4";
+
+  if (kind === "home") {
+    return (
+      <SvgHardDrive
+        className={`${sizeClass} shrink-0 ${EXPLORER_HOME_ICON_CLASS}`}
+      />
+    );
+  }
+
+  if (kind === "folder-open") {
+    return (
+      <SvgFolderOpen
+        className={`${sizeClass} shrink-0 ${EXPLORER_FOLDER_ICON_CLASS}`}
+      />
+    );
+  }
+
+  if (kind === "folder") {
+    return (
+      <SvgFolder
+        className={`${sizeClass} shrink-0 ${EXPLORER_FOLDER_ICON_CLASS}`}
+      />
+    );
+  }
+
+  return (
+    <SvgFileText
+      className={`${sizeClass} shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
+    />
+  );
 }
 
 export default function NeuralLabsDesktopFileExplorer({
@@ -434,7 +479,7 @@ export default function NeuralLabsDesktopFileExplorer({
   return (
     <div
       ref={containerRef}
-      className="relative flex h-full min-h-0 bg-[#eff3f8]"
+      className="relative flex h-full min-h-0 bg-[#eff3f8] text-slate-900 dark:bg-[#0b1220] dark:text-slate-100"
       onContextMenu={(event) => openContextMenu(event, null)}
     >
       <input
@@ -451,12 +496,15 @@ export default function NeuralLabsDesktopFileExplorer({
         }}
       />
 
-      <aside className="flex w-[15rem] shrink-0 flex-col border-r border-slate-200 bg-[#e7edf6]/95">
-        <div className="border-b border-slate-200 px-4 py-3">
-          <Text mainUiAction className="text-slate-900">
+      <aside className="flex w-[15rem] shrink-0 flex-col border-r border-slate-200 bg-[#e7edf6]/95 dark:border-slate-800 dark:bg-[#101927]/95">
+        <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+          <Text mainUiAction className="text-slate-900 dark:text-slate-100">
             File Explorer
           </Text>
-          <Text text03 className="mt-1 text-xs text-slate-500">
+          <Text
+            text03
+            className="mt-1 text-xs text-slate-500 dark:text-slate-400"
+          >
             {currentDirectoryLabel}
           </Text>
         </div>
@@ -465,7 +513,7 @@ export default function NeuralLabsDesktopFileExplorer({
           <div className="mb-5">
             <Text
               text03
-              className="px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+              className="px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"
             >
               Favorites
             </Text>
@@ -478,8 +526,8 @@ export default function NeuralLabsDesktopFileExplorer({
                     type="button"
                     className={`flex w-full items-center gap-2 rounded-12 px-2.5 py-2 text-left transition ${
                       isActive
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:bg-white/70 hover:text-slate-900"
+                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
+                        : "text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900/80 dark:hover:text-slate-100"
                     }`}
                     onClick={() => void onNavigateToPath(item.path)}
                     onDragOver={(event) => {
@@ -504,11 +552,11 @@ export default function NeuralLabsDesktopFileExplorer({
                     onDrop={(event) => void handleDropToPath(event, item.path)}
                   >
                     {item.icon === "home" ? (
-                      <SvgHardDrive className="h-4 w-4 shrink-0 stroke-current" />
+                      <ExplorerGlyph kind="home" />
                     ) : item.path === currentPath ? (
-                      <SvgFolderOpen className="h-4 w-4 shrink-0 stroke-current" />
+                      <ExplorerGlyph kind="folder-open" />
                     ) : (
-                      <SvgFolder className="h-4 w-4 shrink-0 stroke-current" />
+                      <ExplorerGlyph kind="folder" />
                     )}
                     <Text className="truncate">{item.label}</Text>
                     {dropTargetPath === item.path ? (
@@ -524,7 +572,7 @@ export default function NeuralLabsDesktopFileExplorer({
             <div>
               <Text
                 text03
-                className="px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+                className="px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"
               >
                 Root Folders
               </Text>
@@ -537,8 +585,8 @@ export default function NeuralLabsDesktopFileExplorer({
                       type="button"
                       className={`flex w-full items-center gap-2 rounded-12 px-2.5 py-2 text-left transition ${
                         isActive
-                          ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-600 hover:bg-white/70 hover:text-slate-900"
+                          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
+                          : "text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900/80 dark:hover:text-slate-100"
                       }`}
                       onClick={() => void onNavigateToPath(entry.path)}
                       onContextMenu={(event) => openContextMenu(event, entry)}
@@ -566,7 +614,7 @@ export default function NeuralLabsDesktopFileExplorer({
                         void handleDropToPath(event, entry.path)
                       }
                     >
-                      <SvgFolder className="h-4 w-4 shrink-0 stroke-current" />
+                      <ExplorerGlyph kind="folder" />
                       <Text className="truncate">{entry.name}</Text>
                     </button>
                   );
@@ -578,16 +626,16 @@ export default function NeuralLabsDesktopFileExplorer({
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur">
+        <div className="border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-[#0f1726]/85">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-1">
+            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-1 dark:border-slate-700 dark:bg-slate-900/80">
               <button
                 type="button"
                 aria-label="Back"
                 className={`rounded-full p-1.5 ${
                   canGoBack
-                    ? "text-slate-700 hover:bg-white"
-                    : "cursor-not-allowed text-slate-300"
+                    ? "text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-slate-800"
+                    : "cursor-not-allowed text-slate-300 dark:text-slate-600"
                 }`}
                 disabled={!canGoBack}
                 onClick={() => void onNavigateBack()}
@@ -622,14 +670,14 @@ export default function NeuralLabsDesktopFileExplorer({
               </button>
             </div>
 
-            <div className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/80">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <button
                   type="button"
                   className={`rounded-full px-2 py-1 text-sm ${
                     currentPath === ""
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-600 hover:bg-white"
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                      : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800"
                   }`}
                   onClick={() => void onNavigateToPath("")}
                 >
@@ -640,13 +688,13 @@ export default function NeuralLabsDesktopFileExplorer({
                     key={crumb.path}
                     className="flex min-w-0 items-center gap-1.5"
                   >
-                    <SvgChevronRight className="h-3.5 w-3.5 shrink-0 stroke-slate-400" />
+                    <SvgChevronRight className="h-3.5 w-3.5 shrink-0 stroke-slate-400 dark:stroke-slate-500" />
                     <button
                       type="button"
                       className={`min-w-0 rounded-full px-2 py-1 text-sm ${
                         crumb.path === currentPath
-                          ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-600 hover:bg-white"
+                          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                          : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800"
                       }`}
                       onClick={() => void onNavigateToPath(crumb.path)}
                     >
@@ -662,8 +710,8 @@ export default function NeuralLabsDesktopFileExplorer({
                 type="button"
                 className={`rounded-full px-3 py-2 text-sm ${
                   viewMode === "icon"
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
                 onClick={() => onSetViewMode("icon")}
               >
@@ -673,8 +721,8 @@ export default function NeuralLabsDesktopFileExplorer({
                 type="button"
                 className={`rounded-full px-3 py-2 text-sm ${
                   viewMode === "list"
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
                 onClick={() => onSetViewMode("list")}
               >
@@ -685,7 +733,7 @@ export default function NeuralLabsDesktopFileExplorer({
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200"
+                className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 aria-label="New folder"
                 onClick={() => void onCreateFolder()}
               >
@@ -693,7 +741,7 @@ export default function NeuralLabsDesktopFileExplorer({
               </button>
               <button
                 type="button"
-                className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200"
+                className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 aria-label="Upload files"
                 onClick={handleUploadClick}
               >
@@ -701,7 +749,7 @@ export default function NeuralLabsDesktopFileExplorer({
               </button>
               <button
                 type="button"
-                className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200"
+                className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 aria-label="Refresh"
                 onClick={() => void onRefreshDirectory()}
               >
@@ -714,8 +762,8 @@ export default function NeuralLabsDesktopFileExplorer({
         <div
           className={`relative min-h-0 flex-1 overflow-hidden ${
             dropTargetPath === currentPath
-              ? "bg-sky-50"
-              : "bg-[linear-gradient(180deg,#f7f9fc_0%,#edf3f9_100%)]"
+              ? "bg-sky-50 dark:bg-sky-500/10"
+              : "bg-[linear-gradient(180deg,#f7f9fc_0%,#edf3f9_100%)] dark:bg-[linear-gradient(180deg,#0a1220_0%,#0d1626_100%)]"
           }`}
           onClick={() => onSelectionChange([], null)}
           onDragOver={(event) => {
@@ -734,10 +782,10 @@ export default function NeuralLabsDesktopFileExplorer({
           }}
           onDrop={(event) => void handleDropToPath(event, currentPath)}
         >
-          <div className="border-b border-slate-200/70 px-4 py-2">
+          <div className="border-b border-slate-200/70 px-4 py-2 dark:border-slate-800">
             <Text
               text03
-              className="text-xs uppercase tracking-[0.18em] text-slate-500"
+              className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400"
             >
               {selectedPaths.length > 1
                 ? `${selectedPaths.length} items selected`
@@ -750,15 +798,20 @@ export default function NeuralLabsDesktopFileExplorer({
           <div className="default-scrollbar h-full overflow-auto p-4">
             {isLoading ? (
               <div className="flex h-full items-center justify-center">
-                <Text text03>Loading folder contents…</Text>
+                <Text text03 className="dark:text-slate-400">
+                  Loading folder contents…
+                </Text>
               </div>
             ) : orderedEntries.length === 0 ? (
-              <div className="flex h-full min-h-[14rem] flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-white/60 px-6 text-center">
-                <SvgFolderOpen className="h-10 w-10 stroke-slate-300" />
-                <Text className="mt-4 font-medium text-slate-800">
+              <div className="flex h-full min-h-[14rem] flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-white/60 px-6 text-center dark:border-slate-700 dark:bg-slate-900/50">
+                <ExplorerGlyph kind="folder-open" large />
+                <Text className="mt-4 font-medium text-slate-800 dark:text-slate-100">
                   This folder is empty
                 </Text>
-                <Text text03 className="mt-2 max-w-sm text-slate-500">
+                <Text
+                  text03
+                  className="mt-2 max-w-sm text-slate-500 dark:text-slate-400"
+                >
                   Drag files here to upload them, or create a new folder to get
                   started.
                 </Text>
@@ -775,10 +828,10 @@ export default function NeuralLabsDesktopFileExplorer({
                       draggable
                       className={`group flex min-h-[8.75rem] flex-col rounded-[1.15rem] border px-3 py-3 text-left transition ${
                         isDropTarget
-                          ? "border-sky-400 bg-sky-50 shadow-[0_0_0_1px_rgba(56,189,248,0.2)]"
+                          ? "border-sky-400 bg-sky-50 shadow-[0_0_0_1px_rgba(56,189,248,0.2)] dark:bg-sky-500/10"
                           : isSelected
-                            ? "border-slate-900 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.14)]"
-                            : "border-transparent bg-white/78 hover:border-slate-200 hover:bg-white"
+                            ? "border-slate-900 bg-white shadow-[0_14px_32px_rgba(15,23,42,0.14)] dark:border-slate-500 dark:bg-slate-900"
+                            : "border-transparent bg-white/78 hover:border-slate-200 hover:bg-white dark:bg-slate-900/80 dark:hover:border-slate-700 dark:hover:bg-slate-900"
                       }`}
                       onClick={(event) => {
                         event.stopPropagation();
@@ -823,21 +876,27 @@ export default function NeuralLabsDesktopFileExplorer({
                       }}
                     >
                       <div className="flex items-start justify-between">
-                        {entry.is_directory ? (
-                          <SvgFolderOpen className="h-9 w-9 shrink-0 stroke-slate-700" />
-                        ) : (
-                          <SvgFileText className="h-9 w-9 shrink-0 stroke-slate-700" />
-                        )}
+                        <span
+                          className={`${EXPLORER_ICON_BADGE_CLASS} h-12 w-12`}
+                        >
+                          <ExplorerGlyph
+                            kind={entry.is_directory ? "folder-open" : "file"}
+                            large
+                          />
+                        </span>
                         {!entry.is_directory && canPreviewEntry(entry) ? (
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
                             Preview
                           </span>
                         ) : null}
                       </div>
-                      <Text className="mt-4 line-clamp-2 break-words font-medium text-slate-900">
+                      <Text className="mt-4 line-clamp-2 break-words font-medium text-slate-900 dark:text-slate-100">
                         {entry.name}
                       </Text>
-                      <Text text03 className="mt-auto text-xs text-slate-500">
+                      <Text
+                        text03
+                        className="mt-auto text-xs text-slate-500 dark:text-slate-400"
+                      >
                         {entry.is_directory
                           ? "Folder"
                           : formatBytes(entry.size)}
@@ -847,13 +906,13 @@ export default function NeuralLabsDesktopFileExplorer({
                 })}
               </div>
             ) : (
-              <div className="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white">
-                <div className="grid grid-cols-[minmax(0,1.75fr)_7rem_10rem] gap-4 border-b border-slate-200 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <div className="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                <div className="grid grid-cols-[minmax(0,1.75fr)_7rem_10rem] gap-4 border-b border-slate-200 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-800 dark:text-slate-400">
                   <span>Name</span>
                   <span>Size</span>
                   <span>Modified</span>
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {orderedEntries.map((entry) => {
                     const isSelected = selectedPathSet.has(entry.path);
                     const isDropTarget = dropTargetPath === entry.path;
@@ -864,10 +923,10 @@ export default function NeuralLabsDesktopFileExplorer({
                         draggable
                         className={`grid w-full grid-cols-[minmax(0,1.75fr)_7rem_10rem] gap-4 px-4 py-3 text-left transition ${
                           isDropTarget
-                            ? "bg-sky-50"
+                            ? "bg-sky-50 dark:bg-sky-500/10"
                             : isSelected
-                              ? "bg-slate-900 text-white"
-                              : "text-slate-700 hover:bg-slate-50"
+                              ? "bg-slate-900 text-white dark:bg-slate-800"
+                              : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/70"
                         }`}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -909,11 +968,9 @@ export default function NeuralLabsDesktopFileExplorer({
                         }}
                       >
                         <span className="flex min-w-0 items-center gap-3">
-                          {entry.is_directory ? (
-                            <SvgFolder className="h-4 w-4 shrink-0 stroke-current" />
-                          ) : (
-                            <SvgFileText className="h-4 w-4 shrink-0 stroke-current" />
-                          )}
+                          <ExplorerGlyph
+                            kind={entry.is_directory ? "folder" : "file"}
+                          />
                           <span className="truncate">{entry.name}</span>
                         </span>
                         <span className="truncate text-sm">
@@ -937,14 +994,14 @@ export default function NeuralLabsDesktopFileExplorer({
       {contextMenuState ? (
         <div
           ref={contextMenuRef}
-          className="absolute z-30 min-w-[13rem] overflow-hidden rounded-16 border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]"
+          className="absolute z-30 min-w-[13rem] overflow-hidden rounded-16 border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)] dark:border-slate-800 dark:bg-[#111827]"
           style={{ left: contextMenuState.x, top: contextMenuState.y }}
           onPointerDown={(event) => event.stopPropagation()}
         >
           {contextMenuState.entry?.is_directory ? (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 if (contextMenuState.entry) {
                   void onNavigateToPath(contextMenuState.entry.path);
@@ -952,19 +1009,19 @@ export default function NeuralLabsDesktopFileExplorer({
                 setContextMenuState(null);
               }}
             >
-              <SvgFolderOpen className="h-4 w-4 shrink-0 stroke-current" />
+              <ExplorerGlyph kind="folder-open" />
               <Text>Open Folder</Text>
             </button>
           ) : contextMenuState.entry ? (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 onOpenEntry(contextMenuState.entry!);
                 setContextMenuState(null);
               }}
             >
-              <SvgFileText className="h-4 w-4 shrink-0 stroke-current" />
+              <ExplorerGlyph kind="file" />
               <Text>Open</Text>
             </button>
           ) : null}
@@ -972,13 +1029,15 @@ export default function NeuralLabsDesktopFileExplorer({
           {contextMenuState.entry && previewable ? (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 onPreviewEntry(contextMenuState.entry!);
                 setContextMenuState(null);
               }}
             >
-              <SvgEye className="h-4 w-4 shrink-0 stroke-current" />
+              <SvgEye
+                className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
+              />
               <Text>Preview</Text>
             </button>
           ) : null}
@@ -986,13 +1045,15 @@ export default function NeuralLabsDesktopFileExplorer({
           {contextMenuState.entry && !contextMenuState.entry.is_directory ? (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 onDownloadEntry(contextMenuState.entry!);
                 setContextMenuState(null);
               }}
             >
-              <SvgDownloadCloud className="h-4 w-4 shrink-0 stroke-current" />
+              <SvgDownloadCloud
+                className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
+              />
               <Text>Download</Text>
             </button>
           ) : null}
@@ -1000,13 +1061,15 @@ export default function NeuralLabsDesktopFileExplorer({
           {contextMenuState.entry ? (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 onCopyPath(contextMenuState.entry!);
                 setContextMenuState(null);
               }}
             >
-              <SvgCopy className="h-4 w-4 shrink-0 stroke-current" />
+              <SvgCopy
+                className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
+              />
               <Text>Copy Path</Text>
             </button>
           ) : null}
@@ -1014,25 +1077,29 @@ export default function NeuralLabsDesktopFileExplorer({
           {contextMenuState.entry ? (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 onRenameEntry(contextMenuState.entry!);
                 setContextMenuState(null);
               }}
             >
-              <SvgChevronRight className="h-4 w-4 shrink-0 stroke-current" />
+              <SvgChevronRight
+                className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
+              />
               <Text>Rename</Text>
             </button>
           ) : (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 void onCreateFolder();
                 setContextMenuState(null);
               }}
             >
-              <SvgFolderPlus className="h-4 w-4 shrink-0 stroke-current" />
+              <SvgFolderPlus
+                className={`h-4 w-4 shrink-0 ${EXPLORER_FOLDER_ICON_CLASS}`}
+              />
               <Text>New Folder</Text>
             </button>
           )}
@@ -1040,7 +1107,7 @@ export default function NeuralLabsDesktopFileExplorer({
           {contextMenuState.entry ? (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
               onClick={() => {
                 onDeleteEntry(contextMenuState.entry!);
                 setContextMenuState(null);

@@ -47,6 +47,7 @@
   - desktop app windows track snapped, maximized, and minimized state on the client so taskbar restore/focus behavior does not require backend changes
   - desktop file explorer windows keep separate per-window navigation state (`current_path`, back/forward history, selection, and icon/list mode) while reusing the shared file API/cache layer
   - desktop terminal windows keep separate per-window terminal ownership and layout state (`tabs`, `active_tab_id`, split panes) so the Windows Terminal-style desktop app does not leak terminal sessions into the legacy terminal workspace
+  - desktop explorer/terminal presentation colors now follow the shared app light/dark theme; the terminal xterm theme is switched client-side alongside the window chrome
   - desktop presentation preferences such as the selected preset/custom background choice persist in browser storage on the client
   - uploaded custom desktop background images are stored in the user Neural Labs workspace under `~/.neural-labs/backgrounds/` and served back through the existing file-content API
 

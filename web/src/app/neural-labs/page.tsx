@@ -16,6 +16,7 @@ import {
   type RefObject,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import Button from "@/refresh-components/buttons/Button";
 import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
@@ -716,6 +717,7 @@ function findTabIdForTerminal(
 }
 
 function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
+  const { resolvedTheme } = useTheme();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -784,6 +786,26 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
     }
   }, [sendTerminalInput]);
 
+  const terminalTheme = useMemo(
+    () =>
+      resolvedTheme === "dark"
+        ? {
+            background: "#0b0d12",
+            foreground: "#f8fafc",
+            cursor: "#f8fafc",
+            cursorAccent: "#0b0d12",
+            selectionBackground: "rgba(148, 163, 184, 0.28)",
+          }
+        : {
+            background: "#fcfdff",
+            foreground: "#0f172a",
+            cursor: "#0f172a",
+            cursorAccent: "#fcfdff",
+            selectionBackground: "rgba(59, 130, 246, 0.22)",
+          },
+    [resolvedTheme]
+  );
+
   const resizeTerminal = useCallback(async () => {
     const terminal = terminalRef.current;
     const fitAddon = fitAddonRef.current;
@@ -843,9 +865,7 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
       fontSize: 13,
       fontFamily:
         "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
-      theme: {
-        background: "#111317",
-      },
+      theme: terminalTheme,
       allowProposedApi: false,
       scrollback: 5000,
     });
@@ -1055,6 +1075,7 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
     resizeTerminal,
     sendTerminalInput,
     terminalId,
+    terminalTheme,
   ]);
 
   useEffect(() => {
@@ -1077,7 +1098,10 @@ function TerminalPane({ terminalId, isActive, onFocus }: TerminalPaneProps) {
       role="button"
       tabIndex={0}
     >
-      <div ref={hostRef} className="h-full w-full p-1.5" />
+      <div
+        ref={hostRef}
+        className="h-full w-full bg-[#fcfdff] p-1.5 dark:bg-[#0b0d12]"
+      />
     </div>
   );
 }

@@ -253,10 +253,10 @@ export default function NeuralLabsDesktopTerminal({
       type="button"
       className={`flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm transition ${
         disabled
-          ? "cursor-not-allowed text-white/30"
+          ? "cursor-not-allowed text-slate-400 dark:text-white/30"
           : destructive
-            ? "text-red-300 hover:bg-red-500/10"
-            : "text-white/85 hover:bg-white/10"
+            ? "text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
+            : "text-slate-700 hover:bg-slate-100 dark:text-white/85 dark:hover:bg-white/10"
       }`}
       disabled={disabled}
       onClick={() => {
@@ -277,9 +277,9 @@ export default function NeuralLabsDesktopTerminal({
   return (
     <div
       ref={containerRef}
-      className="relative flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,#0f1218_0%,#0a0c11_100%)] text-white"
+      className="relative flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#eef3f9_100%)] text-slate-900 dark:bg-[linear-gradient(180deg,#0f1218_0%,#0a0c11_100%)] dark:text-white"
     >
-      <div className="border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
+      <div className="border-b border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(241,245,249,0.9))] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
         <div
           className="flex items-end gap-1 overflow-x-auto px-3 pt-3"
           onContextMenu={(event) => {
@@ -306,8 +306,8 @@ export default function NeuralLabsDesktopTerminal({
                 draggable
                 className={`group relative flex min-w-[11rem] max-w-[15rem] items-center gap-2 rounded-t-[1rem] border border-b-0 px-3 py-2 text-left transition ${
                   isActive
-                    ? "border-white/12 bg-[#171b23] text-white"
-                    : "border-transparent bg-white/[0.04] text-white/55 hover:bg-white/[0.08] hover:text-white/80"
+                    ? "border-slate-200 bg-white text-slate-900 dark:border-white/12 dark:bg-[#171b23] dark:text-white"
+                    : "border-transparent bg-slate-100/70 text-slate-500 hover:bg-white hover:text-slate-900 dark:bg-white/[0.04] dark:text-white/55 dark:hover:bg-white/[0.08] dark:hover:text-white/80"
                 }`}
                 onClick={() => onSetActiveTab(tab.tab_id)}
                 onKeyDown={(event) => {
@@ -340,7 +340,9 @@ export default function NeuralLabsDesktopTerminal({
               >
                 <SvgTerminal
                   className={`h-4 w-4 shrink-0 ${
-                    isActive ? "stroke-white" : "stroke-current"
+                    isActive
+                      ? "stroke-slate-900 dark:stroke-white"
+                      : "stroke-current"
                   }`}
                 />
                 <div className="min-w-0 flex-1">
@@ -352,8 +354,8 @@ export default function NeuralLabsDesktopTerminal({
                   type="button"
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
                     isActive
-                      ? "text-white/65 hover:bg-white/10 hover:text-white"
-                      : "text-white/35 hover:bg-white/10 hover:text-white/80"
+                      ? "text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-white/65 dark:hover:bg-white/10 dark:hover:text-white"
+                      : "text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-white/35 dark:hover:bg-white/10 dark:hover:text-white/80"
                   }`}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -368,7 +370,7 @@ export default function NeuralLabsDesktopTerminal({
 
           <button
             type="button"
-            className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+            className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.1] dark:hover:text-white"
             aria-label="New terminal tab"
             onClick={() => void onAddTab()}
           >
@@ -378,7 +380,7 @@ export default function NeuralLabsDesktopTerminal({
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
           <div className="min-w-0">
-            <Text className="truncate text-sm text-white/85">
+            <Text className="truncate text-sm text-slate-700 dark:text-white/85">
               {activeTab
                 ? `${activeTab.title}${
                     activePane ? ` · ${activePane.terminal_id.slice(0, 8)}` : ""
@@ -391,8 +393,8 @@ export default function NeuralLabsDesktopTerminal({
               type="button"
               className={`rounded-full px-3 py-1.5 text-sm transition ${
                 canSplitActiveTab
-                  ? "bg-white/[0.08] text-white/80 hover:bg-white/[0.12]"
-                  : "cursor-not-allowed bg-white/[0.04] text-white/30"
+                  ? "bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-white/[0.08] dark:text-white/80 dark:hover:bg-white/[0.12]"
+                  : "cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-white/[0.04] dark:text-white/30"
               }`}
               disabled={!canSplitActiveTab || !activeTab}
               onClick={() => {
@@ -407,8 +409,8 @@ export default function NeuralLabsDesktopTerminal({
               type="button"
               className={`rounded-full px-3 py-1.5 text-sm transition ${
                 canSplitActiveTab
-                  ? "bg-white/[0.08] text-white/80 hover:bg-white/[0.12]"
-                  : "cursor-not-allowed bg-white/[0.04] text-white/30"
+                  ? "bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-white/[0.08] dark:text-white/80 dark:hover:bg-white/[0.12]"
+                  : "cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-white/[0.04] dark:text-white/30"
               }`}
               disabled={!canSplitActiveTab || !activeTab}
               onClick={() => {
@@ -423,16 +425,16 @@ export default function NeuralLabsDesktopTerminal({
         </div>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-[#0b0d12]">
+      <div className="relative min-h-0 flex-1 overflow-hidden bg-[#f8fafc] dark:bg-[#0b0d12]">
         {isInitializing ? (
           <div className="flex h-full items-center justify-center p-4">
-            <Text className="text-sm text-white/60">
+            <Text className="text-sm text-slate-500 dark:text-white/60">
               Initializing terminal window…
             </Text>
           </div>
         ) : !layout || layout.tabs.length === 0 || !activeTab ? (
           <div className="flex h-full items-center justify-center p-4">
-            <Text className="text-sm text-white/60">
+            <Text className="text-sm text-slate-500 dark:text-white/60">
               No terminal tabs are open.
             </Text>
           </div>
@@ -444,7 +446,7 @@ export default function NeuralLabsDesktopTerminal({
               onSetActivePane(activeTab.tab_id, activePane.pane_id)
             }
           >
-            <div className="h-full overflow-hidden rounded-[1.2rem] border border-white/10 bg-black shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <div className="h-full overflow-hidden rounded-[1.2rem] border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] dark:border-white/10 dark:bg-black">
               {activePane
                 ? renderTerminalPane(activePane, true, () =>
                     onSetActivePane(activeTab.tab_id, activePane.pane_id)
@@ -465,25 +467,25 @@ export default function NeuralLabsDesktopTerminal({
               return (
                 <div
                   key={pane.pane_id}
-                  className={`flex min-h-0 flex-col overflow-hidden rounded-[1.2rem] border bg-black transition ${
+                  className={`flex min-h-0 flex-col overflow-hidden rounded-[1.2rem] border bg-white transition dark:bg-black ${
                     isActivePane
-                      ? "border-cyan-400/55 shadow-[0_0_0_1px_rgba(34,211,238,0.18)]"
-                      : "border-white/10"
+                      ? "border-cyan-500/60 shadow-[0_0_0_1px_rgba(6,182,212,0.16)] dark:border-cyan-400/55 dark:shadow-[0_0_0_1px_rgba(34,211,238,0.18)]"
+                      : "border-slate-200 dark:border-white/10"
                   }`}
                   onMouseDown={() =>
                     onSetActivePane(activeTab.tab_id, pane.pane_id)
                   }
                 >
-                  <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
                     <div className="flex min-w-0 items-center gap-2">
-                      <SvgTerminal className="h-3.5 w-3.5 shrink-0 stroke-white/60" />
-                      <Text className="truncate text-xs uppercase tracking-[0.16em] text-white/55">
+                      <SvgTerminal className="h-3.5 w-3.5 shrink-0 stroke-slate-500 dark:stroke-white/60" />
+                      <Text className="truncate text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-white/55">
                         Pane {index + 1}
                       </Text>
                     </div>
                     <button
                       type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-white/45 transition hover:bg-white/10 hover:text-white/80"
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:text-white/45 dark:hover:bg-white/10 dark:hover:text-white/80"
                       onClick={(event) => {
                         event.stopPropagation();
                         void onClosePane(activeTab.tab_id, pane.pane_id);
@@ -504,11 +506,11 @@ export default function NeuralLabsDesktopTerminal({
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-3 py-2">
-        <Text className="text-xs text-white/45">
+      <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-white/10 dark:bg-black/20">
+        <Text className="text-xs text-slate-500 dark:text-white/45">
           Right-click a tab for split, rename, duplicate, and move actions.
         </Text>
-        <Text className="text-xs text-white/35">
+        <Text className="text-xs text-slate-400 dark:text-white/35">
           {layout?.tabs.length ?? 0} tab{layout?.tabs.length === 1 ? "" : "s"}
         </Text>
       </div>
@@ -516,7 +518,7 @@ export default function NeuralLabsDesktopTerminal({
       {contextMenuState ? (
         <div
           ref={contextMenuRef}
-          className="absolute z-30 min-w-[14rem] overflow-hidden rounded-16 border border-white/10 bg-[#111722]/96 p-1.5 shadow-[0_24px_56px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+          className="absolute z-30 min-w-[14rem] overflow-hidden rounded-16 border border-slate-200 bg-white/96 p-1.5 shadow-[0_24px_56px_rgba(15,23,42,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[#111722]/96 dark:shadow-[0_24px_56px_rgba(0,0,0,0.45)]"
           style={{ left: contextMenuState.x, top: contextMenuState.y }}
           onPointerDown={(event) => event.stopPropagation()}
         >
