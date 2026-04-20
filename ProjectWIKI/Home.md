@@ -65,12 +65,24 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - image also restores CLI paths from `/etc/profile.d` so login shells still resolve `codex` and `claude`
   - shell env injection from configured providers:
     - `OPENAI_API_KEY` (required for `codex`)
-    - `ANTHROPIC_API_KEY` (optional, enables `claude`)
+    - preferred Claude path is AWS Bedrock via IAM role and shell env:
+      - `CLAUDE_CODE_USE_BEDROCK=1`
+      - `AWS_REGION=us-east-1` (or the configured Bedrock provider region)
+      - `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`
+      - `ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-4-7`
+      - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
+    - fallback path only: `ANTHROPIC_API_KEY` remains supported when no Bedrock provider is configured
+  - Claude defaults now prefer AWS Bedrock provider models over direct Anthropic when a Bedrock provider is configured
 - Important behavior:
   - Neural Labs no longer writes any MCP server entries into `~/.codex/config.toml`
   - this prevents legacy `onyx` / `wardgpt` MCP bootstrap leakage from imported Codex Labs examples
 - Current deployment requirement:
   - `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users
+  - configure an AWS Bedrock provider with IAM auth and region `us-east-1` to make Bedrock-backed Claude the preferred runtime
+  - ensure the runtime EC2 role includes Bedrock Claude access:
+    - `bedrock:InvokeModel`
+    - `bedrock:InvokeModelWithResponseStream`
+    - `bedrock:ListInferenceProfiles`
 - Note:
   - infrastructure-level Codex/Craft compose wiring remains intentionally separate from this Neural Labs parity import.

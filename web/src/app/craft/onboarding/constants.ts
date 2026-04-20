@@ -8,9 +8,14 @@ export interface BuildLlmSelection {
   modelName: string; // e.g., "claude-opus-4-6"
 }
 
+const BEDROCK_CLAUDE_SONNET_MODEL = "us.anthropic.claude-sonnet-4-6";
+const BEDROCK_CLAUDE_OPUS_MODEL = "us.anthropic.claude-opus-4-7";
+const BEDROCK_CLAUDE_HAIKU_MODEL =
+  "us.anthropic.claude-haiku-4-5-20251001-v1:0";
+
 // Priority order for smart default LLM selection
 const LLM_SELECTION_PRIORITY = [
-  { provider: "anthropic", modelName: "claude-opus-4-6" },
+  { provider: "bedrock", modelName: BEDROCK_CLAUDE_OPUS_MODEL },
   { provider: "openai", modelName: "gpt-5.2" },
   { provider: "openrouter", modelName: "minimax/minimax-m2.1" },
 ] as const;
@@ -24,7 +29,7 @@ interface MinimalLlmProvider {
 
 /**
  * Get the best default LLM selection based on available providers.
- * Priority: Anthropic > OpenAI > OpenRouter > first available
+ * Priority: Bedrock Claude > OpenAI > OpenRouter > first available
  */
 export function getDefaultLlmSelection(
   llmProviders: MinimalLlmProvider[] | undefined
@@ -62,12 +67,19 @@ export function getDefaultLlmSelection(
 // Recommended models config (for UI display)
 export const RECOMMENDED_BUILD_MODELS = {
   preferred: {
-    provider: "anthropic",
-    modelName: "claude-opus-4-6",
-    displayName: "Claude Opus 4.6",
+    provider: "bedrock",
+    modelName: BEDROCK_CLAUDE_OPUS_MODEL,
+    displayName: "Claude Opus 4.7 (Bedrock)",
   },
   alternatives: [
-    { provider: "anthropic", modelName: "claude-sonnet-4-6" },
+    {
+      provider: "bedrock",
+      modelName: BEDROCK_CLAUDE_SONNET_MODEL,
+    },
+    {
+      provider: "bedrock",
+      modelName: BEDROCK_CLAUDE_HAIKU_MODEL,
+    },
     { provider: "openai", modelName: "gpt-5.2" },
     { provider: "openai", modelName: "gpt-5.1-codex" },
     { provider: "openrouter", modelName: "minimax/minimax-m2.1" },

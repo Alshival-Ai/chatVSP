@@ -1,5 +1,6 @@
 import time
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from onyx.configs.app_configs import DISABLE_INDEX_UPDATE_ON_SWAP
@@ -28,6 +29,7 @@ from onyx.db.llm import fetch_default_llm_model
 from onyx.db.llm import fetch_existing_llm_provider
 from onyx.db.llm import update_default_provider
 from onyx.db.llm import upsert_llm_provider
+from onyx.db.models import LLMProvider
 from onyx.db.search_settings import get_active_search_settings
 from onyx.db.search_settings import get_current_search_settings
 from onyx.db.search_settings import update_current_search_settings
@@ -58,6 +60,8 @@ from shared_configs.configs import MULTI_TENANT
 
 
 logger = setup_logger()
+
+DEFAULT_BEDROCK_CLAUDE_CHAT_MODEL = "us.anthropic.claude-sonnet-4-6"
 
 
 def setup_onyx(
@@ -287,6 +291,50 @@ def setup_postgres(db_session: Session) -> None:
         update_default_provider(
             provider_id=new_llm_provider.id, model_name=llm_model, db_session=db_session
         )
+
+    _promote_bedrock_default_for_claude(db_session)
+
+
+def _promote_bedrock_default_for_claude(db_session: Session) -> None:
+    """Prefer an existing Bedrock Claude provider over Anthropic for chat defaults.
+
+    This only switches the global default when a Bedrock provider already exists.
+    It does not delete or rewrite direct Anthropic providers.
+    """
+    current_default = fetch_default_llm_model(db_session)
+    if current_default and current_default.llm_provider.provider != str(
+        LlmProviderNames.ANTHROPIC
+    ):
+        return
+
+    bedrock_provider = db_session.scalar(
+        select(LLMProvider).where(LLMProvider.provider == str(LlmProviderNames.BEDROCK))
+    )
+
+    if bedrock_provider is None:
+        return
+
+    visible_models = [
+        model.name
+        for model in bedrock_provider.model_configurations
+        if model.is_visible and model.name
+    ]
+    target_model = (
+        DEFAULT_BEDROCK_CLAUDE_CHAT_MODEL
+        if DEFAULT_BEDROCK_CLAUDE_CHAT_MODEL in visible_models
+        else (visible_models[0] if visible_models else None)
+    )
+    if not target_model:
+        return
+
+    if current_default and current_default.llm_provider_id == bedrock_provider.id:
+        return
+
+    update_default_provider(
+        provider_id=bedrock_provider.id,
+        model_name=target_model,
+        db_session=db_session,
+    )
 
 
 def update_default_multipass_indexing(db_session: Session) -> None:

@@ -17,8 +17,17 @@ CODEX_CONFIG_DIR_NAME = ".codex"
 CODEX_CONFIG_FILE_NAME = "config.toml"
 OPENAI_ENV_KEY_NAME = "OPENAI_API_KEY"
 ANTHROPIC_ENV_KEY_NAME = "ANTHROPIC_API_KEY"
+CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME = "CLAUDE_CODE_USE_BEDROCK"
+AWS_REGION_ENV_KEY_NAME = "AWS_REGION"
+ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_SONNET_MODEL"
+ANTHROPIC_DEFAULT_OPUS_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_OPUS_MODEL"
+ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_HAIKU_MODEL"
 OPENAI_STANDARD_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_OPENAI_CODEX_MODEL = "gpt-5.4"
+DEFAULT_BEDROCK_REGION = "us-east-1"
+DEFAULT_BEDROCK_CLAUDE_SONNET_MODEL = "us.anthropic.claude-sonnet-4-6"
+DEFAULT_BEDROCK_CLAUDE_OPUS_MODEL = "us.anthropic.claude-opus-4-7"
+DEFAULT_BEDROCK_CLAUDE_HAIKU_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 # Use both names for compatibility with existing configs/scripts.
 NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR = "NEURAL_LABS_MCP_BEARER_TOKEN"
@@ -39,19 +48,24 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
     _provision_bash_profile(home_dir=home_dir)
 
     model_name, openai_api_key = _resolve_openai_codex_settings(db_session)
-    if not openai_api_key:
-        return {}
+    env_overrides: dict[str, str] = {}
+    if openai_api_key:
+        config_text = _build_codex_config_toml(model_name=model_name)
+        codex_dir = home_dir / CODEX_CONFIG_DIR_NAME
+        codex_dir.mkdir(parents=True, exist_ok=True)
+        (codex_dir / CODEX_CONFIG_FILE_NAME).write_text(config_text, encoding="utf-8")
+        env_overrides[OPENAI_ENV_KEY_NAME] = openai_api_key
 
-    config_text = _build_codex_config_toml(model_name=model_name)
-    codex_dir = home_dir / CODEX_CONFIG_DIR_NAME
-    codex_dir.mkdir(parents=True, exist_ok=True)
-    (codex_dir / CODEX_CONFIG_FILE_NAME).write_text(config_text, encoding="utf-8")
-
-    env_overrides = {OPENAI_ENV_KEY_NAME: openai_api_key}
-    anthropic_api_key = _resolve_anthropic_api_key(db_session)
-    if anthropic_api_key:
-        env_overrides[ANTHROPIC_ENV_KEY_NAME] = anthropic_api_key
+    bedrock_settings = _resolve_bedrock_claude_settings(db_session)
+    if bedrock_settings:
+        env_overrides.update(bedrock_settings)
+    else:
+        anthropic_api_key = _resolve_anthropic_api_key(db_session)
+        if anthropic_api_key:
+            env_overrides[ANTHROPIC_ENV_KEY_NAME] = anthropic_api_key
     return env_overrides
+
+
 def _resolve_openai_codex_settings(db_session: Session) -> tuple[str, str | None]:
     """Resolve OpenAI model+credentials from Onyx LLM provider settings."""
     provider = _fetch_openai_provider(db_session)
@@ -104,6 +118,27 @@ def _resolve_anthropic_api_key(db_session: Session) -> str | None:
     if not provider or not provider.api_key:
         return None
     return provider.api_key.get_value(apply_mask=False)
+
+
+def _resolve_bedrock_claude_settings(db_session: Session) -> dict[str, str] | None:
+    provider = _fetch_provider_by_type(
+        db_session=db_session, provider_type=str(LlmProviderNames.BEDROCK)
+    )
+    if not provider:
+        return None
+
+    region = (
+        ((provider.custom_config or {}).get("AWS_REGION_NAME") or DEFAULT_BEDROCK_REGION)
+        .strip()
+        or DEFAULT_BEDROCK_REGION
+    )
+    return {
+        CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME: "1",
+        AWS_REGION_ENV_KEY_NAME: region,
+        ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_SONNET_MODEL,
+        ANTHROPIC_DEFAULT_OPUS_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_OPUS_MODEL,
+        ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_HAIKU_MODEL,
+    }
 
 
 def _fetch_provider_by_type(db_session: Session, provider_type: str) -> LLMProvider | None:

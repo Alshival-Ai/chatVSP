@@ -119,9 +119,25 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - `@openai/codex`
   - `claude` via Anthropic native installer (`curl -fsSL https://claude.ai/install.sh | bash`)
   - `/etc/profile.d` restores `/root/.local/bin` and `/root/.opencode/bin` for login shells so `bash -lc 'claude ...'` still works after `/etc/profile` rewrites `PATH`
-- Neural Labs shell sessions inject keys from configured providers:
+- Neural Labs shell sessions inject provider credentials/config:
   - `OPENAI_API_KEY` from the OpenAI provider (required for Codex)
-  - `ANTHROPIC_API_KEY` from the Anthropic provider (optional, enables Claude CLI auth)
+  - preferred Claude path is AWS Bedrock via IAM role:
+    - `CLAUDE_CODE_USE_BEDROCK=1`
+    - `AWS_REGION=us-east-1` unless the configured Bedrock provider overrides it
+    - `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`
+    - `ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-4-7`
+    - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
+  - direct Anthropic fallback remains supported via `ANTHROPIC_API_KEY` only when no Bedrock provider is configured
+
+Bedrock rollout notes:
+
+- preferred admin/provider setup for Claude is `Bedrock` with `IAM` auth and region `us-east-1`
+- runtime Claude defaults now prefer a configured Bedrock provider over direct Anthropic for chat defaults
+- the EC2/runtime role must include at least:
+  - `bedrock:InvokeModel`
+  - `bedrock:InvokeModelWithResponseStream`
+  - `bedrock:ListInferenceProfiles`
+- Bedrock Claude model access must be enabled in the AWS account before rollout
 
 Neural Labs intentionally does not write MCP server blocks into `~/.codex/config.toml`.
 This avoids cross-app inheritance from imported WardGPT / Onyx examples and prevents stale

@@ -16,7 +16,7 @@ import {
 import { updateUserPersonalization } from "@/lib/userSettings";
 import { useBuildSessionStore } from "@/app/craft/hooks/useBuildSessionStore";
 
-// Check if all 3 build mode providers are configured (anthropic, openai, openrouter)
+// Check if the baseline build-mode providers are configured.
 function checkAllProvidersConfigured(
   llmProviders: import("@/interfaces/llm").LLMProviderDescriptor[] | undefined
 ): boolean {
