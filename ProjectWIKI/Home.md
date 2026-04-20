@@ -60,8 +60,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - Text Editor continues to open as a floating window and can save pasted text directly into the workspace as a file; in desktop mode it is also launched from the taskbar
     - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
     - floating preview windows (snap/drag/resize) for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
-    - floating preview windows now include a maximize/restore control that preserves the prior bounds when returning from maximized state
-    - desktop app windows use separate desktop-window chrome and share focus / z-index behavior with existing preview windows
+    - floating preview windows now use the same slimmer Neural Labs desktop window chrome as app windows: matching title-bar density, macOS-style controls, and double-click maximize/restore behavior
+    - desktop app windows and preview windows now share the same visual shell while still using separate state models for app windows vs persisted preview windows
     - HTML preview iframe now uses a path-based `/api/neural-labs/files/content/<path>` URL so relative `style.css`, `app.js`, and sibling asset requests resolve inside the selected workspace folder instead of collapsing to `/api/neural-labs/files/*`
     - HTML preview iframe keeps script execution enabled but no longer grants `allow-same-origin`, removing the browser sandbox escape warning from generated site previews
     - web security headers now use a trimmed `Permissions-Policy` set that avoids unsupported directives rejected by current Chromium builds

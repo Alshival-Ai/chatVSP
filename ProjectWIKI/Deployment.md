@@ -113,7 +113,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - desktop app windows support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snap zones, and minimize-to-taskbar behavior
   - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
   - floating preview windows with snap/resize for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
-  - preview windows include a maximize/restore control that preserves the prior bounds when returning from maximized state
+  - preview windows now use the same compact desktop window chrome as app windows, including matching macOS-style controls and double-click maximize/restore behavior
   - desktop app windows share focus / z-index behavior with existing preview windows so app windows and file previews layer together cleanly
   - HTML previews use a path-based `/api/neural-labs/files/content/<path>` route so relative assets load from the previewed workspace folder
   - HTML preview sandbox keeps scripts enabled but drops `allow-same-origin` to avoid the browser escape warning on generated sites

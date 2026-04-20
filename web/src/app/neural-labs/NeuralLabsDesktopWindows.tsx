@@ -61,6 +61,7 @@ const SNAP_THRESHOLD = 28;
 const WINDOW_GAP = 12;
 const MIN_WINDOW_WIDTH = 420;
 const MIN_WINDOW_HEIGHT = 280;
+const WINDOW_TITLEBAR_HEIGHT_CLASS = "h-10";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -544,7 +545,7 @@ function DesktopWindow({
         }`}
       >
         <div
-          className={`grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] px-4 ${
+          className={`grid ${WINDOW_TITLEBAR_HEIGHT_CLASS} grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] px-3 ${
             windowState.is_maximized ? "cursor-default" : "cursor-move"
           }`}
           onDoubleClick={(event: ReactMouseEvent<HTMLDivElement>) => {
@@ -590,8 +591,8 @@ function DesktopWindow({
               </button>
             </NeuralLabsTooltip>
           </div>
-          <div className="min-w-0 justify-self-center pr-8">
-            <Text className="truncate text-sm font-medium text-white">
+          <div className="min-w-0 justify-self-center pr-6">
+            <Text className="truncate text-[13px] font-medium text-white">
               {windowState.title}
             </Text>
           </div>

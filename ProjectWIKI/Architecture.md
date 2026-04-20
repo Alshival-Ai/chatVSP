@@ -44,6 +44,7 @@
 - Frontend window model:
   - file preview/editor windows continue to use the persisted floating preview-window model
   - desktop-only app windows (`File Explorer`, `Terminal`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
+  - preview windows now render through the same desktop-style chrome treatment as app windows (matching compact title bar, macOS-style controls, shared snap/maximize affordances) while keeping their existing persisted preview content/state model
   - desktop app windows track snapped, maximized, and minimized state on the client so taskbar restore/focus behavior does not require backend changes
   - desktop file explorer windows keep separate per-window navigation state (`current_path`, back/forward history, selection, and icon/list mode) while reusing the shared file API/cache layer
   - desktop terminal windows keep separate per-window terminal ownership and layout state (`tabs`, `active_tab_id`, split panes) so the Windows Terminal-style desktop app does not leak terminal sessions into the legacy terminal workspace

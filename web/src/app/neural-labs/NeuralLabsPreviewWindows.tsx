@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import dynamic from "next/dynamic";
@@ -15,11 +16,11 @@ import { kml as kmlToGeoJson } from "@tmcw/togeojson";
 import Text from "@/refresh-components/texts/Text";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import {
+  SvgFiles,
   SvgFileText,
   SvgFold,
   SvgImage,
   SvgMaximize2,
-  SvgRefreshCw,
   SvgX,
 } from "@opal/icons";
 import {
@@ -75,6 +76,7 @@ const MIN_WINDOW_WIDTH = 280;
 const MIN_WINDOW_HEIGHT = 220;
 const MAX_XLSX_PREVIEW_ROWS = 200;
 const MAX_XLSX_PREVIEW_COLUMNS = 40;
+const WINDOW_TITLEBAR_HEIGHT_CLASS = "h-10";
 const NeuralLabsKmzMap = dynamic(() => import("./NeuralLabsKmzMap"), {
   ssr: false,
 });
@@ -1360,10 +1362,12 @@ function PreviewWindow({
 
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
 
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
     };
   }, [onUpdateWindow, workspaceBounds]);
 
@@ -1428,9 +1432,18 @@ function PreviewWindow({
     });
   };
 
+  const previewIcon =
+    displayWindow.preview_kind === "image" ? (
+      <SvgImage className="h-4 w-4 shrink-0 stroke-white/65" />
+    ) : displayWindow.preview_kind === "pdf" ? (
+      <SvgFiles className="h-4 w-4 shrink-0 stroke-white/65" />
+    ) : (
+      <SvgFileText className="h-4 w-4 shrink-0 stroke-white/65" />
+    );
+
   return (
     <div
-      className="absolute overflow-hidden rounded-16 border border-border-04 bg-background-neutral-00 shadow-2xl"
+      className="absolute overflow-hidden rounded-[26px] border border-white/20 bg-[#0c111d]/88 shadow-[0_30px_80px_rgba(5,10,20,0.45)] backdrop-blur-xl"
       style={{
         left: displayWindow.x,
         top: displayWindow.y,
@@ -1441,89 +1454,91 @@ function PreviewWindow({
       onMouseDown={() => onFocusWindow(windowState.id)}
     >
       <div
-        className={`grid h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border-01 bg-background-neutral-01 px-3 ${
-          displayWindow.is_maximized ? "cursor-default" : "cursor-move"
+        className={`flex h-full flex-col ${
+          displayWindow.is_maximized ? "rounded-none" : ""
         }`}
-        onPointerDown={handlePointerDown}
       >
-        <div className="min-w-0 flex items-center gap-2 overflow-hidden">
-          {displayWindow.preview_kind === "image" ? (
-            <SvgImage className="h-4 w-4 shrink-0 stroke-text-03" />
-          ) : (
-            <SvgFileText className="h-4 w-4 shrink-0 stroke-text-03" />
-          )}
-          <div className="min-w-0 overflow-hidden">
-            <Text className="truncate" title={displayWindow.name}>
-              {displayWindow.name}
-            </Text>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1 rounded-full border border-border-01 bg-background-neutral-00/95 px-1 py-1 shadow-sm">
-          {displayWindow.preview_kind === "app-text-editor" &&
-          onMinimizeWindow ? (
-            <NeuralLabsTooltip label="Minimize window">
+        <div
+          className={`grid ${WINDOW_TITLEBAR_HEIGHT_CLASS} grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] px-3 ${
+            displayWindow.is_maximized ? "cursor-default" : "cursor-move"
+          }`}
+          onDoubleClick={(event: ReactMouseEvent<HTMLDivElement>) => {
+            if (event.button !== 0) {
+              return;
+            }
+            toggleMaximize();
+          }}
+          onPointerDown={handlePointerDown}
+        >
+          <div className="flex items-center gap-2">
+            <NeuralLabsTooltip label="Close window">
               <button
                 type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02"
-                onClick={() => onMinimizeWindow(windowState.id)}
-                aria-label="Minimize window"
-              />
+                className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#ff6b6b] transition hover:brightness-110"
+                onClick={() => onCloseWindow(windowState.id)}
+                aria-label="Close preview"
+              >
+                <SvgX className="h-2.5 w-2.5 stroke-[#6b1010]" />
+              </button>
             </NeuralLabsTooltip>
-          ) : null}
-          <NeuralLabsTooltip
-            label={
-              displayWindow.is_maximized ? "Restore window" : "Maximize window"
-            }
-          >
-            <button
-              type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02"
-              onClick={toggleMaximize}
-              aria-label={
+            {displayWindow.preview_kind === "app-text-editor" &&
+            onMinimizeWindow ? (
+              <NeuralLabsTooltip label="Minimize window">
+                <button
+                  type="button"
+                  className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#f6be4f] transition hover:brightness-110"
+                  onClick={() => onMinimizeWindow(windowState.id)}
+                  aria-label="Minimize window"
+                />
+              </NeuralLabsTooltip>
+            ) : (
+              <span className="block h-3.5 w-3.5 rounded-full bg-white/10" />
+            )}
+            <NeuralLabsTooltip
+              label={
                 displayWindow.is_maximized
                   ? "Restore window"
                   : "Maximize window"
               }
             >
-              {displayWindow.is_maximized ? (
-                <SvgFold className="h-4 w-4 stroke-text-03" />
-              ) : (
-                <SvgMaximize2 className="h-4 w-4 stroke-text-03" />
-              )}
-            </button>
-          </NeuralLabsTooltip>
-          <NeuralLabsTooltip label="Unsnap">
-            <button
-              type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02 disabled:cursor-not-allowed disabled:opacity-45"
-              onClick={() =>
-                onUpdateWindow(windowState.id, { snapped_zone: null })
-              }
-              aria-label="Unsnap"
-              disabled={!displayWindow.snapped_zone}
-            >
-              <SvgRefreshCw className="h-4 w-4 stroke-text-03" />
-            </button>
-          </NeuralLabsTooltip>
-          <NeuralLabsTooltip label="Close preview">
-            <button
-              type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-border-01 bg-background-neutral-00 text-text-03 hover:bg-background-neutral-02"
-              onClick={() => onCloseWindow(windowState.id)}
-              aria-label="Close preview"
-            >
-              <SvgX className="h-4 w-4 stroke-text-03" />
-            </button>
-          </NeuralLabsTooltip>
+              <button
+                type="button"
+                className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#35c95e] transition hover:brightness-110"
+                onClick={toggleMaximize}
+                aria-label={
+                  displayWindow.is_maximized
+                    ? "Restore window"
+                    : "Maximize window"
+                }
+              >
+                {displayWindow.is_maximized ? (
+                  <SvgFold className="h-2.5 w-2.5 stroke-[#0d4b1f]" />
+                ) : (
+                  <SvgMaximize2 className="h-2.5 w-2.5 stroke-[#0d4b1f]" />
+                )}
+              </button>
+            </NeuralLabsTooltip>
+          </div>
+          <div className="min-w-0 justify-self-center pr-6">
+            <div className="inline-flex max-w-full items-center gap-2 overflow-hidden">
+              {previewIcon}
+              <Text
+                className="truncate text-[13px] font-medium text-white"
+                title={displayWindow.name}
+              >
+                {displayWindow.name}
+              </Text>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="h-[calc(100%-2.75rem)] w-full">
-        <WindowContent
-          windowState={displayWindow}
-          currentDirectory={currentDirectory}
-          onTextFileSaved={onTextFileSaved}
-        />
+        <div className="min-h-0 flex-1 bg-[#0a0f1a]/80">
+          <WindowContent
+            windowState={displayWindow}
+            currentDirectory={currentDirectory}
+            onTextFileSaved={onTextFileSaved}
+          />
+        </div>
       </div>
 
       {!displayWindow.is_maximized
