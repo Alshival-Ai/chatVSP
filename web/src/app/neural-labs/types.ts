@@ -61,6 +61,17 @@ export type NeuralLabsDesktopAppKind =
   | "terminal-workspace"
   | "desktop-settings";
 
+export type DesktopExplorerViewMode = "icon" | "list";
+
+export interface DesktopExplorerState {
+  current_path: string;
+  back_history: string[];
+  forward_history: string[];
+  selected_paths: string[];
+  anchor_path: string | null;
+  view_mode: DesktopExplorerViewMode;
+}
+
 export interface DesktopWindowState {
   id: string;
   app_kind: NeuralLabsDesktopAppKind;

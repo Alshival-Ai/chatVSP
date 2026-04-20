@@ -19,11 +19,14 @@ import { useRouter } from "next/navigation";
 import Button from "@/refresh-components/buttons/Button";
 import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
+import NeuralLabsDesktopFileExplorer from "@/app/neural-labs/NeuralLabsDesktopFileExplorer";
 import NeuralLabsDesktopWindows from "@/app/neural-labs/NeuralLabsDesktopWindows";
 import NeuralLabsFileTree from "@/app/neural-labs/NeuralLabsFileTree";
 import NeuralLabsPreviewWindows from "@/app/neural-labs/NeuralLabsPreviewWindows";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import type {
+  DesktopExplorerState,
+  DesktopExplorerViewMode,
   DesktopWindowState,
   NeuralLabsFileEntry,
   DirectoryResponse,
@@ -80,6 +83,9 @@ type DesktopBackgroundPresetId =
   | "graphite"
   | "sunset-grid"
   | "ocean-night";
+type DesktopBackgroundSelection =
+  | DesktopBackgroundPresetId
+  | `custom:${string}`;
 
 type SplitMode = "none" | "horizontal" | "vertical";
 
@@ -145,10 +151,14 @@ const TREE_STATE_STORAGE_KEY = "neural-labs-tree-v1";
 const PREVIEW_WINDOWS_STORAGE_KEY = "neural-labs-previews-v1";
 const UI_MODE_STORAGE_KEY = "neural-labs-ui-mode-v1";
 const DESKTOP_BACKGROUND_STORAGE_KEY = "neural-labs-desktop-background-v1";
+const DESKTOP_CUSTOM_BACKGROUND_PATH_STORAGE_KEY =
+  "neural-labs-desktop-custom-background-path-v1";
 const NAVIGATOR_WIDTH_STORAGE_KEY = "neural-labs-navigator-width-v1";
 const NAVIGATOR_COLLAPSED_STORAGE_KEY = "neural-labs-navigator-collapsed-v1";
 const TERMINAL_NAVIGATOR_COLLAPSED_STORAGE_KEY =
   "neural-labs-terminal-navigator-collapsed-v1";
+const CUSTOM_DESKTOP_BACKGROUND_PREFIX = "custom:";
+const CUSTOM_DESKTOP_BACKGROUND_DIRECTORY = ".neural-labs/backgrounds";
 const TREE_AUTO_SYNC_INTERVAL_MS = 1500;
 const DEFAULT_NAVIGATOR_WIDTH_PX = 420;
 const MIN_NAVIGATOR_WIDTH_PX = 260;
@@ -206,6 +216,47 @@ const DESKTOP_BACKGROUND_PRESETS: {
       "bg-[radial-gradient(circle_at_bottom_left,rgba(25,134,194,0.2),transparent_32%),radial-gradient(circle_at_top_right,rgba(39,209,154,0.14),transparent_25%),linear-gradient(180deg,#08131f_0%,#07111a_45%,#03070c_100%)]",
   },
 ];
+
+function isDesktopBackgroundPresetId(
+  value: string
+): value is DesktopBackgroundPresetId {
+  return DESKTOP_BACKGROUND_PRESETS.some((preset) => preset.id === value);
+}
+
+function createCustomDesktopBackgroundSelection(
+  path: string
+): DesktopBackgroundSelection {
+  return `${CUSTOM_DESKTOP_BACKGROUND_PREFIX}${path}`;
+}
+
+function getCustomDesktopBackgroundPath(
+  selection: DesktopBackgroundSelection
+): string | null {
+  if (!selection.startsWith(CUSTOM_DESKTOP_BACKGROUND_PREFIX)) {
+    return null;
+  }
+
+  const path = selection.slice(CUSTOM_DESKTOP_BACKGROUND_PREFIX.length).trim();
+  return path || null;
+}
+
+function getDesktopBackgroundContentUrl(path: string): string {
+  return `${NEURAL_LABS_API_PREFIX}/files/content?path=${encodeURIComponent(
+    path
+  )}`;
+}
+
+function getCustomDesktopBackgroundFilename(file: File): string {
+  const extensionMatch = file.name.match(/(\.[a-zA-Z0-9]+)$/);
+  const extension =
+    extensionMatch?.[1]?.toLowerCase() ||
+    (() => {
+      const mimeExtension = file.type.split("/")[1];
+      return mimeExtension ? `.${mimeExtension.toLowerCase()}` : ".png";
+    })();
+
+  return `custom-background${extension}`;
+}
 const TEXT_PREVIEW_EXTENSIONS = new Set([
   ".txt",
   ".toml",
@@ -278,6 +329,31 @@ function getAncestorPaths(path: string): string[] {
     ancestors.push(parts.slice(0, index).join("/"));
   }
   return ancestors;
+}
+
+function createDefaultDesktopExplorerState(): DesktopExplorerState {
+  return {
+    current_path: "",
+    back_history: [],
+    forward_history: [],
+    selected_paths: [],
+    anchor_path: null,
+    view_mode: "icon",
+  };
+}
+
+function replacePathPrefix(
+  targetPath: string,
+  sourcePath: string,
+  nextPath: string
+): string {
+  if (targetPath === sourcePath) {
+    return nextPath;
+  }
+  if (!targetPath.startsWith(`${sourcePath}/`)) {
+    return targetPath;
+  }
+  return `${nextPath}${targetPath.slice(sourcePath.length)}`;
 }
 
 function getPreviewKind(entry: NeuralLabsFileEntry): PreviewKind | null {
@@ -1530,11 +1606,25 @@ function NeuralLabsTerminalWorkspacePanel({
 
 function NeuralLabsDesktopSettingsPanel({
   selectedBackgroundId,
+  customBackgroundPath,
   onSelectBackground,
+  onSelectCustomBackground,
+  onUploadCustomBackground,
+  isUploadingCustomBackground,
 }: {
-  selectedBackgroundId: DesktopBackgroundPresetId;
+  selectedBackgroundId: DesktopBackgroundSelection;
+  customBackgroundPath: string | null;
   onSelectBackground: (backgroundId: DesktopBackgroundPresetId) => void;
+  onSelectCustomBackground: () => void;
+  onUploadCustomBackground: (file: File) => Promise<void> | void;
+  isUploadingCustomBackground: boolean;
 }) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const hasCustomBackground = Boolean(customBackgroundPath);
+  const customBackgroundUrl = customBackgroundPath
+    ? getDesktopBackgroundContentUrl(customBackgroundPath)
+    : null;
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-background-neutral-02">
       <div className="border-b border-border-01 bg-background-neutral-01 px-4 py-3">
@@ -1545,7 +1635,58 @@ function NeuralLabsDesktopSettingsPanel({
       </div>
 
       <div className="default-scrollbar min-h-0 flex-1 overflow-auto p-4">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) {
+              void onUploadCustomBackground(file);
+            }
+          }}
+        />
+
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-16 border border-border-01 bg-background-neutral-01 px-4 py-3">
+          <div className="min-w-0">
+            <Text className="font-medium">Custom background</Text>
+            <Text text03 className="mt-1 text-xs">
+              Upload an image into your Neural Labs workspace and reuse it here.
+            </Text>
+          </div>
+          <Button
+            tertiary
+            size="md"
+            leftIcon={SvgUploadCloud}
+            disabled={isUploadingCustomBackground}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {isUploadingCustomBackground ? "Uploading..." : "Upload"}
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {hasCustomBackground && customBackgroundUrl ? (
+            <button
+              type="button"
+              className={`overflow-hidden rounded-16 border text-left transition ${
+                selectedBackgroundId.startsWith(CUSTOM_DESKTOP_BACKGROUND_PREFIX)
+                  ? "border-border-04 bg-background-tint-03/40"
+                  : "border-border-01 bg-background-neutral-01 hover:bg-background-neutral-00"
+              }`}
+              onClick={onSelectCustomBackground}
+            >
+              <div
+                className="h-28 w-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${customBackgroundUrl})` }}
+              />
+              <div className="px-3 py-3">
+                <Text className="font-medium">Custom Upload</Text>
+              </div>
+            </button>
+          ) : null}
           {DESKTOP_BACKGROUND_PRESETS.map((preset) => {
             const isSelected = preset.id === selectedBackgroundId;
             return (
@@ -1562,9 +1703,6 @@ function NeuralLabsDesktopSettingsPanel({
                 <div className={`h-28 w-full ${preset.previewClassName}`} />
                 <div className="px-3 py-3">
                   <Text className="font-medium">{preset.name}</Text>
-                  <Text text03 className="mt-1 text-xs">
-                    {isSelected ? "Selected background" : "Use this background"}
-                  </Text>
                 </div>
               </button>
             );
@@ -1579,7 +1717,9 @@ export default function NeuralLabsPage() {
   const router = useRouter();
   const [uiMode, setUiMode] = useState<NeuralLabsUiMode>("legacy");
   const [desktopBackgroundId, setDesktopBackgroundId] =
-    useState<DesktopBackgroundPresetId>("aurora");
+    useState<DesktopBackgroundSelection>("sunset-grid");
+  const [desktopCustomBackgroundPath, setDesktopCustomBackgroundPath] =
+    useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState("");
   const [treeEntries, setTreeEntries] = useState<
     Record<string, NeuralLabsFileEntry[]>
@@ -1593,6 +1733,9 @@ export default function NeuralLabsPage() {
   const [desktopWindows, setDesktopWindows] = useState<DesktopWindowState[]>(
     []
   );
+  const [desktopExplorerStates, setDesktopExplorerStates] = useState<
+    Record<string, DesktopExplorerState>
+  >({});
   const [taskbarMenu, setTaskbarMenu] = useState<TaskbarMenuState | null>(null);
   const [workspaceBounds, setWorkspaceBounds] = useState({
     width: 0,
@@ -1898,6 +2041,20 @@ export default function NeuralLabsPage() {
     [currentPath, expandedPaths, loadDirectory]
   );
 
+  const refreshDirectoryPaths = useCallback(
+    async (paths: string[], options?: DirectoryLoadOptions) => {
+      const uniquePaths = Array.from(new Set(["", ...paths])).filter(
+        (path): path is string => typeof path === "string"
+      );
+      await Promise.all(
+        uniquePaths.map(async (path) => {
+          await loadDirectory(path, options);
+        })
+      );
+    },
+    [loadDirectory]
+  );
+
   const openTextEditorApp = useCallback(() => {
     if (!isDesktopModeActive && isDesktopLayout && isNavigatorCollapsed) {
       setIsNavigatorCollapsed(false);
@@ -1956,9 +2113,9 @@ export default function NeuralLabsPage() {
       });
       setCurrentPath(parentPath);
       setSelectedPath(targetPath);
-      await refreshDirectory();
+      await refreshDirectoryPaths([parentPath]);
     },
-    [refreshDirectory]
+    [refreshDirectoryPaths]
   );
 
   const navigateUp = useCallback(async () => {
@@ -2128,6 +2285,14 @@ export default function NeuralLabsPage() {
     setDesktopWindows((previousWindows) =>
       previousWindows.filter((windowState) => windowState.id !== windowId)
     );
+    setDesktopExplorerStates((previousStates) => {
+      if (!(windowId in previousStates)) {
+        return previousStates;
+      }
+      const nextStates = { ...previousStates };
+      delete nextStates[windowId];
+      return nextStates;
+    });
   }, []);
 
   const minimizeDesktopWindow = useCallback((windowId: string) => {
@@ -2139,6 +2304,139 @@ export default function NeuralLabsPage() {
       )
     );
   }, []);
+
+  const updateDesktopExplorerState = useCallback(
+    (
+      windowId: string,
+      update:
+        | Partial<DesktopExplorerState>
+        | ((state: DesktopExplorerState) => DesktopExplorerState)
+    ) => {
+      setDesktopExplorerStates((previousStates) => {
+        const currentState =
+          previousStates[windowId] ?? createDefaultDesktopExplorerState();
+        return {
+          ...previousStates,
+          [windowId]:
+            typeof update === "function"
+              ? update(currentState)
+              : { ...currentState, ...update },
+        };
+      });
+    },
+    []
+  );
+
+  const setDesktopExplorerSelection = useCallback(
+    (windowId: string, paths: string[], anchorPath: string | null) => {
+      updateDesktopExplorerState(windowId, (currentState) => ({
+        ...currentState,
+        selected_paths: paths,
+        anchor_path: anchorPath,
+      }));
+    },
+    [updateDesktopExplorerState]
+  );
+
+  const navigateDesktopExplorerToPath = useCallback(
+    async (
+      windowId: string,
+      nextPath: string,
+      options?: { pushHistory?: boolean }
+    ) => {
+      const shouldPushHistory = options?.pushHistory ?? true;
+      updateDesktopExplorerState(windowId, (currentState) => {
+        if (currentState.current_path === nextPath) {
+          return {
+            ...currentState,
+            selected_paths: [],
+            anchor_path: null,
+          };
+        }
+
+        return {
+          ...currentState,
+          current_path: nextPath,
+          back_history:
+            shouldPushHistory && currentState.current_path !== ""
+              ? [...currentState.back_history, currentState.current_path]
+              : shouldPushHistory
+                ? [...currentState.back_history, currentState.current_path]
+                : currentState.back_history,
+          forward_history: shouldPushHistory
+            ? []
+            : currentState.forward_history,
+          selected_paths: [],
+          anchor_path: null,
+        };
+      });
+      await loadDirectory(nextPath);
+    },
+    [loadDirectory, updateDesktopExplorerState]
+  );
+
+  const navigateDesktopExplorerBack = useCallback(
+    async (windowId: string) => {
+      const currentState = desktopExplorerStates[windowId];
+      if (!currentState || currentState.back_history.length === 0) {
+        return;
+      }
+
+      const previousPath =
+        currentState.back_history[currentState.back_history.length - 1] ?? "";
+      updateDesktopExplorerState(windowId, {
+        current_path: previousPath,
+        back_history: currentState.back_history.slice(0, -1),
+        forward_history: [
+          currentState.current_path,
+          ...currentState.forward_history,
+        ],
+        selected_paths: [],
+        anchor_path: null,
+      });
+      await loadDirectory(previousPath);
+    },
+    [desktopExplorerStates, loadDirectory, updateDesktopExplorerState]
+  );
+
+  const navigateDesktopExplorerForward = useCallback(
+    async (windowId: string) => {
+      const currentState = desktopExplorerStates[windowId];
+      if (!currentState || currentState.forward_history.length === 0) {
+        return;
+      }
+
+      const [nextPath, ...remainingForwardHistory] =
+        currentState.forward_history;
+      if (typeof nextPath !== "string") {
+        return;
+      }
+
+      updateDesktopExplorerState(windowId, {
+        current_path: nextPath,
+        back_history: [...currentState.back_history, currentState.current_path],
+        forward_history: remainingForwardHistory,
+        selected_paths: [],
+        anchor_path: null,
+      });
+      await loadDirectory(nextPath);
+    },
+    [desktopExplorerStates, loadDirectory, updateDesktopExplorerState]
+  );
+
+  const navigateDesktopExplorerUp = useCallback(
+    async (windowId: string) => {
+      const currentState = desktopExplorerStates[windowId];
+      if (!currentState?.current_path) {
+        return;
+      }
+      await navigateDesktopExplorerToPath(
+        windowId,
+        getParentPath(currentState.current_path)
+      );
+    },
+    [desktopExplorerStates, navigateDesktopExplorerToPath]
+  );
 
   const openDesktopApp = useCallback(
     (
@@ -2202,11 +2500,20 @@ export default function NeuralLabsPage() {
             : DEFAULT_TERMINAL_WINDOW.height;
 
       const existingOffset = existingWindowCount * 24;
+      const windowId = createLocalId();
+
+      if (isFileExplorerApp) {
+        setDesktopExplorerStates((previousStates) => ({
+          ...previousStates,
+          [windowId]: createDefaultDesktopExplorerState(),
+        }));
+        void loadDirectory("");
+      }
 
       setDesktopWindows((previousWindows) => [
         ...previousWindows,
         {
-          id: createLocalId(),
+          id: windowId,
           app_kind: appKind,
           title: isFileExplorerApp
             ? existingWindowCount > 0
@@ -2236,20 +2543,26 @@ export default function NeuralLabsPage() {
     [
       desktopWindows,
       focusDesktopWindow,
+      loadDirectory,
       workspaceBounds.height,
       workspaceBounds.width,
     ]
   );
 
   const openPreview = useCallback(
-    (entry: NeuralLabsFileEntry) => {
+    (
+      entry: NeuralLabsFileEntry,
+      options?: { syncLegacySelection?: boolean }
+    ) => {
       const previewKind = getPreviewKind(entry);
       if (!previewKind) {
         return;
       }
 
-      setSelectedPath(entry.path);
-      setCurrentPath(getParentPath(entry.path));
+      if (options?.syncLegacySelection !== false) {
+        setSelectedPath(entry.path);
+        setCurrentPath(getParentPath(entry.path));
+      }
       const existingWindow = previewWindows.find(
         (windowState) => windowState.path === entry.path
       );
@@ -2297,17 +2610,82 @@ export default function NeuralLabsPage() {
     ]
   );
 
-  const createFolder = useCallback(async () => {
-    const folderNameInput = window.prompt("New folder name");
-    if (folderNameInput === null) {
-      return;
-    }
-    const folderName = folderNameInput.trim();
-    if (!folderName) {
-      toast.error("Folder name cannot be empty");
-      return;
-    }
+  const createFolderAtPath = useCallback(
+    async (parentPath: string) => {
+      const folderNameInput = window.prompt("New folder name");
+      if (folderNameInput === null) {
+        return null;
+      }
+      const folderName = folderNameInput.trim();
+      if (!folderName) {
+        toast.error("Folder name cannot be empty");
+        return null;
+      }
 
+      const requestCreateDirectory = async (
+        targetParentPath: string
+      ): Promise<{ response: Response; message: string | null }> => {
+        const response = await fetch(
+          `${NEURAL_LABS_API_PREFIX}/files/directory`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              parent_path: targetParentPath,
+              name: folderName,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          return { response, message: null };
+        }
+
+        return {
+          response,
+          message: await getFetchErrorMessage(response),
+        };
+      };
+
+      let resolvedParentPath = parentPath;
+      let createResult = await requestCreateDirectory(resolvedParentPath);
+
+      if (
+        !createResult.response.ok &&
+        resolvedParentPath &&
+        (createResult.response.status === 404 ||
+          (createResult.message ?? "")
+            .toLowerCase()
+            .includes("parent directory not found"))
+      ) {
+        resolvedParentPath = "";
+        createResult = await requestCreateDirectory(resolvedParentPath);
+      }
+
+      if (!createResult.response.ok) {
+        toast.error(createResult.message ?? "Unable to create folder");
+        return null;
+      }
+
+      let createdPath: string | null = null;
+      try {
+        const payload = (await createResult.response.json()) as {
+          path?: string;
+        };
+        if (typeof payload.path === "string") {
+          createdPath = payload.path;
+        }
+      } catch {
+        // Ignore response parse failures for non-critical UI state updates.
+      }
+
+      await refreshDirectoryPaths([resolvedParentPath]);
+      return createdPath;
+    },
+    [refreshDirectoryPaths]
+  );
+
+  const createFolder = useCallback(async () => {
     const resolveParentPath = (): string => {
       if (!currentPath) {
         return "";
@@ -2328,71 +2706,18 @@ export default function NeuralLabsPage() {
       return "";
     };
 
-    const requestCreateDirectory = async (
-      parentPath: string
-    ): Promise<{ response: Response; message: string | null }> => {
-      const response = await fetch(
-        `${NEURAL_LABS_API_PREFIX}/files/directory`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            parent_path: parentPath,
-            name: folderName,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        return { response, message: null };
-      }
-
-      return {
-        response,
-        message: await getFetchErrorMessage(response),
-      };
-    };
-
-    let parentPath = resolveParentPath();
-    let createResult = await requestCreateDirectory(parentPath);
-
-    if (
-      !createResult.response.ok &&
-      parentPath &&
-      (createResult.response.status === 404 ||
-        (createResult.message ?? "")
-          .toLowerCase()
-          .includes("parent directory not found"))
-    ) {
-      parentPath = "";
-      createResult = await requestCreateDirectory(parentPath);
-      if (createResult.response.ok) {
-        setCurrentPath("");
-      }
+    const createdPath = await createFolderAtPath(resolveParentPath());
+    if (createdPath) {
+      setSelectedPath(createdPath);
+      setCurrentPath(getParentPath(createdPath));
     }
+  }, [createFolderAtPath, currentPath, treeEntries]);
 
-    if (!createResult.response.ok) {
-      toast.error(createResult.message ?? "Unable to create folder");
-      return;
-    }
-
-    try {
-      const payload = (await createResult.response.json()) as { path?: string };
-      if (typeof payload.path === "string") {
-        setSelectedPath(payload.path);
-      }
-    } catch {
-      // Ignore response parse failures for non-critical UI state updates.
-    }
-
-    await refreshDirectory();
-  }, [currentPath, refreshDirectory, treeEntries]);
-
-  const renamePath = useCallback(
+  const renameEntryAtPath = useCallback(
     async (entry: NeuralLabsFileEntry) => {
       const newName = window.prompt("Rename to:", entry.name);
       if (!newName || newName === entry.name) {
-        return;
+        return null;
       }
 
       const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/rename`, {
@@ -2403,23 +2728,39 @@ export default function NeuralLabsPage() {
 
       if (!response.ok) {
         toast.error(await getFetchErrorMessage(response));
-        return;
+        return null;
       }
 
       const payload = (await response.json()) as { path?: string };
-      setSelectedPath(typeof payload.path === "string" ? payload.path : null);
-      await refreshDirectory();
+      const renamedPath =
+        typeof payload.path === "string" ? payload.path : entry.path;
+      await refreshDirectoryPaths([
+        getParentPath(entry.path),
+        getParentPath(renamedPath),
+      ]);
+      return renamedPath;
     },
-    [refreshDirectory]
+    [refreshDirectoryPaths]
   );
 
-  const deletePath = useCallback(
+  const renamePath = useCallback(
+    async (entry: NeuralLabsFileEntry) => {
+      const renamedPath = await renameEntryAtPath(entry);
+      if (renamedPath) {
+        setSelectedPath(renamedPath);
+        setCurrentPath(getParentPath(renamedPath));
+      }
+    },
+    [renameEntryAtPath]
+  );
+
+  const deleteEntryAtPath = useCallback(
     async (entry: NeuralLabsFileEntry) => {
       const confirmed = window.confirm(
         `Delete ${entry.is_directory ? "folder" : "file"} "${entry.name}"?`
       );
       if (!confirmed) {
-        return;
+        return false;
       }
 
       const response = await fetch(
@@ -2431,18 +2772,37 @@ export default function NeuralLabsPage() {
 
       if (!response.ok) {
         toast.error(await getFetchErrorMessage(response));
+        return false;
+      }
+
+      setPreviewWindows((previousWindows) =>
+        previousWindows.filter(
+          (windowState) =>
+            windowState.path !== entry.path &&
+            !windowState.path.startsWith(`${entry.path}/`)
+        )
+      );
+      await refreshDirectoryPaths([getParentPath(entry.path)]);
+      return true;
+    },
+    [refreshDirectoryPaths]
+  );
+
+  const deletePath = useCallback(
+    async (entry: NeuralLabsFileEntry) => {
+      const didDelete = await deleteEntryAtPath(entry);
+      if (!didDelete) {
         return;
       }
 
       setSelectedPath((previousPath) =>
         previousPath === entry.path ? null : previousPath
       );
-      setPreviewWindows((previousWindows) =>
-        previousWindows.filter((windowState) => windowState.path !== entry.path)
+      setCurrentPath((previousPath) =>
+        previousPath === entry.path ? getParentPath(entry.path) : previousPath
       );
-      await refreshDirectory();
     },
-    [refreshDirectory]
+    [deleteEntryAtPath]
   );
 
   const triggerUpload = useCallback(() => {
@@ -2492,9 +2852,9 @@ export default function NeuralLabsPage() {
         );
       }
 
-      await refreshDirectory();
+      await refreshDirectoryPaths([destinationPath]);
     },
-    [refreshDirectory]
+    [refreshDirectoryPaths]
   );
 
   const uploadFile = useCallback(
@@ -2520,10 +2880,10 @@ export default function NeuralLabsPage() {
     }
   }, []);
 
-  const moveEntry = useCallback(
+  const moveEntryToPath = useCallback(
     async (entry: NeuralLabsFileEntry, destinationPath: string) => {
       if (getParentPath(entry.path) === destinationPath) {
-        return;
+        return entry.path;
       }
 
       const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/move`, {
@@ -2537,12 +2897,28 @@ export default function NeuralLabsPage() {
 
       if (!response.ok) {
         toast.error(await getFetchErrorMessage(response));
-        return;
+        return null;
       }
 
       const payload = (await response.json()) as { path?: string };
-      const movedPath =
-        typeof payload.path === "string" ? payload.path : destinationPath;
+      const movedPath = typeof payload.path === "string" ? payload.path : null;
+      await refreshDirectoryPaths(
+        [getParentPath(entry.path), destinationPath],
+        {
+          silent: true,
+        }
+      );
+      return movedPath;
+    },
+    [refreshDirectoryPaths]
+  );
+
+  const moveEntry = useCallback(
+    async (entry: NeuralLabsFileEntry, destinationPath: string) => {
+      const movedPath = await moveEntryToPath(entry, destinationPath);
+      if (movedPath === null) {
+        return;
+      }
       setSelectedPath(movedPath || null);
       setCurrentPath(destinationPath);
       if (destinationPath) {
@@ -2552,9 +2928,32 @@ export default function NeuralLabsPage() {
             : [...previousPaths, destinationPath]
         );
       }
-      await refreshDirectory({ silent: true });
     },
-    [refreshDirectory]
+    [moveEntryToPath]
+  );
+
+  const moveEntries = useCallback(
+    async (entriesToMove: NeuralLabsFileEntry[], destinationPath: string) => {
+      const uniqueEntries = entriesToMove.filter(
+        (entry, index, allEntries) =>
+          allEntries.findIndex((candidate) => candidate.path === entry.path) ===
+          index
+      );
+      if (uniqueEntries.length === 0) {
+        return [];
+      }
+
+      const movedPaths: string[] = [];
+      for (const entry of uniqueEntries) {
+        const movedPath = await moveEntryToPath(entry, destinationPath);
+        if (movedPath) {
+          movedPaths.push(movedPath);
+        }
+      }
+
+      return movedPaths;
+    },
+    [moveEntryToPath]
   );
 
   const activateTreeEntry = useCallback(
@@ -3162,33 +3561,130 @@ export default function NeuralLabsPage() {
   const desktopWindowContent = useCallback(
     (windowState: DesktopWindowState) => {
       if (windowState.app_kind === "file-explorer") {
+        const explorerState =
+          desktopExplorerStates[windowState.id] ??
+          createDefaultDesktopExplorerState();
+        const explorerCurrentPath = explorerState.current_path;
+        const explorerEntries = treeEntries[explorerCurrentPath] ?? [];
+        const rootEntries = treeEntries[""] ?? [];
+
         return (
-          <NeuralLabsFileExplorerPanel
-            currentPath={currentPath}
-            pathLabel={pathLabel}
-            treeEntries={treeEntries}
-            expandedPaths={expandedPaths}
-            loadingPaths={loadingPaths}
-            selectedPath={selectedPath}
-            isPreviewable={isPreviewable}
-            fileUploadInputRef={fileUploadInputRef}
-            onSelectEntry={selectEntry}
-            onToggleDirectory={toggleDirectory}
-            onActivateEntry={activateTreeEntry}
-            onPreviewEntry={openPreview}
+          <NeuralLabsDesktopFileExplorer
+            currentPath={explorerCurrentPath}
+            entries={explorerEntries}
+            rootEntries={rootEntries}
+            selectedPaths={explorerState.selected_paths}
+            anchorPath={explorerState.anchor_path}
+            viewMode={explorerState.view_mode}
+            isLoading={loadingPaths.includes(explorerCurrentPath)}
+            canGoBack={explorerState.back_history.length > 0}
+            canGoForward={explorerState.forward_history.length > 0}
+            canGoUp={Boolean(explorerCurrentPath)}
+            canPreviewEntry={isPreviewable}
+            onNavigateBack={() => navigateDesktopExplorerBack(windowState.id)}
+            onNavigateForward={() =>
+              navigateDesktopExplorerForward(windowState.id)
+            }
+            onNavigateUp={() => navigateDesktopExplorerUp(windowState.id)}
+            onNavigateToPath={(path) =>
+              navigateDesktopExplorerToPath(windowState.id, path)
+            }
+            onRefreshDirectory={() =>
+              refreshDirectoryPaths([explorerCurrentPath], { silent: true })
+            }
+            onCreateFolder={async () => {
+              const createdPath = await createFolderAtPath(explorerCurrentPath);
+              if (createdPath) {
+                setDesktopExplorerSelection(
+                  windowState.id,
+                  [createdPath],
+                  createdPath
+                );
+              }
+            }}
+            onUploadFiles={async (files, destinationPath) => {
+              await uploadFilesToPath(files, destinationPath);
+              if (destinationPath === explorerCurrentPath) {
+                setDesktopExplorerSelection(windowState.id, [], null);
+              }
+            }}
+            onSelectionChange={(paths, anchorPath) =>
+              setDesktopExplorerSelection(windowState.id, paths, anchorPath)
+            }
+            onSetViewMode={(mode) =>
+              updateDesktopExplorerState(windowState.id, {
+                view_mode: mode,
+              })
+            }
+            onOpenEntry={(entry) => {
+              if (entry.is_directory) {
+                void navigateDesktopExplorerToPath(windowState.id, entry.path);
+                return;
+              }
+              if (isPreviewable(entry)) {
+                openPreview(entry, { syncLegacySelection: false });
+              }
+            }}
+            onPreviewEntry={(entry) =>
+              openPreview(entry, { syncLegacySelection: false })
+            }
             onDownloadEntry={downloadFile}
             onCopyPath={copyPath}
-            onRenameEntry={renamePath}
-            onDeleteEntry={deletePath}
-            onMoveEntry={moveEntry}
-            onUploadFiles={uploadFilesToPath}
-            onUploadInputChange={uploadFile}
-            onNavigateUp={navigateUp}
-            onCreateFolder={createFolder}
-            onRefreshDirectory={refreshDirectory}
-            onTriggerUpload={triggerUpload}
-            onActivateTextEditor={openTextEditorApp}
-            className="h-full"
+            onRenameEntry={async (entry) => {
+              const renamedPath = await renameEntryAtPath(entry);
+              if (!renamedPath) {
+                return;
+              }
+              updateDesktopExplorerState(windowState.id, (currentState) => ({
+                ...currentState,
+                current_path: replacePathPrefix(
+                  currentState.current_path,
+                  entry.path,
+                  renamedPath
+                ),
+                selected_paths: [renamedPath],
+                anchor_path: renamedPath,
+              }));
+            }}
+            onDeleteEntry={async (entry) => {
+              const didDelete = await deleteEntryAtPath(entry);
+              if (!didDelete) {
+                return;
+              }
+              updateDesktopExplorerState(windowState.id, (currentState) => {
+                const nextPath =
+                  currentState.current_path === entry.path ||
+                  currentState.current_path.startsWith(`${entry.path}/`)
+                    ? getParentPath(entry.path)
+                    : currentState.current_path;
+                if (nextPath !== currentState.current_path) {
+                  void loadDirectory(nextPath);
+                }
+                return {
+                  ...currentState,
+                  current_path: nextPath,
+                  selected_paths: currentState.selected_paths.filter(
+                    (path) =>
+                      path !== entry.path && !path.startsWith(`${entry.path}/`)
+                  ),
+                  anchor_path:
+                    currentState.anchor_path === entry.path
+                      ? null
+                      : currentState.anchor_path,
+                };
+              });
+            }}
+            onMoveEntries={async (entriesToMove, destinationPath) => {
+              const movedPaths = await moveEntries(
+                entriesToMove,
+                destinationPath
+              );
+              setDesktopExplorerSelection(
+                windowState.id,
+                movedPaths,
+                movedPaths[movedPaths.length - 1] ?? null
+              );
+            }}
           />
         );
       }
@@ -3223,36 +3719,36 @@ export default function NeuralLabsPage() {
     [
       activePane,
       activeTab,
-      activateTreeEntry,
       addTab,
       canSplitActiveTab,
       closePaneById,
       closeTabById,
       copyPath,
-      createFolder,
-      currentPath,
-      deletePath,
+      createFolderAtPath,
       downloadFile,
+      desktopExplorerStates,
       environmentStatus,
-      expandedPaths,
+      deleteEntryAtPath,
+      isPreviewable,
       layout,
       loadingPaths,
-      moveEntry,
-      navigateUp,
+      loadDirectory,
+      moveEntries,
+      navigateDesktopExplorerBack,
+      navigateDesktopExplorerForward,
+      navigateDesktopExplorerToPath,
+      navigateDesktopExplorerUp,
       openPreview,
-      pathLabel,
-      refreshDirectory,
-      renamePath,
-      selectEntry,
-      selectedPath,
+      refreshDirectoryPaths,
+      renameEntryAtPath,
       setActivePane,
       setActiveTab,
+      setDesktopExplorerSelection,
       desktopBackgroundId,
       splitActiveTab,
-      toggleDirectory,
       treeEntries,
-      uploadFile,
       uploadFilesToPath,
+      updateDesktopExplorerState,
     ]
   );
 

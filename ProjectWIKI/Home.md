@@ -44,7 +44,9 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - taskbar apps now show their names on hover via the Neural Labs tooltip treatment instead of always rendering text labels inline
     - desktop taskbar icons restore minimized app windows, focus the front-most running instance on left click, and expose `New Window` on right click for multi-window apps such as `Terminal`, `File Explorer`, and `Text Editor`
     - desktop `Terminal` app reuses the same multi-terminal tabs, split panes, status polling, and terminal navigator controls inside the app window
-    - desktop `File Explorer` app reuses the existing file tree/actions and opens previews/editors in floating windows
+    - desktop `File Explorer` app now uses a Finder-style explorer instead of the legacy tree navigator: per-window folder history, breadcrumb navigation, sidebar locations, icon/list views, click-through folders, and drag/drop move or upload behavior
+    - desktop file explorer windows keep their own path, history, selection, and view mode instead of sharing the legacy navigator state
+    - previews and editor-backed files still open as separate floating windows from the desktop explorer
     - desktop settings currently allow choosing a persisted desktop background preset
     - desktop app windows now support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snapping (`N/NE/E/SE/S/SW/W/NW`), and minimize-to-taskbar behavior
     - Terminal Navigator now shows a lone terminal as `Terminal 1` without wrapping it in a group; grouped views only appear when a tab actually has multiple panes
