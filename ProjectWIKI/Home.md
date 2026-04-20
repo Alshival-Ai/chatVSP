@@ -55,16 +55,10 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - KMZ/Leaflet preview is loaded client-only to avoid `window is not defined` SSR failures on `/neural-labs`
   - terminal websocket auth aligned for prod (`/api/neural-labs/terminal/ws?token=...&terminal_token=...`)
   - managed shell banner and login profile initialization
-  - per-user Codex config bootstrap at `~/.codex/config.toml`
-  - OpenAI Codex runtime config using custom provider ID `openai-custom` (to avoid overriding reserved built-in IDs)
-  - API key sourced from Onyx provider settings and injected as `OPENAI_API_KEY`
-  - fixed OpenAI endpoint in Codex config (`https://api.openai.com/v1`)
   - preinstalled terminal CLIs in Neural Labs backend image:
-    - `codex` (`@openai/codex`)
     - `claude` (Anthropic native installer via `https://claude.ai/install.sh`)
-    - image also restores CLI paths from `/etc/profile.d` so login shells still resolve `codex` and `claude`
+    - image also restores CLI paths from `/etc/profile.d` so login shells still resolve `claude`
   - shell env injection from configured providers:
-    - `OPENAI_API_KEY` (required for `codex`)
     - preferred Claude Code path is Microsoft Foundry when the configured `azure` provider uses a Foundry Claude endpoint (`https://{resource}.services.ai.azure.com/anthropic`):
       - `CLAUDE_CODE_USE_FOUNDRY=1`
       - `ANTHROPIC_FOUNDRY_BASE_URL=https://{resource}.services.ai.azure.com/anthropic`
@@ -81,10 +75,10 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
       - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
     - fallback path only: `ANTHROPIC_API_KEY` remains supported when neither Foundry nor Bedrock is configured
   - Claude defaults now prefer AWS Bedrock provider models over direct Anthropic when a Bedrock provider is configured
+  - Neural Labs no longer provisions OpenAI/Codex credentials or config; the managed shell is Claude-only
+  - Build/Craft sandbox sessions now resolve Bedrock Claude only and pass the selected Bedrock region into the local `opencode` subprocess
 - Important behavior:
-  - Neural Labs no longer writes any MCP server entries into `~/.codex/config.toml`
-  - this prevents legacy `onyx` / `wardgpt` MCP bootstrap leakage from imported Codex Labs examples
-  - Claude/OpenAI shell env is now persisted into `~/.neural_labs_env` and sourced from `~/.bashrc`
+  - managed Claude shell env is persisted into `~/.neural_labs_env` and sourced from `~/.bashrc`
   - Neural Labs recreates existing terminal sessions when managed env overrides change, so stale Claude provider/model state is not reused across launches
 - Current deployment requirement:
   - `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
@@ -102,4 +96,4 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - `bedrock:GetInferenceProfile`
   - for `us.anthropic.*` cross-region inference profiles, invoke permissions must cover the routed Bedrock foundation-model ARNs in all destination regions, not only `us-east-1`
 - Note:
-  - infrastructure-level Codex/Craft compose wiring remains intentionally separate from this Neural Labs parity import.
+  - Craft onboarding and recommended model selection are now Bedrock Claude only; legacy OpenAI/OpenRouter onboarding choices were removed from the curated flow.

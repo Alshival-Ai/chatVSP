@@ -18,6 +18,8 @@ class LLMProviderConfig(BaseModel):
     model_name: str
     api_key: str | None
     api_base: str | None
+    env_overrides: dict[str, str] | None = None
+    env_unsets: list[str] | None = None
 
 
 class SandboxInfo(BaseModel):

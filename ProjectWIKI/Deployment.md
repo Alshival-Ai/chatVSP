@@ -111,16 +111,10 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - KMZ preview uses a client-only Leaflet bundle to avoid server-side `window is not defined` crashes on the Neural Labs page
 - websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
 - managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
-- Codex bootstrap config written to `~/.codex/config.toml`
-- OpenAI Codex provider bootstrap using Onyx LLM provider credentials
-- Codex config uses custom provider ID `openai-custom` with OpenAI default base URL (`https://api.openai.com/v1`)
-- fixed Codex OpenAI endpoint (`https://api.openai.com/v1`)
 - backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
-  - `@openai/codex`
   - `claude` via Anthropic native installer (`curl -fsSL https://claude.ai/install.sh | bash`)
   - `/etc/profile.d` restores `/root/.local/bin` and `/root/.opencode/bin` for login shells so `bash -lc 'claude ...'` still works after `/etc/profile` rewrites `PATH`
 - Neural Labs shell sessions inject provider credentials/config:
-  - `OPENAI_API_KEY` from the OpenAI provider (required for Codex)
   - preferred Claude Code path is Microsoft Foundry when the configured `azure` provider points at a Foundry Claude endpoint:
     - `CLAUDE_CODE_USE_FOUNDRY=1`
     - `ANTHROPIC_FOUNDRY_BASE_URL=https://{resource}.services.ai.azure.com/anthropic`
@@ -136,6 +130,8 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
     - `ANTHROPIC_DEFAULT_OPUS_MODEL=global.anthropic.claude-opus-4-6-v1`
     - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
   - direct Anthropic fallback remains supported via `ANTHROPIC_API_KEY` only when neither Foundry nor Bedrock is configured
+- Neural Labs no longer provisions OpenAI/Codex credentials or config; the managed shell is Claude-only
+- Build/Craft sessions now resolve Bedrock Claude only and pass the configured Bedrock region into the local `opencode` subprocess
 
 Bedrock rollout notes:
 
@@ -154,10 +150,6 @@ Bedrock rollout notes:
   - `global.anthropic.claude-opus-4-6-v1` invokes successfully from the runtime role
   - `global.anthropic.claude-opus-4-7` and `us.anthropic.claude-opus-4-7` currently fail with AWS Marketplace entitlement errors
 - Bedrock Claude model access must be enabled in the AWS account before rollout
-
-Neural Labs intentionally does not write MCP server blocks into `~/.codex/config.toml`.
-This avoids cross-app inheritance from imported WardGPT / Onyx examples and prevents stale
-`onyx` / `wardgpt` MCP startup failures in provisioned user shells.
 
 Neural Labs also persists managed shell env into `~/.neural_labs_env` and sources it from
 `~/.bashrc`. Existing terminal sessions are recreated when the managed env changes so Claude

@@ -16,7 +16,7 @@ import {
 import { updateUserPersonalization } from "@/lib/userSettings";
 import { useBuildSessionStore } from "@/app/craft/hooks/useBuildSessionStore";
 
-// Check if the baseline build-mode providers are configured.
+// Check if the baseline Bedrock Claude provider is configured.
 function checkAllProvidersConfigured(
   llmProviders: import("@/interfaces/llm").LLMProviderDescriptor[] | undefined
 ): boolean {
@@ -24,11 +24,7 @@ function checkAllProvidersConfigured(
     return false;
   }
   const configuredProviders = new Set(llmProviders.map((p) => p.provider));
-  return (
-    configuredProviders.has(LLMProviderName.ANTHROPIC) &&
-    configuredProviders.has(LLMProviderName.OPENAI) &&
-    configuredProviders.has(LLMProviderName.OPENROUTER)
-  );
+  return configuredProviders.has(LLMProviderName.BEDROCK);
 }
 
 // Check if at least one provider is configured

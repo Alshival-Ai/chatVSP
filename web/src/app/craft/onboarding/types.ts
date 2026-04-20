@@ -48,7 +48,7 @@ export interface OnboardingModalController {
   // State
   isAdmin: boolean;
   hasUserInfo: boolean; // User has completed user-info (name + workArea)
-  allProvidersConfigured: boolean; // All 3 providers (anthropic, openai, openrouter) are configured
+  allProvidersConfigured: boolean; // Baseline Bedrock Claude provider is configured
   hasAnyProvider: boolean; // At least 1 provider is configured (allows skipping)
   isLoading: boolean; // True while LLM providers are loading
 

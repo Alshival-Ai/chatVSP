@@ -154,6 +154,8 @@ class ACPAgentClient:
         opencode_path: str | None = None,
         client_info: dict[str, Any] | None = None,
         client_capabilities: dict[str, Any] | None = None,
+        env_overrides: dict[str, str] | None = None,
+        env_unsets: list[str] | None = None,
         auto_start: bool = True,
     ) -> None:
         """Initialize the ACP client.
@@ -179,6 +181,8 @@ class ACPAgentClient:
         self._process: subprocess.Popen[str] | None = None
         self._read_lock = threading.Lock()
         self._cwd: str | None = None
+        self._env_overrides = env_overrides or {}
+        self._env_unsets = env_unsets or []
 
         # Auto-start if cwd provided
         if cwd and auto_start:
@@ -225,6 +229,10 @@ class ACPAgentClient:
             )
 
         self._cwd = cwd or os.getcwd()
+        env = os.environ.copy()
+        for key in self._env_unsets:
+            env.pop(key, None)
+        env.update(self._env_overrides)
 
         # Start the opencode acp process
         self._process = subprocess.Popen(
@@ -233,6 +241,7 @@ class ACPAgentClient:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            env=env,
         )
 
         try:

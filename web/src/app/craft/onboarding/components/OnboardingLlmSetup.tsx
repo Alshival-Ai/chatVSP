@@ -8,7 +8,7 @@ import SimpleTooltip from "@/refresh-components/SimpleTooltip";
 import { LLMProviderName, LLMProviderDescriptor } from "@/interfaces/llm";
 
 // Provider configurations
-export type ProviderKey = "anthropic" | "openai" | "openrouter";
+export type ProviderKey = "bedrock";
 
 interface ModelOption {
   name: string;
@@ -22,53 +22,34 @@ export interface ProviderConfig {
   providerName: LLMProviderName;
   recommended?: boolean;
   models: ModelOption[];
-  apiKeyPlaceholder: string;
-  apiKeyUrl: string;
-  apiKeyLabel: string;
+  requiresApiKey: boolean;
+  apiKeyPlaceholder?: string;
+  apiKeyUrl?: string;
+  apiKeyLabel?: string;
 }
 
 export const PROVIDERS: ProviderConfig[] = [
   {
-    key: "anthropic",
-    label: "Anthropic",
-    providerName: LLMProviderName.ANTHROPIC,
+    key: "bedrock",
+    label: "Bedrock",
+    providerName: LLMProviderName.BEDROCK,
     recommended: true,
     models: [
-      { name: "claude-opus-4-6", label: "Claude Opus 4.6", recommended: true },
-      { name: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    ],
-    apiKeyPlaceholder: "sk-ant-...",
-    apiKeyUrl: "https://console.anthropic.com/dashboard",
-    apiKeyLabel: "Anthropic Console",
-  },
-  {
-    key: "openai",
-    label: "OpenAI",
-    providerName: LLMProviderName.OPENAI,
-    models: [
-      { name: "gpt-5.2", label: "GPT-5.2", recommended: true },
-      { name: "gpt-5.1", label: "GPT-5.1" },
-    ],
-    apiKeyPlaceholder: "sk-...",
-    apiKeyUrl: "https://platform.openai.com/api-keys",
-    apiKeyLabel: "OpenAI Dashboard",
-  },
-  {
-    key: "openrouter",
-    label: "OpenRouter",
-    providerName: LLMProviderName.OPENROUTER,
-    models: [
       {
-        name: "moonshotai/kimi-k2-thinking",
-        label: "Kimi K2 Thinking",
+        name: "global.anthropic.claude-opus-4-6-v1",
+        label: "Claude Opus 4.6",
         recommended: true,
       },
-      { name: "google/gemini-3-pro-preview", label: "Gemini 3 Pro" },
-      { name: "qwen/qwen3-235b-a22b-thinking-2507", label: "Qwen3 235B" },
+      {
+        name: "us.anthropic.claude-sonnet-4-6",
+        label: "Claude Sonnet 4.6",
+      },
+      {
+        name: "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        label: "Claude Haiku 4.5",
+      },
     ],
-    apiKeyPlaceholder: "sk-or-...",
-    apiKeyUrl: "https://openrouter.ai/keys",
-    apiKeyLabel: "OpenRouter Dashboard",
+    requiresApiKey: false,
   },
 ];
 
@@ -286,23 +267,31 @@ export default function OnboardingLlmSetup({
         </div>
       </div>
 
-      {/* API Key input */}
+      {/* Connection details */}
       <div className="flex flex-col gap-3 items-center">
         <Text mainUiBody text04>
-          API Key
+          Connection
         </Text>
         <div className="w-full max-w-md">
-          <Disabled disabled={connectionStatus === "testing"} allowClick>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => handleApiKeyChange(e.target.value)}
-              placeholder={currentProviderConfig.apiKeyPlaceholder}
-              disabled={connectionStatus === "testing"}
-              className="w-full px-3 py-2 rounded-08 input-normal text-text-04 placeholder:text-text-02 focus:outline-none"
-            />
-          </Disabled>
-          {/* Message area */}
+          {currentProviderConfig.requiresApiKey ? (
+            <Disabled disabled={connectionStatus === "testing"} allowClick>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => handleApiKeyChange(e.target.value)}
+                placeholder={currentProviderConfig.apiKeyPlaceholder}
+                disabled={connectionStatus === "testing"}
+                className="w-full px-3 py-2 rounded-08 input-normal text-text-04 placeholder:text-text-02 focus:outline-none"
+              />
+            </Disabled>
+          ) : (
+            <div className="rounded-12 border border-border-01 bg-background-tint-00 px-4 py-3 text-center">
+              <Text secondaryBody text03>
+                Bedrock uses the instance IAM role. No API key is required.
+              </Text>
+            </div>
+          )}
+
           <div className="min-h-[2rem] flex justify-center pt-4">
             {connectionStatus === "error" && (
               <Text secondaryBody className="text-red-500">

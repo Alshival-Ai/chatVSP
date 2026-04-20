@@ -1,16 +1,6 @@
 from onyx.server.features.neural_labs import provisioning
 
 
-def test_build_codex_config_toml_omits_mcp_servers() -> None:
-    config_text = provisioning._build_codex_config_toml("gpt-5.4")
-
-    assert 'model = "gpt-5.4"' in config_text
-    assert '[model_providers.openai-custom]' in config_text
-    assert "[mcp_servers." not in config_text
-    assert "wardgpt" not in config_text.lower()
-    assert "onyx" not in config_text.lower()
-
-
 def test_resolve_bedrock_claude_settings_uses_provider_region(
     monkeypatch,
 ) -> None:
@@ -28,6 +18,7 @@ def test_resolve_bedrock_claude_settings_uses_provider_region(
     assert env == {
         "CLAUDE_CODE_USE_BEDROCK": "1",
         "AWS_REGION": "us-east-1",
+        "AWS_DEFAULT_REGION": "us-east-1",
         "ANTHROPIC_DEFAULT_SONNET_MODEL": "us.anthropic.claude-sonnet-4-6",
         "ANTHROPIC_DEFAULT_OPUS_MODEL": "global.anthropic.claude-opus-4-6-v1",
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
@@ -97,15 +88,11 @@ def test_provision_neural_labs_home_returns_claude_env_without_openai(
 ) -> None:
     monkeypatch.setattr(
         provisioning,
-        "_resolve_openai_codex_settings",
-        lambda db_session: ("gpt-5.4", None),
-    )
-    monkeypatch.setattr(
-        provisioning,
         "_resolve_bedrock_claude_settings",
         lambda db_session: {
             "CLAUDE_CODE_USE_BEDROCK": "1",
             "AWS_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-east-1",
         },
     )
 
@@ -114,17 +101,13 @@ def test_provision_neural_labs_home_returns_claude_env_without_openai(
     assert env == {
         "CLAUDE_CODE_USE_BEDROCK": "1",
         "AWS_REGION": "us-east-1",
+        "AWS_DEFAULT_REGION": "us-east-1",
     }
 
 
 def test_provision_neural_labs_home_prefers_foundry_over_bedrock(
     monkeypatch, tmp_path
 ) -> None:
-    monkeypatch.setattr(
-        provisioning,
-        "_resolve_openai_codex_settings",
-        lambda db_session: ("gpt-5.4", None),
-    )
     monkeypatch.setattr(
         provisioning,
         "_resolve_foundry_claude_settings",
@@ -155,6 +138,7 @@ def test_build_shell_env_file_unsets_aws_keys_for_bedrock_iam() -> None:
         {
             "CLAUDE_CODE_USE_BEDROCK": "1",
             "AWS_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-east-1",
             "ANTHROPIC_DEFAULT_OPUS_MODEL": "global.anthropic.claude-opus-4-6-v1",
         }
     )
@@ -164,6 +148,7 @@ def test_build_shell_env_file_unsets_aws_keys_for_bedrock_iam() -> None:
     assert "unset AWS_SESSION_TOKEN" in env_text
     assert "export CLAUDE_CODE_USE_BEDROCK='1'" in env_text
     assert "export AWS_REGION='us-east-1'" in env_text
+    assert "export AWS_DEFAULT_REGION='us-east-1'" in env_text
 
 
 def test_provision_neural_labs_home_writes_shell_env_file(
@@ -171,15 +156,11 @@ def test_provision_neural_labs_home_writes_shell_env_file(
 ) -> None:
     monkeypatch.setattr(
         provisioning,
-        "_resolve_openai_codex_settings",
-        lambda db_session: ("gpt-5.4", None),
-    )
-    monkeypatch.setattr(
-        provisioning,
         "_resolve_bedrock_claude_settings",
         lambda db_session: {
             "CLAUDE_CODE_USE_BEDROCK": "1",
             "AWS_REGION": "us-east-1",
+            "AWS_DEFAULT_REGION": "us-east-1",
         },
     )
 

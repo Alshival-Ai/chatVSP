@@ -96,7 +96,19 @@ from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
 
-OPENAI_STANDARD_API_BASE = "https://api.openai.com/v1"
+DEFAULT_BEDROCK_REGION = "us-east-1"
+BEDROCK_AWS_REGION_ENV = "AWS_REGION"
+BEDROCK_AWS_DEFAULT_REGION_ENV = "AWS_DEFAULT_REGION"
+BEDROCK_IAM_AUTH_METHOD = "iam"
+BEDROCK_AUTH_METHOD_CONFIG_KEY = "BEDROCK_AUTH_METHOD"
+BEDROCK_REGION_CONFIG_KEY = "AWS_REGION_NAME"
+BEDROCK_IAM_ENV_UNSETS = [
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "AWS_PROFILE",
+    "AWS_DEFAULT_PROFILE",
+]
 
 
 class UploadLimitExceededError(ValueError):
@@ -312,11 +324,11 @@ class SessionManager:
         requested_provider_type: str | None,
         requested_model_name: str | None,
     ) -> LLMProviderConfig:
-        """Get OpenAI-only LLM config for sandbox provisioning.
+        """Get Bedrock Claude config for sandbox provisioning.
 
         Args:
-            requested_provider_type: Provider type from user's cookie (e.g., "anthropic", "openai")
-            requested_model_name: Model name from user's cookie (e.g., "claude-opus-4-5")
+            requested_provider_type: Provider type from user's cookie
+            requested_model_name: Model name from user's cookie
 
         Returns:
             LLMProviderConfig for sandbox provisioning
@@ -325,57 +337,64 @@ class SessionManager:
             ValueError: If no LLM provider is configured
         """
         if requested_provider_type and requested_provider_type != str(
-            LlmProviderNames.OPENAI
+            LlmProviderNames.BEDROCK
         ):
             logger.warning(
-                "Ignoring non-OpenAI build provider request '%s'; Build uses OpenAI only.",
+                "Ignoring non-Bedrock build provider request '%s'; Build uses Bedrock Claude only.",
                 requested_provider_type,
             )
 
-        openai_provider = fetch_llm_provider_by_type_for_build_mode(
-            self._db_session, str(LlmProviderNames.OPENAI)
+        bedrock_provider = fetch_llm_provider_by_type_for_build_mode(
+            self._db_session, str(LlmProviderNames.BEDROCK)
         )
-        if not openai_provider:
+        if not bedrock_provider:
             raise ValueError(
-                "Build requires an OpenAI provider. Configure OpenAI credentials in Admin > LLM Providers."
-            )
-        if not openai_provider.api_key:
-            raise ValueError(
-                "Build requires an OpenAI API key. Update the OpenAI provider in Admin > LLM Providers."
+                "Build requires a Bedrock provider. Configure Claude on Bedrock in Admin > LLM Providers."
             )
 
-        model_name = self._resolve_openai_model_name(
-            openai_provider=openai_provider,
+        model_name = self._resolve_bedrock_model_name(
+            bedrock_provider=bedrock_provider,
             requested_provider_type=requested_provider_type,
             requested_model_name=requested_model_name,
         )
+        region = self._get_bedrock_region(bedrock_provider)
+        env_overrides = {
+            BEDROCK_AWS_REGION_ENV: region,
+            BEDROCK_AWS_DEFAULT_REGION_ENV: region,
+        }
 
         return LLMProviderConfig(
-            provider=str(LlmProviderNames.OPENAI),
+            provider=str(LlmProviderNames.BEDROCK),
             model_name=model_name,
-            api_key=openai_provider.api_key,
-            api_base=OPENAI_STANDARD_API_BASE,
+            api_key=None,
+            api_base=None,
+            env_overrides=env_overrides,
+            env_unsets=(
+                BEDROCK_IAM_ENV_UNSETS
+                if self._uses_bedrock_iam_auth(bedrock_provider)
+                else None
+            ),
         )
 
-    def _resolve_openai_model_name(
+    def _resolve_bedrock_model_name(
         self,
-        openai_provider: LLMProviderView,
+        bedrock_provider: LLMProviderView,
         requested_provider_type: str | None,
         requested_model_name: str | None,
     ) -> str:
         if (
-            requested_provider_type in (None, str(LlmProviderNames.OPENAI))
+            requested_provider_type in (None, str(LlmProviderNames.BEDROCK))
             and requested_model_name
         ):
             return requested_model_name
 
         default_model = fetch_default_llm_model(self._db_session)
         if default_model and default_model.llm_provider.provider == str(
-            LlmProviderNames.OPENAI
+            LlmProviderNames.BEDROCK
         ):
             return default_model.name
 
-        provider_models = openai_provider.model_configurations
+        provider_models = bedrock_provider.model_configurations
         visible_models = [model.name for model in provider_models if model.is_visible]
         if visible_models:
             return visible_models[0]
@@ -383,8 +402,23 @@ class SessionManager:
             return provider_models[0].name
 
         raise ValueError(
-            "Build requires at least one OpenAI model configuration in Admin > LLM Providers."
+            "Build requires at least one visible Bedrock Claude model in Admin > LLM Providers."
         )
+
+    def _get_bedrock_region(self, bedrock_provider: LLMProviderView) -> str:
+        region = (
+            (bedrock_provider.custom_config or {}).get(BEDROCK_REGION_CONFIG_KEY)
+            or DEFAULT_BEDROCK_REGION
+        )
+        return region.strip() or DEFAULT_BEDROCK_REGION
+
+    def _uses_bedrock_iam_auth(self, bedrock_provider: LLMProviderView) -> bool:
+        auth_method = (bedrock_provider.custom_config or {}).get(
+            BEDROCK_AUTH_METHOD_CONFIG_KEY
+        )
+        if not auth_method:
+            return True
+        return auth_method.strip().lower() == BEDROCK_IAM_AUTH_METHOD
 
     # =========================================================================
     # Session CRUD Operations
@@ -426,8 +460,8 @@ class SessionManager:
             name: Optional session name
             user_work_area: User's work area for demo persona (e.g., "engineering")
             user_level: User's level for demo persona (e.g., "ic", "manager")
-            llm_provider_type: Provider type from user's cookie (e.g., "anthropic", "openai")
-            llm_model_name: Model name from user's cookie (e.g., "claude-opus-4-5")
+            llm_provider_type: Provider type from user's cookie (Bedrock is enforced)
+            llm_model_name: Model name from user's cookie (e.g., "global.anthropic.claude-opus-4-6-v1")
             demo_data_enabled: Explicit flag for demo data mode. Defaults to True if not provided.
 
         Returns:
@@ -644,8 +678,8 @@ class SessionManager:
             user_id: The user ID
             user_work_area: User's work area for demo persona (e.g., "engineering")
             user_level: User's level for demo persona (e.g., "ic", "manager")
-            llm_provider_type: Provider type from user's cookie (e.g., "anthropic", "openai")
-            llm_model_name: Model name from user's cookie (e.g., "claude-opus-4-5")
+            llm_provider_type: Provider type from user's cookie (Bedrock is enforced)
+            llm_model_name: Model name from user's cookie (e.g., "global.anthropic.claude-opus-4-6-v1")
             demo_data_enabled: Explicit flag for demo data mode. Defaults to True if not provided.
 
         Returns:

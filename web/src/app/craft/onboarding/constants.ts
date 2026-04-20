@@ -9,15 +9,13 @@ export interface BuildLlmSelection {
 }
 
 const BEDROCK_CLAUDE_SONNET_MODEL = "us.anthropic.claude-sonnet-4-6";
-const BEDROCK_CLAUDE_OPUS_MODEL = "us.anthropic.claude-opus-4-7";
+const BEDROCK_CLAUDE_OPUS_MODEL = "global.anthropic.claude-opus-4-6-v1";
 const BEDROCK_CLAUDE_HAIKU_MODEL =
   "us.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 // Priority order for smart default LLM selection
 const LLM_SELECTION_PRIORITY = [
   { provider: "bedrock", modelName: BEDROCK_CLAUDE_OPUS_MODEL },
-  { provider: "openai", modelName: "gpt-5.2" },
-  { provider: "openrouter", modelName: "minimax/minimax-m2.1" },
 ] as const;
 
 // Minimal provider interface for selection logic
@@ -29,7 +27,7 @@ interface MinimalLlmProvider {
 
 /**
  * Get the best default LLM selection based on available providers.
- * Priority: Bedrock Claude > OpenAI > OpenRouter > first available
+ * Priority: Bedrock Claude > first available
  */
 export function getDefaultLlmSelection(
   llmProviders: MinimalLlmProvider[] | undefined
@@ -69,7 +67,7 @@ export const RECOMMENDED_BUILD_MODELS = {
   preferred: {
     provider: "bedrock",
     modelName: BEDROCK_CLAUDE_OPUS_MODEL,
-    displayName: "Claude Opus 4.7 (Bedrock)",
+    displayName: "Claude Opus 4.6 (Bedrock)",
   },
   alternatives: [
     {
@@ -80,9 +78,6 @@ export const RECOMMENDED_BUILD_MODELS = {
       provider: "bedrock",
       modelName: BEDROCK_CLAUDE_HAIKU_MODEL,
     },
-    { provider: "openai", modelName: "gpt-5.2" },
-    { provider: "openai", modelName: "gpt-5.1-codex" },
-    { provider: "openrouter", modelName: "minimax/minimax-m2.1" },
   ],
 } as const;
 
@@ -147,6 +142,7 @@ export interface BuildModeProvider {
   providerName: string;
   recommended?: boolean;
   models: BuildModeModel[];
+  requiresApiKey?: boolean;
   // API-related fields (optional, only needed for onboarding modal)
   apiKeyPlaceholder?: string;
   apiKeyUrl?: string;
@@ -155,44 +151,26 @@ export interface BuildModeProvider {
 
 export const BUILD_MODE_PROVIDERS: BuildModeProvider[] = [
   {
-    key: "anthropic",
-    label: "Anthropic",
-    providerName: "anthropic",
+    key: "bedrock",
+    label: "Bedrock",
+    providerName: "bedrock",
     recommended: true,
     models: [
-      { name: "claude-opus-4-6", label: "Claude Opus 4.6", recommended: true },
-      { name: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    ],
-    apiKeyPlaceholder: "sk-ant-...",
-    apiKeyUrl: "https://console.anthropic.com/dashboard",
-    apiKeyLabel: "Anthropic Console",
-  },
-  {
-    key: "openai",
-    label: "OpenAI",
-    providerName: "openai",
-    models: [
-      { name: "gpt-5.2", label: "GPT-5.2", recommended: true },
-      { name: "gpt-5.1-codex", label: "GPT-5.1 Codex" },
-    ],
-    apiKeyPlaceholder: "sk-...",
-    apiKeyUrl: "https://platform.openai.com/api-keys",
-    apiKeyLabel: "OpenAI Dashboard",
-  },
-  {
-    key: "openrouter",
-    label: "OpenRouter",
-    providerName: "openrouter",
-    models: [
       {
-        name: "minimax/minimax-m2.1",
-        label: "MiniMax M2.1",
+        name: BEDROCK_CLAUDE_OPUS_MODEL,
+        label: "Claude Opus 4.6",
         recommended: true,
       },
+      {
+        name: BEDROCK_CLAUDE_SONNET_MODEL,
+        label: "Claude Sonnet 4.6",
+      },
+      {
+        name: BEDROCK_CLAUDE_HAIKU_MODEL,
+        label: "Claude Haiku 4.5",
+      },
     ],
-    apiKeyPlaceholder: "sk-or-...",
-    apiKeyUrl: "https://openrouter.ai/keys",
-    apiKeyLabel: "OpenRouter Dashboard",
+    requiresApiKey: false,
   },
 ];
 

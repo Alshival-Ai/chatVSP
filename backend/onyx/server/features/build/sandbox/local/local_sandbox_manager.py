@@ -933,7 +933,11 @@ class LocalSandboxManager(SandboxManager):
             )
 
             # Create and start ACP client for this session
-            client = ACPAgentClient(cwd=str(session_path))
+            client = ACPAgentClient(
+                cwd=str(session_path),
+                env_overrides=llm_config.env_overrides,
+                env_unsets=llm_config.env_unsets,
+            )
             self._acp_clients[client_key] = client
 
         # Log the send_message call at sandbox manager level

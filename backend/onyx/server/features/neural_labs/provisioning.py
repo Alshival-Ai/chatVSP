@@ -6,27 +6,22 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from onyx.db.llm import fetch_default_llm_model
 from onyx.db.models import LLMProvider
 from onyx.llm.constants import LlmProviderNames
 from onyx.utils.logger import setup_logger
 
 logger = setup_logger()
 
-CODEX_CONFIG_DIR_NAME = ".codex"
-CODEX_CONFIG_FILE_NAME = "config.toml"
-OPENAI_ENV_KEY_NAME = "OPENAI_API_KEY"
 ANTHROPIC_ENV_KEY_NAME = "ANTHROPIC_API_KEY"
 CLAUDE_CODE_USE_FOUNDRY_ENV_KEY_NAME = "CLAUDE_CODE_USE_FOUNDRY"
 CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME = "CLAUDE_CODE_USE_BEDROCK"
 AWS_REGION_ENV_KEY_NAME = "AWS_REGION"
+AWS_DEFAULT_REGION_ENV_KEY_NAME = "AWS_DEFAULT_REGION"
 ANTHROPIC_FOUNDRY_API_KEY_ENV_KEY_NAME = "ANTHROPIC_FOUNDRY_API_KEY"
 ANTHROPIC_FOUNDRY_BASE_URL_ENV_KEY_NAME = "ANTHROPIC_FOUNDRY_BASE_URL"
 ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_SONNET_MODEL"
 ANTHROPIC_DEFAULT_OPUS_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_OPUS_MODEL"
 ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_HAIKU_MODEL"
-OPENAI_STANDARD_BASE_URL = "https://api.openai.com/v1"
-DEFAULT_OPENAI_CODEX_MODEL = "gpt-5.4"
 AZURE_FOUNDRY_ANTHROPIC_PATH = "/anthropic"
 DEFAULT_BEDROCK_REGION = "us-east-1"
 DEFAULT_BEDROCK_CLAUDE_SONNET_MODEL = "us.anthropic.claude-sonnet-4-6"
@@ -52,14 +47,7 @@ SHELL_BANNER_ENV_VAR = "NEURAL_LABS_BANNER_SHOWN"
 
 def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str, str]:
     """Provision managed Neural Labs files and return shell env overrides."""
-    model_name, openai_api_key = _resolve_openai_codex_settings(db_session)
     env_overrides: dict[str, str] = {}
-    if openai_api_key:
-        config_text = _build_codex_config_toml(model_name=model_name)
-        codex_dir = home_dir / CODEX_CONFIG_DIR_NAME
-        codex_dir.mkdir(parents=True, exist_ok=True)
-        (codex_dir / CODEX_CONFIG_FILE_NAME).write_text(config_text, encoding="utf-8")
-        env_overrides[OPENAI_ENV_KEY_NAME] = openai_api_key
 
     foundry_settings = _resolve_foundry_claude_settings(db_session)
     if foundry_settings:
@@ -77,51 +65,6 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
     _provision_shell_profile_banner(home_dir=home_dir)
     _provision_bash_profile(home_dir=home_dir)
     return env_overrides
-
-
-def _resolve_openai_codex_settings(db_session: Session) -> tuple[str, str | None]:
-    """Resolve OpenAI model+credentials from Onyx LLM provider settings."""
-    provider = _fetch_openai_provider(db_session)
-    if not provider:
-        logger.warning(
-            "Neural Labs OpenAI bootstrap skipped because no OpenAI provider is configured."
-        )
-        return DEFAULT_OPENAI_CODEX_MODEL, None
-
-    api_key = provider.api_key.get_value(apply_mask=False) if provider.api_key else None
-    if not api_key:
-        logger.warning(
-            "Neural Labs OpenAI bootstrap skipped because the OpenAI provider has no API key."
-        )
-        return DEFAULT_OPENAI_CODEX_MODEL, None
-
-    default_model = fetch_default_llm_model(db_session)
-    if default_model and default_model.llm_provider.provider == str(LlmProviderNames.OPENAI):
-        default_name = (default_model.name or "").strip()
-        if default_name:
-            return default_name, api_key
-
-    visible_models = [m.name for m in provider.model_configurations if m.is_visible and m.name]
-    if visible_models:
-        return visible_models[0], api_key
-
-    if provider.model_configurations and provider.model_configurations[0].name:
-        return provider.model_configurations[0].name, api_key
-
-    return DEFAULT_OPENAI_CODEX_MODEL, api_key
-
-
-def _fetch_openai_provider(db_session: Session) -> LLMProvider | None:
-    build_mode_name = "build-mode-openai"
-    provider = db_session.scalar(
-        select(LLMProvider).where(LLMProvider.name == build_mode_name)
-    )
-    if provider:
-        return provider
-
-    return db_session.scalar(
-        select(LLMProvider).where(LLMProvider.provider == str(LlmProviderNames.OPENAI))
-    )
 
 
 def _resolve_anthropic_api_key(db_session: Session) -> str | None:
@@ -173,6 +116,7 @@ def _resolve_bedrock_claude_settings(db_session: Session) -> dict[str, str] | No
     return {
         CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME: "1",
         AWS_REGION_ENV_KEY_NAME: region,
+        AWS_DEFAULT_REGION_ENV_KEY_NAME: region,
         ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_SONNET_MODEL,
         ANTHROPIC_DEFAULT_OPUS_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_OPUS_MODEL,
         ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_HAIKU_MODEL,
@@ -201,27 +145,6 @@ def _fetch_provider_by_type(db_session: Session, provider_type: str) -> LLMProvi
     return db_session.scalar(
         select(LLMProvider).where(LLMProvider.provider == provider_type)
     )
-
-
-def _build_codex_config_toml(model_name: str) -> str:
-    lines = [
-        "# Managed by Neural Labs. Manual edits may be overwritten.",
-        'approval_policy = "never"',
-        'sandbox_mode = "danger-full-access"',
-        "",
-        f"model = {_toml_quote(model_name)}",
-        'model_provider = "openai-custom"',
-        'model_reasoning_effort = "medium"',
-        "",
-        "[model_providers.openai-custom]",
-        'name = "OpenAI (Neural Labs)"',
-        f"base_url = {_toml_quote(OPENAI_STANDARD_BASE_URL)}",
-        f"env_key = {_toml_quote(OPENAI_ENV_KEY_NAME)}",
-        'wire_api = "responses"',
-        "",
-    ]
-
-    return "\n".join(lines).rstrip() + "\n"
 
 
 def _provision_shell_profile_banner(home_dir: Path) -> None:
@@ -375,11 +298,6 @@ def _build_bash_profile_block() -> str:
         "",
     ]
     return "\n".join(lines)
-
-
-def _toml_quote(value: str) -> str:
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
 
 
 def _shell_quote(value: str) -> str:

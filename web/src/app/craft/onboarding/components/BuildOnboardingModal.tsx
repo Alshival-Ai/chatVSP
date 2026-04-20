@@ -22,7 +22,7 @@ import {
   getBuildLlmSelection,
   getDefaultLlmSelection,
 } from "@/app/craft/onboarding/constants";
-import { LLMProviderDescriptor } from "@/interfaces/llm";
+import { LLMProviderDescriptor, LLMProviderName } from "@/interfaces/llm";
 import { LLM_PROVIDERS_ADMIN_URL } from "@/lib/llmConfig/constants";
 import { buildOnboardingInitialValues as buildInitialValues } from "@/sections/modals/llmConfig/utils";
 import { testApiKeyHelper } from "@/sections/modals/llmConfig/svc";
@@ -155,10 +155,10 @@ export default function BuildOnboardingModal({
 
   // LLM setup state
   const [selectedProvider, setSelectedProvider] = useState<ProviderKey>(
-    (initialProvider as ProviderKey) || "anthropic"
+    (initialProvider as ProviderKey) || "bedrock"
   );
   const [selectedModel, setSelectedModel] = useState<string>(
-    PROVIDERS.find((p) => p.key === (initialProvider || "anthropic"))?.models[0]
+    PROVIDERS.find((p) => p.key === (initialProvider || "bedrock"))?.models[0]
       ?.name || ""
   );
   const [apiKey, setApiKey] = useState("");
@@ -193,7 +193,10 @@ export default function BuildOnboardingModal({
   const currentProviderConfig = PROVIDERS.find(
     (p) => p.key === selectedProvider
   )!;
-  const isLlmValid = apiKey.trim() && selectedModel;
+  const isLlmValid =
+    (!!selectedModel &&
+      (!currentProviderConfig.requiresApiKey || !!apiKey.trim())) ||
+    connectionStatus === "success";
 
   // Calculate step navigation
   const currentStepIndex = steps.indexOf(currentStep);
@@ -216,7 +219,7 @@ export default function BuildOnboardingModal({
   };
 
   const handleConnect = async () => {
-    if (!apiKey.trim()) return;
+    if (currentProviderConfig.requiresApiKey && !apiKey.trim()) return;
 
     setConnectionStatus("testing");
     setErrorMessage("");
@@ -227,7 +230,7 @@ export default function BuildOnboardingModal({
       ...baseValues,
       name: providerName,
       provider: currentProviderConfig.providerName,
-      api_key: apiKey,
+      api_key: currentProviderConfig.requiresApiKey ? apiKey : undefined,
       default_model_name: selectedModel,
       model_configurations: currentProviderConfig.models.map((m) => ({
         name: m.name,
@@ -235,6 +238,13 @@ export default function BuildOnboardingModal({
         max_input_tokens: null,
         supports_image_input: true,
       })),
+      custom_config:
+        currentProviderConfig.providerName === LLMProviderName.BEDROCK
+          ? {
+              AWS_REGION_NAME: "us-east-1",
+              BEDROCK_AUTH_METHOD: "iam",
+            }
+          : {},
     };
 
     const testResult = await testApiKeyHelper(
@@ -251,12 +261,18 @@ export default function BuildOnboardingModal({
     }
 
     try {
+      const existingProvider = llmProviders?.find(
+        (provider) => provider.name === providerName
+      );
       const response = await fetch(
-        `${LLM_PROVIDERS_ADMIN_URL}?is_creation=true`,
+        `${LLM_PROVIDERS_ADMIN_URL}${existingProvider ? "" : "?is_creation=true"}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            ...payload,
+            id: existingProvider?.id,
+          }),
         }
       );
 
