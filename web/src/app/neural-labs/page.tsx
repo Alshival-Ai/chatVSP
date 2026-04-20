@@ -1753,6 +1753,8 @@ export default function NeuralLabsPage() {
   const [isNavigatorCollapsed, setIsNavigatorCollapsed] = useState(false);
   const [isTerminalNavigatorCollapsed, setIsTerminalNavigatorCollapsed] =
     useState(false);
+  const [isUploadingCustomBackground, setIsUploadingCustomBackground] =
+    useState(false);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
   const fileUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -1804,12 +1806,11 @@ export default function NeuralLabsPage() {
   useEffect(() => {
     const raw = window.localStorage.getItem(DESKTOP_BACKGROUND_STORAGE_KEY);
     if (
-      raw === "aurora" ||
-      raw === "graphite" ||
-      raw === "sunset-grid" ||
-      raw === "ocean-night"
+      raw &&
+      (isDesktopBackgroundPresetId(raw) ||
+        raw.startsWith(CUSTOM_DESKTOP_BACKGROUND_PREFIX))
     ) {
-      setDesktopBackgroundId(raw);
+      setDesktopBackgroundId(raw as DesktopBackgroundSelection);
     }
   }, []);
 
@@ -1819,6 +1820,27 @@ export default function NeuralLabsPage() {
       desktopBackgroundId
     );
   }, [desktopBackgroundId]);
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(
+      DESKTOP_CUSTOM_BACKGROUND_PATH_STORAGE_KEY
+    );
+    if (raw) {
+      setDesktopCustomBackgroundPath(raw);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (desktopCustomBackgroundPath) {
+      window.localStorage.setItem(
+        DESKTOP_CUSTOM_BACKGROUND_PATH_STORAGE_KEY,
+        desktopCustomBackgroundPath
+      );
+      return;
+    }
+
+    window.localStorage.removeItem(DESKTOP_CUSTOM_BACKGROUND_PATH_STORAGE_KEY);
+  }, [desktopCustomBackgroundPath]);
 
   useEffect(() => {
     if (!taskbarMenu) {
@@ -2866,6 +2888,75 @@ export default function NeuralLabsPage() {
     [currentPath, uploadFilesToPath]
   );
 
+  const uploadCustomBackground = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Choose an image file for the desktop background");
+        return;
+      }
+
+      setIsUploadingCustomBackground(true);
+
+      try {
+        const uploadFileName = getCustomDesktopBackgroundFilename(file);
+        const uploadTargetPath = `${CUSTOM_DESKTOP_BACKGROUND_DIRECTORY}/${uploadFileName}`;
+        const formData = new FormData();
+        formData.append(
+          "file",
+          new File([file], uploadFileName, { type: file.type || undefined })
+        );
+        formData.append("path", CUSTOM_DESKTOP_BACKGROUND_DIRECTORY);
+
+        const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(await getFetchErrorMessage(response));
+        }
+
+        const payload = (await response.json()) as { path?: string };
+        const nextPath =
+          typeof payload.path === "string" && payload.path
+            ? payload.path
+            : uploadTargetPath;
+
+        setDesktopCustomBackgroundPath(nextPath);
+        setDesktopBackgroundId(createCustomDesktopBackgroundSelection(nextPath));
+        setExpandedPaths((previousPaths) =>
+          previousPaths.includes(CUSTOM_DESKTOP_BACKGROUND_DIRECTORY)
+            ? previousPaths
+            : [...previousPaths, CUSTOM_DESKTOP_BACKGROUND_DIRECTORY]
+        );
+        await refreshDirectoryPaths([CUSTOM_DESKTOP_BACKGROUND_DIRECTORY], {
+          silent: true,
+        });
+        toast.success(`Uploaded ${file.name}`);
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Unable to upload custom background";
+        toast.error(message);
+      } finally {
+        setIsUploadingCustomBackground(false);
+      }
+    },
+    [refreshDirectoryPaths]
+  );
+
+  const selectCustomBackground = useCallback(() => {
+    if (!desktopCustomBackgroundPath) {
+      toast.error("Upload a custom background first");
+      return;
+    }
+
+    setDesktopBackgroundId(
+      createCustomDesktopBackgroundSelection(desktopCustomBackgroundPath)
+    );
+  }, [desktopCustomBackgroundPath]);
+
   const downloadFile = useCallback((entry: NeuralLabsFileEntry) => {
     triggerBrowserDownload(entry.path, entry.name);
   }, []);
@@ -3551,12 +3642,38 @@ export default function NeuralLabsPage() {
   }, [activeTerminalId, activeTerminalStatus?.state, isInitializingTerminals]);
 
   const currentDesktopBackground = useMemo(() => {
-    return (
-      DESKTOP_BACKGROUND_PRESETS.find(
-        (preset) => preset.id === desktopBackgroundId
-      ) ?? DESKTOP_BACKGROUND_PRESETS[0]!
-    );
-  }, [desktopBackgroundId]);
+    if (isDesktopBackgroundPresetId(desktopBackgroundId)) {
+      const preset =
+        DESKTOP_BACKGROUND_PRESETS.find(
+          (candidate) => candidate.id === desktopBackgroundId
+        ) ?? DESKTOP_BACKGROUND_PRESETS[0]!;
+
+      return {
+        name: preset.name,
+        desktopClassName: preset.desktopClassName,
+        desktopStyle: undefined,
+      };
+    }
+
+    const customPath =
+      getCustomDesktopBackgroundPath(desktopBackgroundId) ||
+      desktopCustomBackgroundPath;
+    if (customPath) {
+      return {
+        name: "Custom Upload",
+        desktopClassName: "bg-[#060b16] bg-cover bg-center",
+        desktopStyle: {
+          backgroundImage: `url(${getDesktopBackgroundContentUrl(customPath)})`,
+        },
+      };
+    }
+
+    return {
+      name: DESKTOP_BACKGROUND_PRESETS[2]!.name,
+      desktopClassName: DESKTOP_BACKGROUND_PRESETS[2]!.desktopClassName,
+      desktopStyle: undefined,
+    };
+  }, [desktopBackgroundId, desktopCustomBackgroundPath]);
 
   const desktopWindowContent = useCallback(
     (windowState: DesktopWindowState) => {
@@ -3693,7 +3810,11 @@ export default function NeuralLabsPage() {
         return (
           <NeuralLabsDesktopSettingsPanel
             selectedBackgroundId={desktopBackgroundId}
+            customBackgroundPath={desktopCustomBackgroundPath}
             onSelectBackground={setDesktopBackgroundId}
+            onSelectCustomBackground={selectCustomBackground}
+            onUploadCustomBackground={uploadCustomBackground}
+            isUploadingCustomBackground={isUploadingCustomBackground}
           />
         );
       }
@@ -3813,6 +3934,7 @@ export default function NeuralLabsPage() {
       <div className="relative h-[100dvh] w-full overflow-hidden bg-[#060b16] text-white">
         <div
           className={`absolute inset-0 ${currentDesktopBackground.desktopClassName}`}
+          style={currentDesktopBackground.desktopStyle}
         />
         <div className="absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent)]" />
 
@@ -3825,9 +3947,6 @@ export default function NeuralLabsPage() {
                   Neural Labs Desktop
                 </Text>
               </div>
-              <Text className="mt-1 text-white/60">
-                Browser workspace mode with windowed apps and live terminals.
-              </Text>
             </div>
             <div className="flex items-center gap-2">
               <div className="hidden items-center gap-1 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 md:flex">

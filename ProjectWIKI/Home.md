@@ -47,7 +47,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - desktop `File Explorer` app now uses a Finder-style explorer instead of the legacy tree navigator: per-window folder history, breadcrumb navigation, sidebar locations, icon/list views, click-through folders, and drag/drop move or upload behavior
     - desktop file explorer windows keep their own path, history, selection, and view mode instead of sharing the legacy navigator state
     - previews and editor-backed files still open as separate floating windows from the desktop explorer
-    - desktop settings currently allow choosing a persisted desktop background preset
+    - desktop settings now default to `Sunset Grid`, allow preset switching without extra per-card helper copy, and support uploading one custom desktop background image into the persisted Neural Labs workspace for reuse
     - desktop app windows now support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snapping (`N/NE/E/SE/S/SW/W/NW`), and minimize-to-taskbar behavior
     - Terminal Navigator now shows a lone terminal as `Terminal 1` without wrapping it in a group; grouped views only appear when a tab actually has multiple panes
     - file action icons now show explicit hover helper text for folder creation, upload, and refresh

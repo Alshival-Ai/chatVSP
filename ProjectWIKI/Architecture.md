@@ -46,7 +46,8 @@
   - desktop-only app windows (`File Explorer`, `Terminal`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
   - desktop app windows track snapped, maximized, and minimized state on the client so taskbar restore/focus behavior does not require backend changes
   - desktop file explorer windows keep separate per-window navigation state (`current_path`, back/forward history, selection, and icon/list mode) while reusing the shared file API/cache layer
-  - desktop presentation preferences such as the selected background preset persist in browser storage on the client
+  - desktop presentation preferences such as the selected preset/custom background choice persist in browser storage on the client
+  - uploaded custom desktop background images are stored in the user Neural Labs workspace under `~/.neural-labs/backgrounds/` and served back through the existing file-content API
 
 ## SSH Path
 
