@@ -47,7 +47,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - desktop `File Explorer` app now uses a Finder-style explorer instead of the legacy tree navigator: per-window folder history, breadcrumb navigation, sidebar locations, icon/list views, click-through folders, and drag/drop move or upload behavior
     - desktop `File Explorer` iconography now uses explicit theme-aware folder/file colors so the same icon treatment stays readable in both light and dark mode
     - desktop file explorer windows keep their own path, history, selection, and view mode instead of sharing the legacy navigator state
-    - previews and editor-backed files still open as separate floating windows from the desktop explorer
+    - desktop `Text Editor` is now a first-class desktop app window instead of the old preview-window editor: Monaco editor surface, per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
+    - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open into the focused desktop editor window as tabs rather than using a separate preview-window editor mode
     - desktop settings now default to `Sunset Grid`, allow preset switching without extra per-card helper copy, and support uploading or deleting one custom desktop background image in the persisted Neural Labs workspace
     - desktop mode now opens on a blank workspace without the bordered onboarding card when no windows are open
     - desktop app windows now support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snapping (`N/NE/E/SE/S/SW/W/NW`), and minimize-to-taskbar behavior
@@ -55,9 +56,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - file action icons now show explicit hover helper text for folder creation, upload, and refresh
     - Neural Labs action hover text now uses the themed white tooltip only; browser-native duplicate tooltips were removed and tooltip positioning is clamped within the viewport above floating windows
     - terminal and group deletion now lives in the Terminal Navigator via trash actions instead of top-bar close controls; standalone terminal and group delete icons are red, while in-group terminal delete icons remain neutral
-    - Text Editor continues to open as a floating window and can save pasted text directly into the workspace as a file; in desktop mode it is also launched from the taskbar
-    - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
-    - floating preview windows (snap/drag/resize) for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
+    - floating preview windows (snap/drag/resize) remain for image, PDF, HTML, KMZ, and XLSX files; text editing is now handled by the dedicated desktop editor app
     - floating preview windows now use the same slimmer Neural Labs desktop window chrome as app windows: matching title-bar density, macOS-style controls, and double-click maximize/restore behavior
     - desktop app windows and preview windows now share the same visual shell while still using separate state models for app windows vs persisted preview windows
     - HTML preview iframe now uses a path-based `/api/neural-labs/files/content/<path>` URL so relative `style.css`, `app.js`, and sibling asset requests resolve inside the selected workspace folder instead of collapsing to `/api/neural-labs/files/*`

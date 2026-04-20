@@ -14,14 +14,7 @@ export interface DirectoryResponse {
   entries: NeuralLabsFileEntry[];
 }
 
-export type PreviewKind =
-  | "image"
-  | "html"
-  | "text"
-  | "pdf"
-  | "kmz"
-  | "xlsx"
-  | "app-text-editor";
+export type PreviewKind = "image" | "html" | "text" | "pdf" | "kmz" | "xlsx";
 
 export type PreviewSnapZone =
   | "left"
@@ -59,7 +52,8 @@ export interface PreviewWindowState {
 export type NeuralLabsDesktopAppKind =
   | "file-explorer"
   | "terminal-workspace"
-  | "desktop-settings";
+  | "desktop-settings"
+  | "text-editor";
 
 export type DesktopExplorerViewMode = "icon" | "list";
 
@@ -86,6 +80,25 @@ export interface TerminalLayoutState {
 export interface DesktopTerminalWindowState {
   layout: TerminalLayoutState | null;
   is_initializing: boolean;
+}
+
+export interface DesktopEditorTabState {
+  tab_id: string;
+  path: string | null;
+  name: string;
+  mime_type: string | null;
+  content: string;
+  saved_content: string;
+  is_loading: boolean;
+  is_saving: boolean;
+  error_message: string | null;
+  last_saved_at: number | null;
+}
+
+export interface DesktopEditorWindowState {
+  tabs: DesktopEditorTabState[];
+  active_tab_id: string;
+  is_sidebar_open: boolean;
 }
 
 export interface DesktopExplorerState {

@@ -21,12 +21,15 @@ import Button from "@/refresh-components/buttons/Button";
 import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
 import NeuralLabsDesktopFileExplorer from "@/app/neural-labs/NeuralLabsDesktopFileExplorer";
+import NeuralLabsDesktopTextEditor from "@/app/neural-labs/NeuralLabsDesktopTextEditor";
 import NeuralLabsDesktopTerminal from "@/app/neural-labs/NeuralLabsDesktopTerminal";
 import NeuralLabsDesktopWindows from "@/app/neural-labs/NeuralLabsDesktopWindows";
 import NeuralLabsFileTree from "@/app/neural-labs/NeuralLabsFileTree";
 import NeuralLabsPreviewWindows from "@/app/neural-labs/NeuralLabsPreviewWindows";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import type {
+  DesktopEditorTabState,
+  DesktopEditorWindowState,
   DesktopTerminalWindowState,
   DesktopExplorerState,
   DesktopWindowState,
@@ -160,6 +163,10 @@ const DEFAULT_TERMINAL_WINDOW = {
 const DEFAULT_SETTINGS_WINDOW = {
   width: 520,
   height: 420,
+};
+const DEFAULT_TEXT_EDITOR_WINDOW = {
+  width: 1080,
+  height: 700,
 };
 const DESKTOP_BACKGROUND_PRESETS: {
   id: DesktopBackgroundPresetId;
@@ -333,6 +340,30 @@ function createDefaultDesktopTerminalWindowState(): DesktopTerminalWindowState {
   };
 }
 
+function createScratchEditorTab(): DesktopEditorTabState {
+  return {
+    tab_id: createLocalId(),
+    path: null,
+    name: "untitled.txt",
+    mime_type: "text/plain",
+    content: "",
+    saved_content: "",
+    is_loading: false,
+    is_saving: false,
+    error_message: null,
+    last_saved_at: null,
+  };
+}
+
+function createDefaultDesktopEditorWindowState(): DesktopEditorWindowState {
+  const initialTab = createScratchEditorTab();
+  return {
+    tabs: [initialTab],
+    active_tab_id: initialTab.tab_id,
+    is_sidebar_open: true,
+  };
+}
+
 function replacePathPrefix(
   targetPath: string,
   sourcePath: string,
@@ -383,21 +414,32 @@ function getPreviewKind(entry: NeuralLabsFileEntry): PreviewKind | null {
     return "xlsx";
   }
 
-  if (mimeType.startsWith("text/") || TEXT_PREVIEW_MIME_TYPES.has(mimeType)) {
-    return "app-text-editor";
-  }
-
-  if (TEXT_PREVIEW_EXTENSIONS.has(extension)) {
-    return "app-text-editor";
-  }
-  if (TEXT_PREVIEW_FILENAMES.has(lowerName)) {
-    return "app-text-editor";
-  }
   return null;
 }
 
+function isTextEditorEntry(entry: NeuralLabsFileEntry): boolean {
+  const lowerName = entry.name.toLowerCase();
+  const mimeType = entry.mime_type?.toLowerCase() ?? "";
+  const extension = lowerName.includes(".")
+    ? `.${lowerName.split(".").pop()}`
+    : "";
+
+  if (mimeType.startsWith("text/") || TEXT_PREVIEW_MIME_TYPES.has(mimeType)) {
+    return true;
+  }
+
+  if (TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+    return true;
+  }
+  if (TEXT_PREVIEW_FILENAMES.has(lowerName)) {
+    return true;
+  }
+
+  return false;
+}
+
 function isPreviewable(entry: NeuralLabsFileEntry): boolean {
-  return getPreviewKind(entry) !== null;
+  return isTextEditorEntry(entry) || getPreviewKind(entry) !== null;
 }
 
 function triggerBrowserDownload(path: string, name: string): void {
@@ -645,8 +687,7 @@ function loadPersistedPreviewWindows(): PreviewWindowState[] {
             candidate.preview_kind === "text" ||
             candidate.preview_kind === "pdf" ||
             candidate.preview_kind === "kmz" ||
-            candidate.preview_kind === "xlsx" ||
-            candidate.preview_kind === "app-text-editor") &&
+            candidate.preview_kind === "xlsx") &&
           (candidate.snapped_zone === null ||
             typeof candidate.snapped_zone === "string") &&
           (candidate.is_maximized === undefined ||
@@ -685,15 +726,7 @@ function loadPersistedPreviewWindows(): PreviewWindowState[] {
 function persistPreviewWindows(windows: PreviewWindowState[]): void {
   window.localStorage.setItem(
     PREVIEW_WINDOWS_STORAGE_KEY,
-    JSON.stringify(
-      windows.filter(
-        (windowState) =>
-          !(
-            windowState.preview_kind === "app-text-editor" &&
-            windowState.path.startsWith("__app__/")
-          )
-      )
-    )
+    JSON.stringify(windows)
   );
 }
 
@@ -1796,6 +1829,9 @@ export default function NeuralLabsPage() {
   const [desktopExplorerStates, setDesktopExplorerStates] = useState<
     Record<string, DesktopExplorerState>
   >({});
+  const [desktopEditorStates, setDesktopEditorStates] = useState<
+    Record<string, DesktopEditorWindowState>
+  >({});
   const [desktopTerminalStates, setDesktopTerminalStates] = useState<
     Record<string, DesktopTerminalWindowState>
   >({});
@@ -1822,6 +1858,9 @@ export default function NeuralLabsPage() {
     useState(false);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
+  const desktopEditorStatesRef = useRef<
+    Record<string, DesktopEditorWindowState>
+  >({});
   const desktopTerminalStatesRef = useRef<
     Record<string, DesktopTerminalWindowState>
   >({});
@@ -1835,6 +1874,10 @@ export default function NeuralLabsPage() {
   useEffect(() => {
     layoutRef.current = layout;
   }, [layout]);
+
+  useEffect(() => {
+    desktopEditorStatesRef.current = desktopEditorStates;
+  }, [desktopEditorStates]);
 
   useEffect(() => {
     desktopTerminalStatesRef.current = desktopTerminalStates;
@@ -2139,51 +2182,9 @@ export default function NeuralLabsPage() {
     [loadDirectory]
   );
 
-  const openTextEditorApp = useCallback(() => {
-    if (!isDesktopModeActive && isDesktopLayout && isNavigatorCollapsed) {
-      setIsNavigatorCollapsed(false);
-    }
-    highestPreviewZIndexRef.current += 1;
-    const width =
-      workspaceBounds.width > 0
-        ? Math.min(700, Math.max(460, workspaceBounds.width * 0.58))
-        : 700;
-    const height =
-      workspaceBounds.height > 0
-        ? Math.min(560, Math.max(340, workspaceBounds.height * 0.62))
-        : 520;
-    const offset =
-      previewWindows.filter(
-        (windowState) => windowState.preview_kind === "app-text-editor"
-      ).length * 24;
-
-    setPreviewWindows((previousWindows) => [
-      ...previousWindows,
-      {
-        id: createLocalId(),
-        path: `__app__/text-editor/${createLocalId()}`,
-        name: "Text Editor",
-        mime_type: null,
-        preview_kind: "app-text-editor",
-        x: 36 + offset,
-        y: 36 + offset,
-        width,
-        height,
-        z_index: highestPreviewZIndexRef.current,
-        snapped_zone: null,
-        is_maximized: false,
-        is_minimized: false,
-        restore_bounds: null,
-      },
-    ]);
-  }, [
-    isDesktopModeActive,
-    isDesktopLayout,
-    isNavigatorCollapsed,
-    previewWindows,
-    workspaceBounds.height,
-    workspaceBounds.width,
-  ]);
+  function openTextEditorApp(options?: { forceNew?: boolean }) {
+    return openDesktopApp("text-editor", { forceNew: options?.forceNew });
+  }
 
   const handleTextFileSaved = useCallback(
     async (targetPath: string) => {
@@ -2201,6 +2202,160 @@ export default function NeuralLabsPage() {
     },
     [refreshDirectoryPaths]
   );
+
+  function setActiveDesktopEditorTab(windowId: string, tabId: string) {
+    updateDesktopEditorState(windowId, (currentState) => ({
+      ...currentState,
+      active_tab_id: tabId,
+    }));
+    focusDesktopWindow(windowId);
+  }
+
+  function toggleDesktopEditorSidebar(windowId: string) {
+    updateDesktopEditorState(windowId, (currentState) => ({
+      ...currentState,
+      is_sidebar_open: !currentState.is_sidebar_open,
+    }));
+  }
+
+  function addDesktopEditorScratchTab(windowId: string) {
+    const nextTab = createScratchEditorTab();
+    updateDesktopEditorState(windowId, (currentState) => ({
+      ...currentState,
+      tabs: [...currentState.tabs, nextTab],
+      active_tab_id: nextTab.tab_id,
+    }));
+    focusDesktopWindow(windowId);
+  }
+
+  function updateDesktopEditorTabContent(
+    windowId: string,
+    tabId: string,
+    content: string
+  ) {
+    updateDesktopEditorState(windowId, (currentState) => ({
+      ...currentState,
+      tabs: currentState.tabs.map((tab) =>
+        tab.tab_id === tabId ? { ...tab, content, error_message: null } : tab
+      ),
+    }));
+  }
+
+  async function loadDesktopEditorTabContent(
+    windowId: string,
+    tabId: string,
+    path: string
+  ) {
+    updateDesktopEditorState(windowId, (currentState) => ({
+      ...currentState,
+      tabs: currentState.tabs.map((tab) =>
+        tab.tab_id === tabId
+          ? { ...tab, is_loading: true, error_message: null }
+          : tab
+      ),
+    }));
+
+    try {
+      const response = await fetch(
+        `${NEURAL_LABS_API_PREFIX}/files/content?path=${encodeURIComponent(
+          path
+        )}`,
+        {
+          headers: { Accept: "text/plain" },
+        }
+      );
+      if (!response.ok) {
+        throw new Error(await getFetchErrorMessage(response));
+      }
+
+      const content = await response.text();
+      updateDesktopEditorState(windowId, (currentState) => ({
+        ...currentState,
+        tabs: currentState.tabs.map((tab) =>
+          tab.tab_id === tabId
+            ? {
+                ...tab,
+                content,
+                saved_content: content,
+                is_loading: false,
+                error_message: null,
+              }
+            : tab
+        ),
+      }));
+    } catch (error) {
+      updateDesktopEditorState(windowId, (currentState) => ({
+        ...currentState,
+        tabs: currentState.tabs.map((tab) =>
+          tab.tab_id === tabId
+            ? {
+                ...tab,
+                is_loading: false,
+                error_message:
+                  error instanceof Error
+                    ? error.message
+                    : "Unable to load file",
+              }
+            : tab
+        ),
+      }));
+    }
+  }
+
+  function openTextFileInEditor(
+    entry: NeuralLabsFileEntry,
+    options?: { preferredWindowId?: string }
+  ) {
+    for (const [windowId, windowState] of Object.entries(
+      desktopEditorStatesRef.current
+    )) {
+      const existingTab = windowState.tabs.find(
+        (tab) => tab.path === entry.path
+      );
+      if (existingTab) {
+        setActiveDesktopEditorTab(windowId, existingTab.tab_id);
+        return;
+      }
+    }
+
+    const targetWindowId =
+      options?.preferredWindowId &&
+      desktopEditorStatesRef.current[options.preferredWindowId]
+        ? options.preferredWindowId
+        : openTextEditorApp();
+
+    const nextTab: DesktopEditorTabState = {
+      tab_id: createLocalId(),
+      path: entry.path,
+      name: entry.name,
+      mime_type: entry.mime_type,
+      content: "",
+      saved_content: "",
+      is_loading: true,
+      is_saving: false,
+      error_message: null,
+      last_saved_at: null,
+    };
+
+    updateDesktopEditorState(targetWindowId, (currentState) => {
+      const replaceScratch =
+        currentState.tabs.length === 1 &&
+        currentState.tabs[0]?.path === null &&
+        currentState.tabs[0]?.content === "" &&
+        currentState.tabs[0]?.saved_content === "";
+      return {
+        ...currentState,
+        tabs: replaceScratch ? [nextTab] : [...currentState.tabs, nextTab],
+        active_tab_id: nextTab.tab_id,
+      };
+    });
+    focusDesktopWindow(targetWindowId);
+    void loadDesktopEditorTabContent(
+      targetWindowId,
+      nextTab.tab_id,
+      entry.path
+    );
+  }
 
   const navigateUp = useCallback(async () => {
     if (!currentPath) {
@@ -2313,19 +2468,6 @@ export default function NeuralLabsPage() {
     );
   }, []);
 
-  const focusOrRestoreLatestTextEditor = useCallback(() => {
-    const latestEditorWindow = [...previewWindows]
-      .filter((windowState) => windowState.preview_kind === "app-text-editor")
-      .sort((left, right) => right.z_index - left.z_index)[0];
-
-    if (!latestEditorWindow) {
-      openTextEditorApp();
-      return;
-    }
-
-    restorePreviewWindow(latestEditorWindow.id);
-  }, [openTextEditorApp, previewWindows, restorePreviewWindow]);
-
   const focusDesktopWindow = useCallback((windowId: string) => {
     highestPreviewZIndexRef.current += 1;
     setDesktopWindows((previousWindows) =>
@@ -2340,6 +2482,208 @@ export default function NeuralLabsPage() {
       )
     );
   }, []);
+
+  const focusOrRestoreLatestTextEditor = useCallback(() => {
+    const latestEditorWindow = [...desktopWindows]
+      .filter((windowState) => windowState.app_kind === "text-editor")
+      .sort((left, right) => right.z_index - left.z_index)[0];
+
+    if (!latestEditorWindow) {
+      openTextEditorApp();
+      return;
+    }
+
+    focusDesktopWindow(latestEditorWindow.id);
+  }, [desktopWindows, focusDesktopWindow]);
+
+  function closeDesktopEditorTab(windowId: string, tabId: string) {
+    updateDesktopEditorState(windowId, (currentState) => {
+      const remainingTabs = currentState.tabs.filter(
+        (tab) => tab.tab_id !== tabId
+      );
+      if (remainingTabs.length === 0) {
+        const scratchTab = createScratchEditorTab();
+        return {
+          ...currentState,
+          tabs: [scratchTab],
+          active_tab_id: scratchTab.tab_id,
+        };
+      }
+
+      const nextActiveTabId =
+        currentState.active_tab_id === tabId
+          ? remainingTabs[
+              Math.max(
+                0,
+                currentState.tabs.findIndex((tab) => tab.tab_id === tabId) - 1
+              )
+            ]?.tab_id ?? remainingTabs[0]!.tab_id
+          : currentState.active_tab_id;
+
+      return {
+        ...currentState,
+        tabs: remainingTabs,
+        active_tab_id: nextActiveTabId,
+      };
+    });
+  }
+
+  async function saveDesktopEditorTab(windowId: string, tabId: string) {
+    const tab = desktopEditorStatesRef.current[windowId]?.tabs.find(
+      (candidate) => candidate.tab_id === tabId
+    );
+    if (!tab) {
+      return;
+    }
+    if (!tab.path) {
+      throw new Error("Choose a file path before saving.");
+    }
+
+    updateDesktopEditorState(windowId, (currentState) => ({
+      ...currentState,
+      tabs: currentState.tabs.map((candidate) =>
+        candidate.tab_id === tabId
+          ? { ...candidate, is_saving: true, error_message: null }
+          : candidate
+      ),
+    }));
+
+    try {
+      const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/content`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: tab.path,
+          content: tab.content,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await getFetchErrorMessage(response));
+      }
+
+      updateDesktopEditorState(windowId, (currentState) => ({
+        ...currentState,
+        tabs: currentState.tabs.map((candidate) =>
+          candidate.tab_id === tabId
+            ? {
+                ...candidate,
+                saved_content: candidate.content,
+                is_saving: false,
+                error_message: null,
+                last_saved_at: Date.now(),
+              }
+            : candidate
+        ),
+      }));
+      await handleTextFileSaved(tab.path);
+    } catch (error) {
+      updateDesktopEditorState(windowId, (currentState) => ({
+        ...currentState,
+        tabs: currentState.tabs.map((candidate) =>
+          candidate.tab_id === tabId
+            ? {
+                ...candidate,
+                is_saving: false,
+                error_message:
+                  error instanceof Error
+                    ? error.message
+                    : "Unable to save file",
+              }
+            : candidate
+        ),
+      }));
+      throw error;
+    }
+  }
+
+  async function saveDesktopEditorTabAs(
+    windowId: string,
+    tabId: string,
+    targetPath: string
+  ) {
+    const trimmedPath = targetPath.trim().replace(/^\/+/, "");
+    if (!trimmedPath) {
+      throw new Error("File name cannot be empty.");
+    }
+
+    updateDesktopEditorState(windowId, (currentState) => ({
+      ...currentState,
+      tabs: currentState.tabs.map((candidate) =>
+        candidate.tab_id === tabId
+          ? { ...candidate, is_saving: true, error_message: null }
+          : candidate
+      ),
+    }));
+
+    try {
+      const tab = desktopEditorStatesRef.current[windowId]?.tabs.find(
+        (candidate) => candidate.tab_id === tabId
+      );
+      if (!tab) {
+        throw new Error("Unable to find the current editor tab.");
+      }
+
+      const response = await fetch(`${NEURAL_LABS_API_PREFIX}/files/content`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: trimmedPath,
+          content: tab.content,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await getFetchErrorMessage(response));
+      }
+
+      updateDesktopEditorState(windowId, (currentState) => ({
+        ...currentState,
+        tabs: currentState.tabs.map((candidate) =>
+          candidate.tab_id === tabId
+            ? {
+                ...candidate,
+                path: trimmedPath,
+                name: trimmedPath.split("/").pop() ?? trimmedPath,
+                saved_content: candidate.content,
+                is_saving: false,
+                error_message: null,
+                last_saved_at: Date.now(),
+              }
+            : candidate
+        ),
+      }));
+      await handleTextFileSaved(trimmedPath);
+    } catch (error) {
+      updateDesktopEditorState(windowId, (currentState) => ({
+        ...currentState,
+        tabs: currentState.tabs.map((candidate) =>
+          candidate.tab_id === tabId
+            ? {
+                ...candidate,
+                is_saving: false,
+                error_message:
+                  error instanceof Error
+                    ? error.message
+                    : "Unable to save file",
+              }
+            : candidate
+        ),
+      }));
+      throw error;
+    }
+  }
+
+  async function reloadDesktopEditorTab(windowId: string, tabId: string) {
+    const tab = desktopEditorStatesRef.current[windowId]?.tabs.find(
+      (candidate) => candidate.tab_id === tabId
+    );
+    if (!tab?.path) {
+      return;
+    }
+
+    await loadDesktopEditorTabContent(windowId, tabId, tab.path);
+  }
 
   const updateDesktopWindow = useCallback(
     (
@@ -2377,6 +2721,14 @@ export default function NeuralLabsPage() {
       delete nextStates[windowId];
       return nextStates;
     });
+    setDesktopEditorStates((previousStates) => {
+      if (!(windowId in previousStates)) {
+        return previousStates;
+      }
+      const nextStates = { ...previousStates };
+      delete nextStates[windowId];
+      return nextStates;
+    });
     setDesktopTerminalStates((previousStates) => {
       if (!(windowId in previousStates)) {
         return previousStates;
@@ -2386,6 +2738,31 @@ export default function NeuralLabsPage() {
       return nextStates;
     });
   }, []);
+
+  const updateDesktopEditorState = useCallback(
+    (
+      windowId: string,
+      update:
+        | Partial<DesktopEditorWindowState>
+        | ((state: DesktopEditorWindowState) => DesktopEditorWindowState)
+    ) => {
+      setDesktopEditorStates((previousStates) => {
+        const currentState = previousStates[windowId];
+        if (!currentState) {
+          return previousStates;
+        }
+
+        return {
+          ...previousStates,
+          [windowId]:
+            typeof update === "function"
+              ? update(currentState)
+              : { ...currentState, ...update },
+        };
+      });
+    },
+    []
+  );
 
   const updateDesktopTerminalState = useCallback(
     (
@@ -2414,6 +2791,14 @@ export default function NeuralLabsPage() {
 
   const closeDesktopWindow = useCallback(
     (windowId: string) => {
+      const editorState = desktopEditorStatesRef.current[windowId];
+      if (
+        editorState?.tabs.some((tab) => tab.content !== tab.saved_content) &&
+        !window.confirm("Close this editor window and discard unsaved changes?")
+      ) {
+        return;
+      }
+
       const terminalIds = getTerminalIdsFromLayout(
         desktopTerminalStatesRef.current[windowId]?.layout ?? null
       );
@@ -2591,13 +2976,13 @@ export default function NeuralLabsPage() {
         forceNew?: boolean;
         initialTerminalState?: DesktopTerminalWindowState;
       }
-    ) => {
+    ): string => {
       const existingWindow = desktopWindows
         .filter((windowState) => windowState.app_kind === appKind)
         .sort((left, right) => right.z_index - left.z_index)[0];
       if (existingWindow && !options?.forceNew) {
         focusDesktopWindow(existingWindow.id);
-        return;
+        return existingWindow.id;
       }
 
       const existingWindowCount = desktopWindows.filter(
@@ -2607,6 +2992,7 @@ export default function NeuralLabsPage() {
       highestPreviewZIndexRef.current += 1;
       const isFileExplorerApp = appKind === "file-explorer";
       const isSettingsApp = appKind === "desktop-settings";
+      const isTextEditorApp = appKind === "text-editor";
       const width = isFileExplorerApp
         ? workspaceBounds.width > 0
           ? Math.min(
@@ -2621,12 +3007,19 @@ export default function NeuralLabsPage() {
                 Math.max(420, workspaceBounds.width * 0.38)
               )
             : DEFAULT_SETTINGS_WINDOW.width
-          : workspaceBounds.width > 0
-            ? Math.min(
-                DEFAULT_TERMINAL_WINDOW.width,
-                Math.max(760, workspaceBounds.width * 0.72)
-              )
-            : DEFAULT_TERMINAL_WINDOW.width;
+          : isTextEditorApp
+            ? workspaceBounds.width > 0
+              ? Math.min(
+                  DEFAULT_TEXT_EDITOR_WINDOW.width,
+                  Math.max(820, workspaceBounds.width * 0.78)
+                )
+              : DEFAULT_TEXT_EDITOR_WINDOW.width
+            : workspaceBounds.width > 0
+              ? Math.min(
+                  DEFAULT_TERMINAL_WINDOW.width,
+                  Math.max(760, workspaceBounds.width * 0.72)
+                )
+              : DEFAULT_TERMINAL_WINDOW.width;
       const height = isFileExplorerApp
         ? workspaceBounds.height > 0
           ? Math.min(
@@ -2641,12 +3034,19 @@ export default function NeuralLabsPage() {
                 Math.max(340, workspaceBounds.height * 0.54)
               )
             : DEFAULT_SETTINGS_WINDOW.height
-          : workspaceBounds.height > 0
-            ? Math.min(
-                DEFAULT_TERMINAL_WINDOW.height,
-                Math.max(520, workspaceBounds.height * 0.78)
-              )
-            : DEFAULT_TERMINAL_WINDOW.height;
+          : isTextEditorApp
+            ? workspaceBounds.height > 0
+              ? Math.min(
+                  DEFAULT_TEXT_EDITOR_WINDOW.height,
+                  Math.max(520, workspaceBounds.height * 0.82)
+                )
+              : DEFAULT_TEXT_EDITOR_WINDOW.height
+            : workspaceBounds.height > 0
+              ? Math.min(
+                  DEFAULT_TERMINAL_WINDOW.height,
+                  Math.max(520, workspaceBounds.height * 0.78)
+                )
+              : DEFAULT_TERMINAL_WINDOW.height;
 
       const existingOffset = existingWindowCount * 24;
       const windowId = createLocalId();
@@ -2657,6 +3057,11 @@ export default function NeuralLabsPage() {
           [windowId]: createDefaultDesktopExplorerState(),
         }));
         void loadDirectory("");
+      } else if (isTextEditorApp) {
+        setDesktopEditorStates((previousStates) => ({
+          ...previousStates,
+          [windowId]: createDefaultDesktopEditorWindowState(),
+        }));
       } else if (appKind === "terminal-workspace") {
         setDesktopTerminalStates((previousStates) => ({
           ...previousStates,
@@ -2677,15 +3082,27 @@ export default function NeuralLabsPage() {
               : "File Explorer"
             : isSettingsApp
               ? "Desktop Settings"
-              : existingWindowCount > 0
-                ? `Terminal ${existingWindowCount + 1}`
-                : "Terminal",
+              : isTextEditorApp
+                ? existingWindowCount > 0
+                  ? `Text Editor ${existingWindowCount + 1}`
+                  : "Text Editor"
+                : existingWindowCount > 0
+                  ? `Terminal ${existingWindowCount + 1}`
+                  : "Terminal",
           x: isFileExplorerApp
             ? 42 + existingOffset
             : isSettingsApp
               ? Math.max(72, Math.round((workspaceBounds.width - width) / 2))
-              : Math.max(56, Math.round((workspaceBounds.width - width) / 2)),
-          y: isFileExplorerApp ? 42 + existingOffset : isSettingsApp ? 72 : 54,
+              : isTextEditorApp
+                ? Math.max(52, Math.round((workspaceBounds.width - width) / 2))
+                : Math.max(56, Math.round((workspaceBounds.width - width) / 2)),
+          y: isFileExplorerApp
+            ? 42 + existingOffset
+            : isSettingsApp
+              ? 72
+              : isTextEditorApp
+                ? 48
+                : 54,
           width,
           height,
           z_index: highestPreviewZIndexRef.current,
@@ -2695,6 +3112,7 @@ export default function NeuralLabsPage() {
           restore_bounds: null,
         },
       ]);
+      return windowId;
     },
     [
       desktopWindows,
@@ -2710,6 +3128,15 @@ export default function NeuralLabsPage() {
       entry: NeuralLabsFileEntry,
       options?: { syncLegacySelection?: boolean }
     ) => {
+      if (isTextEditorEntry(entry)) {
+        if (options?.syncLegacySelection !== false) {
+          setSelectedPath(entry.path);
+          setCurrentPath(getParentPath(entry.path));
+        }
+        openTextFileInEditor(entry);
+        return;
+      }
+
       const previewKind = getPreviewKind(entry);
       if (!previewKind) {
         return;
@@ -2760,6 +3187,7 @@ export default function NeuralLabsPage() {
     },
     [
       focusPreviewWindow,
+      openTextFileInEditor,
       previewWindows,
       workspaceBounds.height,
       workspaceBounds.width,
@@ -2890,6 +3318,37 @@ export default function NeuralLabsPage() {
       const payload = (await response.json()) as { path?: string };
       const renamedPath =
         typeof payload.path === "string" ? payload.path : entry.path;
+      setDesktopEditorStates((previousStates) => {
+        let didChange = false;
+        const nextStates = Object.fromEntries(
+          Object.entries(previousStates).map(([windowId, state]) => {
+            const nextTabs = state.tabs.map((tab) => {
+              if (!tab.path) {
+                return tab;
+              }
+
+              const nextPath = replacePathPrefix(
+                tab.path,
+                entry.path,
+                renamedPath
+              );
+              if (nextPath === tab.path) {
+                return tab;
+              }
+
+              didChange = true;
+              return {
+                ...tab,
+                path: nextPath,
+                name: nextPath.split("/").pop() ?? nextPath,
+              };
+            });
+            return [windowId, { ...state, tabs: nextTabs }];
+          })
+        );
+
+        return didChange ? nextStates : previousStates;
+      });
       await refreshDirectoryPaths([
         getParentPath(entry.path),
         getParentPath(renamedPath),
@@ -2938,6 +3397,54 @@ export default function NeuralLabsPage() {
             !windowState.path.startsWith(`${entry.path}/`)
         )
       );
+      setDesktopEditorStates((previousStates) => {
+        let didChange = false;
+        const nextStates = Object.fromEntries(
+          Object.entries(previousStates).map(([windowId, state]) => {
+            const remainingTabs = state.tabs.filter((tab) => {
+              if (!tab.path) {
+                return true;
+              }
+
+              const shouldRemove =
+                tab.path === entry.path ||
+                tab.path.startsWith(`${entry.path}/`);
+              if (shouldRemove) {
+                didChange = true;
+              }
+              return !shouldRemove;
+            });
+
+            if (remainingTabs.length === 0) {
+              const scratchTab = createScratchEditorTab();
+              return [
+                windowId,
+                {
+                  ...state,
+                  tabs: [scratchTab],
+                  active_tab_id: scratchTab.tab_id,
+                },
+              ];
+            }
+
+            const activeTabExists = remainingTabs.some(
+              (tab) => tab.tab_id === state.active_tab_id
+            );
+            return [
+              windowId,
+              {
+                ...state,
+                tabs: remainingTabs,
+                active_tab_id: activeTabExists
+                  ? state.active_tab_id
+                  : remainingTabs[0]!.tab_id,
+              },
+            ];
+          })
+        );
+
+        return didChange ? nextStates : previousStates;
+      });
       await refreshDirectoryPaths([getParentPath(entry.path)]);
       return true;
     },
@@ -3174,6 +3681,40 @@ export default function NeuralLabsPage() {
 
       const payload = (await response.json()) as { path?: string };
       const movedPath = typeof payload.path === "string" ? payload.path : null;
+      if (movedPath) {
+        setDesktopEditorStates((previousStates) => {
+          let didChange = false;
+          const nextStates = Object.fromEntries(
+            Object.entries(previousStates).map(([windowId, state]) => {
+              const nextTabs = state.tabs.map((tab) => {
+                if (!tab.path) {
+                  return tab;
+                }
+
+                const nextPath = replacePathPrefix(
+                  tab.path,
+                  entry.path,
+                  movedPath
+                );
+                if (nextPath === tab.path) {
+                  return tab;
+                }
+
+                didChange = true;
+                return {
+                  ...tab,
+                  path: nextPath,
+                  name: nextPath.split("/").pop() ?? nextPath,
+                };
+              });
+
+              return [windowId, { ...state, tabs: nextTabs }];
+            })
+          );
+
+          return didChange ? nextStates : previousStates;
+        });
+      }
       await refreshDirectoryPaths(
         [getParentPath(entry.path), destinationPath],
         {
@@ -4510,6 +5051,37 @@ export default function NeuralLabsPage() {
         );
       }
 
+      if (windowState.app_kind === "text-editor") {
+        const editorState =
+          desktopEditorStates[windowState.id] ??
+          createDefaultDesktopEditorWindowState();
+
+        return (
+          <NeuralLabsDesktopTextEditor
+            windowState={editorState}
+            currentDirectory={currentPath}
+            onToggleSidebar={() => toggleDesktopEditorSidebar(windowState.id)}
+            onCreateScratchTab={() =>
+              addDesktopEditorScratchTab(windowState.id)
+            }
+            onSetActiveTab={(tabId) =>
+              setActiveDesktopEditorTab(windowState.id, tabId)
+            }
+            onCloseTab={(tabId) => closeDesktopEditorTab(windowState.id, tabId)}
+            onChangeTabContent={(tabId, content) =>
+              updateDesktopEditorTabContent(windowState.id, tabId, content)
+            }
+            onSaveTab={(tabId) => saveDesktopEditorTab(windowState.id, tabId)}
+            onSaveTabAs={(tabId, targetPath) =>
+              saveDesktopEditorTabAs(windowState.id, tabId, targetPath)
+            }
+            onReloadTab={(tabId) =>
+              reloadDesktopEditorTab(windowState.id, tabId)
+            }
+          />
+        );
+      }
+
       const terminalState =
         desktopTerminalStates[windowState.id] ??
         createDefaultDesktopTerminalWindowState();
@@ -4569,6 +5141,7 @@ export default function NeuralLabsPage() {
       isPreviewable,
       loadingPaths,
       loadDirectory,
+      addDesktopEditorScratchTab,
       moveEntries,
       moveDesktopTerminalTabToNewWindow,
       navigateDesktopExplorerBack,
@@ -4579,15 +5152,21 @@ export default function NeuralLabsPage() {
       reorderDesktopTerminalTabs,
       renameDesktopTerminalTab,
       refreshDirectoryPaths,
+      reloadDesktopEditorTab,
       renameEntryAtPath,
+      saveDesktopEditorTab,
+      saveDesktopEditorTabAs,
       setDesktopExplorerSelection,
+      setActiveDesktopEditorTab,
       setActiveDesktopTerminalPane,
       setActiveDesktopTerminalTab,
       desktopBackgroundId,
       splitDesktopTerminalTab,
       treeEntries,
       uploadFilesToPath,
+      updateDesktopEditorTabContent,
       updateDesktopExplorerState,
+      toggleDesktopEditorSidebar,
     ]
   );
 
@@ -4619,8 +5198,8 @@ export default function NeuralLabsPage() {
   );
 
   if (isDesktopModeActive) {
-    const textEditorWindows = previewWindows.filter(
-      (windowState) => windowState.preview_kind === "app-text-editor"
+    const textEditorWindows = desktopWindows.filter(
+      (windowState) => windowState.app_kind === "text-editor"
     );
     const hasTextEditorWindow = textEditorWindows.length > 0;
     const hasVisibleTextEditorWindow = textEditorWindows.some(
@@ -4704,13 +5283,8 @@ export default function NeuralLabsPage() {
             <NeuralLabsPreviewWindows
               windows={previewWindows}
               workspaceBounds={workspaceBounds}
-              currentDirectory={currentPath}
               onCloseWindow={closePreviewWindow}
               onFocusWindow={focusPreviewWindow}
-              onMinimizeWindow={minimizePreviewWindow}
-              onTextFileSaved={(path) => {
-                void handleTextFileSaved(path);
-              }}
               onUpdateWindow={updatePreviewWindow}
             />
           </div>
@@ -4812,7 +5386,7 @@ export default function NeuralLabsPage() {
                   className="flex w-full items-center rounded-12 px-3 py-2 text-left text-sm text-white/85 transition hover:bg-white/10"
                   onClick={() => {
                     if (taskbarMenu.appKind === "text-editor") {
-                      openTextEditorApp();
+                      openTextEditorApp({ forceNew: true });
                     } else {
                       openDesktopApp(taskbarMenu.appKind, { forceNew: true });
                     }
@@ -4980,7 +5554,7 @@ export default function NeuralLabsPage() {
                   size="md"
                   leftIcon={SvgFileText}
                   aria-label="Text Editor"
-                  onClick={openTextEditorApp}
+                  onClick={() => openTextEditorApp()}
                 />
               </IconActionButton>
             </aside>
@@ -5032,13 +5606,8 @@ export default function NeuralLabsPage() {
                   <NeuralLabsPreviewWindows
                     windows={previewWindows}
                     workspaceBounds={workspaceBounds}
-                    currentDirectory={currentPath}
                     onCloseWindow={closePreviewWindow}
                     onFocusWindow={focusPreviewWindow}
-                    onMinimizeWindow={minimizePreviewWindow}
-                    onTextFileSaved={(path) => {
-                      void handleTextFileSaved(path);
-                    }}
                     onUpdateWindow={updatePreviewWindow}
                   />
                 }

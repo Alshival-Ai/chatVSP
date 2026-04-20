@@ -27,8 +27,7 @@
 
 - Web route: `/neural-labs`
 - UI presentation:
-  - same route serves both the legacy workspace layout and the new desktop shell
-  - frontend persists the selected mode in browser storage and falls back to legacy on smaller screens
+  - the route resolves directly to the desktop Neural Labs shell; the former legacy/Desktop route toggle has been removed
 - API prefix: `/api/neural-labs/*`
 - Terminal websocket path returned by token API:
   - `/api/neural-labs/terminal/ws?token=<auth_token>&terminal_token=<terminal_ticket>`
@@ -44,12 +43,14 @@
 - Frontend route behavior:
   - the `/neural-labs` page now resolves directly to the desktop shell; the former route-level legacy/Desktop presentation toggle is no longer exposed in the UI
 - Frontend window model:
-  - file preview/editor windows continue to use the persisted floating preview-window model
-  - desktop-only app windows (`File Explorer`, `Terminal`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
+  - floating preview windows remain a persisted client model for non-editor file previews (image, PDF, HTML, KMZ, XLSX)
+  - desktop app windows (`File Explorer`, `Terminal`, `Text Editor`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
   - preview windows now render through the same desktop-style chrome treatment as app windows (matching compact title bar, macOS-style controls, shared snap/maximize affordances) while keeping their existing persisted preview content/state model
   - desktop app windows track snapped, maximized, and minimized state on the client so taskbar restore/focus behavior does not require backend changes
   - desktop file explorer windows keep separate per-window navigation state (`current_path`, back/forward history, selection, and icon/list mode) while reusing the shared file API/cache layer
   - desktop terminal windows keep separate per-window terminal ownership and layout state (`tabs`, `active_tab_id`, split panes) so the Windows Terminal-style desktop app does not leak terminal sessions into the legacy terminal workspace
+  - desktop editor windows keep separate per-window editor state (`tabs`, `active_tab_id`, sidebar visibility) while text-file loads/saves continue to use the existing file-content API
+  - text-like files now route into the desktop editor window model instead of the preview-window model
   - desktop explorer/terminal presentation colors now follow the shared app light/dark theme; the terminal xterm theme is switched client-side alongside the window chrome
   - desktop presentation preferences such as the selected preset/custom background choice persist in browser storage on the client
   - uploaded custom desktop background images are stored in the user Neural Labs workspace under `~/.neural-labs/backgrounds/` and served back through the existing file-content API

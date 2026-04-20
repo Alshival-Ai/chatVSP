@@ -37,11 +37,8 @@ interface WorkspaceBounds {
 interface NeuralLabsPreviewWindowsProps {
   windows: PreviewWindowState[];
   workspaceBounds: WorkspaceBounds;
-  currentDirectory: string;
   onCloseWindow: (windowId: string) => void;
   onFocusWindow: (windowId: string) => void;
-  onMinimizeWindow?: (windowId: string) => void;
-  onTextFileSaved?: (path: string) => void;
   onUpdateWindow: (
     windowId: string,
     update:
@@ -580,221 +577,6 @@ function columnIndexToLabel(index: number): string {
   return label;
 }
 
-function EditorWindowContent({
-  windowState,
-  currentDirectory,
-  onTextFileSaved,
-}: {
-  windowState: PreviewWindowState;
-  currentDirectory: string;
-  onTextFileSaved?: (path: string) => void;
-}) {
-  const isScratchEditor = windowState.path.startsWith("__app__/");
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [isLoading, setIsLoading] = useState(!isScratchEditor);
-  const [isSaving, setIsSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(
-    isScratchEditor ? "Ready" : null
-  );
-  const [textValue, setTextValue] = useState("");
-  const [savedValue, setSavedValue] = useState("");
-
-  const contentUrl = useMemo(() => {
-    return appendRefreshParam(getContentUrl(windowState.path), refreshKey);
-  }, [refreshKey, windowState.path]);
-
-  const loadText = useCallback(async () => {
-    if (isScratchEditor) {
-      setIsLoading(false);
-      setErrorMessage(null);
-      setSavedValue("");
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
-
-    try {
-      const response = await fetch(contentUrl, {
-        headers: { Accept: "text/plain" },
-      });
-      if (!response.ok) {
-        throw new Error(await readResponseError(response));
-      }
-
-      const content = await response.text();
-      setTextValue(content);
-      setSavedValue(content);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Unable to load text file"
-      );
-      setTextValue("");
-      setSavedValue("");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [contentUrl, isScratchEditor]);
-
-  useEffect(() => {
-    void loadText();
-  }, [loadText]);
-
-  const hasUnsavedChanges = isScratchEditor
-    ? textValue.trim().length > 0
-    : textValue !== savedValue;
-
-  const saveText = useCallback(async () => {
-    if (isSaving || isLoading || !hasUnsavedChanges) {
-      return;
-    }
-
-    setIsSaving(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
-    try {
-      const targetPath = isScratchEditor
-        ? (() => {
-            const promptDefault = currentDirectory
-              ? `${currentDirectory}/untitled.txt`
-              : "untitled.txt";
-            const targetInput = window.prompt("Save text as:", promptDefault);
-            if (targetInput === null) {
-              return null;
-            }
-
-            const trimmedTarget = targetInput.trim().replace(/^\/+/, "");
-            if (!trimmedTarget) {
-              throw new Error("File name cannot be empty");
-            }
-
-            return currentDirectory && !trimmedTarget.includes("/")
-              ? `${currentDirectory}/${trimmedTarget}`
-              : trimmedTarget;
-          })()
-        : windowState.path;
-
-      if (targetPath === null) {
-        setStatusMessage("Ready");
-        setIsSaving(false);
-        return;
-      }
-
-      const response = await fetch(CONTENT_API_PREFIX, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          path: targetPath,
-          content: textValue,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(await readResponseError(response));
-      }
-
-      setSavedValue(textValue);
-      setStatusMessage("Saved");
-      onTextFileSaved?.(targetPath);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Unable to save file"
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }, [
-    currentDirectory,
-    hasUnsavedChanges,
-    isLoading,
-    isScratchEditor,
-    isSaving,
-    onTextFileSaved,
-    textValue,
-    windowState.path,
-  ]);
-
-  return (
-    <div className="flex h-full w-full flex-col bg-background-neutral-00">
-      <div className="flex items-center justify-between border-b border-border-01 px-2 py-1.5">
-        <Text text03 className="truncate text-xs">
-          {errorMessage
-            ? errorMessage
-            : isLoading
-              ? "Loading..."
-              : isSaving
-                ? "Saving..."
-                : hasUnsavedChanges
-                  ? "Unsaved changes"
-                  : statusMessage ??
-                    (isScratchEditor
-                      ? currentDirectory
-                        ? `Saving to: ~/${currentDirectory}`
-                        : "Saving to: ~"
-                      : "Ready")}
-        </Text>
-        <div className="flex items-center gap-1">
-          {!isScratchEditor ? (
-            <button
-              type="button"
-              className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01"
-              onClick={() => setRefreshKey((value) => value + 1)}
-              disabled={isLoading || isSaving}
-            >
-              Reload
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => {
-                setTextValue("");
-                setSavedValue("");
-                setStatusMessage("Ready");
-                setErrorMessage(null);
-              }}
-              disabled={!textValue.trim() || isSaving}
-            >
-              Clear
-            </button>
-          )}
-          <button
-            type="button"
-            className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => void saveText()}
-            disabled={!hasUnsavedChanges || isSaving || isLoading}
-          >
-            {isScratchEditor ? "Save to File" : "Save"}
-          </button>
-        </div>
-      </div>
-      <textarea
-        spellCheck={false}
-        value={textValue}
-        onChange={(event) => {
-          setTextValue(event.target.value);
-          if (statusMessage) {
-            setStatusMessage(null);
-          }
-        }}
-        onKeyDown={(event) => {
-          if (
-            (event.metaKey || event.ctrlKey) &&
-            event.key.toLowerCase() === "s"
-          ) {
-            event.preventDefault();
-            void saveText();
-          }
-        }}
-        placeholder={isScratchEditor ? "Paste or type text here..." : undefined}
-        className="h-[calc(100%-2.25rem)] w-full resize-none border-0 bg-background-neutral-00 px-3 py-2 font-mono text-sm leading-5 text-text-00 outline-none"
-      />
-    </div>
-  );
-}
-
 function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -1065,25 +847,7 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
   );
 }
 
-function WindowContent({
-  windowState,
-  currentDirectory,
-  onTextFileSaved,
-}: {
-  windowState: PreviewWindowState;
-  currentDirectory: string;
-  onTextFileSaved?: (path: string) => void;
-}) {
-  if (windowState.preview_kind === "app-text-editor") {
-    return (
-      <EditorWindowContent
-        windowState={windowState}
-        currentDirectory={currentDirectory}
-        onTextFileSaved={onTextFileSaved}
-      />
-    );
-  }
-
+function WindowContent({ windowState }: { windowState: PreviewWindowState }) {
   if (windowState.preview_kind === "kmz") {
     return <KmzMapContent windowState={windowState} />;
   }
@@ -1181,20 +945,14 @@ function WindowContent({
 function PreviewWindow({
   windowState,
   workspaceBounds,
-  currentDirectory,
   onCloseWindow,
   onFocusWindow,
-  onMinimizeWindow,
-  onTextFileSaved,
   onUpdateWindow,
 }: {
   windowState: PreviewWindowState;
   workspaceBounds: WorkspaceBounds;
-  currentDirectory: string;
   onCloseWindow: (windowId: string) => void;
   onFocusWindow: (windowId: string) => void;
-  onMinimizeWindow?: (windowId: string) => void;
-  onTextFileSaved?: (path: string) => void;
   onUpdateWindow: (
     windowId: string,
     update:
@@ -1481,19 +1239,7 @@ function PreviewWindow({
                 <SvgX className="h-2.5 w-2.5 stroke-[#6b1010]" />
               </button>
             </NeuralLabsTooltip>
-            {displayWindow.preview_kind === "app-text-editor" &&
-            onMinimizeWindow ? (
-              <NeuralLabsTooltip label="Minimize window">
-                <button
-                  type="button"
-                  className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#f6be4f] transition hover:brightness-110"
-                  onClick={() => onMinimizeWindow(windowState.id)}
-                  aria-label="Minimize window"
-                />
-              </NeuralLabsTooltip>
-            ) : (
-              <span className="block h-3.5 w-3.5 rounded-full bg-white/10" />
-            )}
+            <span className="block h-3.5 w-3.5 rounded-full bg-white/10" />
             <NeuralLabsTooltip
               label={
                 displayWindow.is_maximized
@@ -1533,11 +1279,7 @@ function PreviewWindow({
         </div>
 
         <div className="min-h-0 flex-1 bg-[#0a0f1a]/80">
-          <WindowContent
-            windowState={displayWindow}
-            currentDirectory={currentDirectory}
-            onTextFileSaved={onTextFileSaved}
-          />
+          <WindowContent windowState={displayWindow} />
         </div>
       </div>
 
@@ -1557,11 +1299,8 @@ function PreviewWindow({
 export default function NeuralLabsPreviewWindows({
   windows,
   workspaceBounds,
-  currentDirectory,
   onCloseWindow,
   onFocusWindow,
-  onMinimizeWindow,
-  onTextFileSaved,
   onUpdateWindow,
 }: NeuralLabsPreviewWindowsProps) {
   return (
@@ -1573,11 +1312,8 @@ export default function NeuralLabsPreviewWindows({
             key={windowState.id}
             windowState={windowState}
             workspaceBounds={workspaceBounds}
-            currentDirectory={currentDirectory}
             onCloseWindow={onCloseWindow}
             onFocusWindow={onFocusWindow}
-            onMinimizeWindow={onMinimizeWindow}
-            onTextFileSaved={onTextFileSaved}
             onUpdateWindow={onUpdateWindow}
           />
         ))}

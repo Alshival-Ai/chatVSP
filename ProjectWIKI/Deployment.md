@@ -98,6 +98,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - desktop layout replaces fixed sidebars with a pill taskbar using icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, and `Desktop Settings` apps
   - desktop `File Explorer` now uses a Finder-style hybrid explorer instead of the legacy tree: sidebar locations, breadcrumb path navigation, per-window history/state, icon/list views, and drag/drop move or OS-file upload
   - desktop `Terminal` now uses a dedicated Windows Terminal-style app surface rather than the legacy terminal panel: independent terminal windows, top tabs, right-click tab actions, drag-reorder, move-tab-to-new-window, and in-window split controls
+  - desktop `Text Editor` is now a dedicated Monaco-based app window instead of the former preview-window editor: per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
   - desktop explorer and terminal visuals now follow the app light/dark theme, including explicit theme-safe file/folder icon colors and xterm foreground/background switching
   - taskbar icons expose app names on hover through the same themed Neural Labs tooltip treatment
   - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps
@@ -106,11 +107,10 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - file action icons expose hover helper text for create/upload/refresh
   - Neural Labs hover helper text now uses the themed white tooltip only; native browser duplicate tooltips are removed and tooltip positioning is clamped within the viewport above floating windows
   - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls; standalone terminal and group delete actions are red while in-group terminal delete actions stay neutral
-  - Text Editor still opens as a floating workspace window and saves pasted text into workspace files via the existing file-content API; desktop mode also launches it from the taskbar
   - desktop settings now default the desktop shell to `Sunset Grid`, keep preset selection persisted in browser storage, and allow uploading a custom background image into the user Neural Labs workspace at `~/.neural-labs/backgrounds/`
   - desktop app windows support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snap zones, and minimize-to-taskbar behavior
-  - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open in that floating editor window instead of a separate text preview mode
-  - floating preview windows with snap/resize for image, PDF, HTML, KMZ, XLSX, and editor-backed text files
+  - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open into the focused desktop editor window as tabs instead of a separate text preview mode
+  - floating preview windows with snap/resize remain for image, PDF, HTML, KMZ, and XLSX files; text editing is handled by the desktop editor app
   - preview windows now use the same compact desktop window chrome as app windows, including matching macOS-style controls and double-click maximize/restore behavior
   - desktop app windows share focus / z-index behavior with existing preview windows so app windows and file previews layer together cleanly
   - HTML previews use a path-based `/api/neural-labs/files/content/<path>` route so relative assets load from the previewed workspace folder
