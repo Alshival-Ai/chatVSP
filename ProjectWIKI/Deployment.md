@@ -133,7 +133,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
     - `CLAUDE_CODE_USE_BEDROCK=1`
     - `AWS_REGION=us-east-1` unless the configured Bedrock provider overrides it
     - `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`
-    - `ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-4-7`
+    - `ANTHROPIC_DEFAULT_OPUS_MODEL=global.anthropic.claude-opus-4-6-v1`
     - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
   - direct Anthropic fallback remains supported via `ANTHROPIC_API_KEY` only when neither Foundry nor Bedrock is configured
 
@@ -150,6 +150,9 @@ Bedrock rollout notes:
   - `bedrock:GetInferenceProfile`
 - for Bedrock `us.anthropic.*` inference profiles, allow invoke access on the routed foundation-model ARNs across the profile's destination regions
   - example: `us.anthropic.claude-sonnet-4-6` can route to `us-east-1`, `us-east-2`, and `us-west-2`
+- current account status:
+  - `global.anthropic.claude-opus-4-6-v1` invokes successfully from the runtime role
+  - `global.anthropic.claude-opus-4-7` and `us.anthropic.claude-opus-4-7` currently fail with AWS Marketplace entitlement errors
 - Bedrock Claude model access must be enabled in the AWS account before rollout
 
 Neural Labs intentionally does not write MCP server blocks into `~/.codex/config.toml`.

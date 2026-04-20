@@ -77,7 +77,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
       - `CLAUDE_CODE_USE_BEDROCK=1`
       - `AWS_REGION=us-east-1` (or the configured Bedrock provider region)
       - `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`
-      - `ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-4-7`
+      - `ANTHROPIC_DEFAULT_OPUS_MODEL=global.anthropic.claude-opus-4-6-v1`
       - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
     - fallback path only: `ANTHROPIC_API_KEY` remains supported when neither Foundry nor Bedrock is configured
   - Claude defaults now prefer AWS Bedrock provider models over direct Anthropic when a Bedrock provider is configured
@@ -91,6 +91,8 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - per-user access enabled from Admin Users
   - to provision Claude Code from Azure Foundry, configure an `azure` provider whose `api_base` points at the Foundry Claude endpoint (`https://{resource}.services.ai.azure.com/anthropic`)
   - configure an AWS Bedrock provider with IAM auth and region `us-east-1` to make Bedrock-backed Claude the preferred runtime
+  - current Neural Labs Bedrock Opus default is `global.anthropic.claude-opus-4-6-v1`
+    - this account currently rejects Opus 4.7 with AWS Marketplace entitlement errors, while Opus 4.6 invokes successfully
   - ensure the runtime EC2 role includes Bedrock Claude access:
     - `bedrock:ListFoundationModels`
       - required for Admin > LLM > Bedrock model discovery (`/api/admin/llm/bedrock/available-models`)

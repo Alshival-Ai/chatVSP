@@ -29,7 +29,7 @@ def test_resolve_bedrock_claude_settings_uses_provider_region(
         "CLAUDE_CODE_USE_BEDROCK": "1",
         "AWS_REGION": "us-east-1",
         "ANTHROPIC_DEFAULT_SONNET_MODEL": "us.anthropic.claude-sonnet-4-6",
-        "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-7",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "global.anthropic.claude-opus-4-6-v1",
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     }
 
@@ -155,7 +155,7 @@ def test_build_shell_env_file_unsets_aws_keys_for_bedrock_iam() -> None:
         {
             "CLAUDE_CODE_USE_BEDROCK": "1",
             "AWS_REGION": "us-east-1",
-            "ANTHROPIC_DEFAULT_OPUS_MODEL": "us.anthropic.claude-opus-4-7",
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": "global.anthropic.claude-opus-4-6-v1",
         }
     )
 
