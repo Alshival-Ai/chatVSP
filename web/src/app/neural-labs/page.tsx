@@ -20,18 +20,24 @@ import Button from "@/refresh-components/buttons/Button";
 import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
 import NeuralLabsDesktopFileExplorer from "@/app/neural-labs/NeuralLabsDesktopFileExplorer";
+import NeuralLabsDesktopTerminal from "@/app/neural-labs/NeuralLabsDesktopTerminal";
 import NeuralLabsDesktopWindows from "@/app/neural-labs/NeuralLabsDesktopWindows";
 import NeuralLabsFileTree from "@/app/neural-labs/NeuralLabsFileTree";
 import NeuralLabsPreviewWindows from "@/app/neural-labs/NeuralLabsPreviewWindows";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import type {
+  DesktopTerminalWindowState,
   DesktopExplorerState,
   DesktopExplorerViewMode,
   DesktopWindowState,
+  TerminalLayoutState,
+  TerminalPaneState,
+  TerminalTabState,
   NeuralLabsFileEntry,
   DirectoryResponse,
   PreviewKind,
   PreviewWindowState,
+  SplitMode,
 } from "@/app/neural-labs/types";
 import {
   SvgArrowLeft,
@@ -87,28 +93,8 @@ type DesktopBackgroundSelection =
   | DesktopBackgroundPresetId
   | `custom:${string}`;
 
-type SplitMode = "none" | "horizontal" | "vertical";
-
-interface PaneState {
-  pane_id: string;
-  terminal_id: string;
-}
-
-interface TabState {
-  tab_id: string;
-  title: string;
-  split_mode: SplitMode;
-  panes: PaneState[];
-  active_pane_id: string;
-}
-
-interface TerminalLayoutState {
-  tabs: TabState[];
-  active_tab_id: string;
-}
-
 interface PersistedTerminalLayout {
-  tabs: TabState[];
+  tabs: TerminalTabState[];
   active_tab_id: string;
 }
 
@@ -342,6 +328,13 @@ function createDefaultDesktopExplorerState(): DesktopExplorerState {
   };
 }
 
+function createDefaultDesktopTerminalWindowState(): DesktopTerminalWindowState {
+  return {
+    layout: null,
+    is_initializing: true,
+  };
+}
+
 function replacePathPrefix(
   targetPath: string,
   sourcePath: string,
@@ -456,15 +449,31 @@ async function getFetchErrorMessage(response: Response): Promise<string> {
   return `Request failed (${response.status})`;
 }
 
+async function deleteTerminalById(terminalId: string): Promise<void> {
+  const response = await fetch(
+    `${NEURAL_LABS_API_PREFIX}/terminals/${encodeURIComponent(terminalId)}`,
+    { method: "DELETE" }
+  );
+
+  if (response.status === 404 || response.status === 204) {
+    return;
+  }
+
+  if (!response.ok) {
+    throw new Error(await getFetchErrorMessage(response));
+  }
+}
+
 function createTabFromTerminal(
   terminalId: string,
-  existingTabs: TabState[]
-): TabState {
+  existingTabs: TerminalTabState[],
+  title?: string
+): TerminalTabState {
   const tabId = createLocalId();
   const paneId = createLocalId();
   return {
     tab_id: tabId,
-    title: `Terminal ${existingTabs.length + 1}`,
+    title: title || `Terminal ${existingTabs.length + 1}`,
     split_mode: "none",
     panes: [{ pane_id: paneId, terminal_id: terminalId }],
     active_pane_id: paneId,
@@ -479,13 +488,21 @@ function uniqueTerminalIds(layout: TerminalLayoutState): Set<string> {
   return ids;
 }
 
+function getTerminalIdsFromLayout(layout: TerminalLayoutState | null): string[] {
+  if (!layout) {
+    return [];
+  }
+
+  return Array.from(uniqueTerminalIds(layout));
+}
+
 function reconcileLayout(
   savedLayout: PersistedTerminalLayout | null,
   terminalIds: string[]
 ): TerminalLayoutState {
   const available = new Set(terminalIds);
   const used = new Set<string>();
-  const reconciledTabs: TabState[] = [];
+  const reconciledTabs: TerminalTabState[] = [];
 
   if (savedLayout) {
     for (const savedTab of savedLayout.tabs) {
@@ -1268,8 +1285,8 @@ function NeuralLabsTerminalWorkspacePanel({
   overlayChildren,
 }: {
   layout: TerminalLayoutState | null;
-  activeTab: TabState | null;
-  activePane: PaneState | null;
+  activeTab: TerminalTabState | null;
+  activePane: TerminalPaneState | null;
   isInitializingTerminals: boolean;
   environmentStatus: { label: string; dotClass: string };
   canSplitActiveTab: boolean;
@@ -1736,6 +1753,9 @@ export default function NeuralLabsPage() {
   const [desktopExplorerStates, setDesktopExplorerStates] = useState<
     Record<string, DesktopExplorerState>
   >({});
+  const [desktopTerminalStates, setDesktopTerminalStates] = useState<
+    Record<string, DesktopTerminalWindowState>
+  >({});
   const [taskbarMenu, setTaskbarMenu] = useState<TaskbarMenuState | null>(null);
   const [workspaceBounds, setWorkspaceBounds] = useState({
     width: 0,
@@ -1757,6 +1777,10 @@ export default function NeuralLabsPage() {
     useState(false);
 
   const layoutRef = useRef<TerminalLayoutState | null>(null);
+  const desktopTerminalStatesRef = useRef<
+    Record<string, DesktopTerminalWindowState>
+  >({});
+  const desktopTerminalInitInFlightRef = useRef(new Set<string>());
   const fileUploadInputRef = useRef<HTMLInputElement | null>(null);
   const previewWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const workspaceSplitRef = useRef<HTMLDivElement | null>(null);
@@ -1766,6 +1790,10 @@ export default function NeuralLabsPage() {
   useEffect(() => {
     layoutRef.current = layout;
   }, [layout]);
+
+  useEffect(() => {
+    desktopTerminalStatesRef.current = desktopTerminalStates;
+  }, [desktopTerminalStates]);
 
   const clampNavigatorWidth = useCallback((candidateWidth: number) => {
     const splitWidth = workspaceSplitRef.current?.clientWidth ?? 0;
@@ -2303,7 +2331,7 @@ export default function NeuralLabsPage() {
     []
   );
 
-  const closeDesktopWindow = useCallback((windowId: string) => {
+  const removeDesktopWindowRecord = useCallback((windowId: string) => {
     setDesktopWindows((previousWindows) =>
       previousWindows.filter((windowState) => windowState.id !== windowId)
     );
@@ -2315,7 +2343,71 @@ export default function NeuralLabsPage() {
       delete nextStates[windowId];
       return nextStates;
     });
+    setDesktopTerminalStates((previousStates) => {
+      if (!(windowId in previousStates)) {
+        return previousStates;
+      }
+      const nextStates = { ...previousStates };
+      delete nextStates[windowId];
+      return nextStates;
+    });
   }, []);
+
+  const updateDesktopTerminalState = useCallback(
+    (
+      windowId: string,
+      update:
+        | Partial<DesktopTerminalWindowState>
+        | ((
+            state: DesktopTerminalWindowState
+          ) => DesktopTerminalWindowState)
+    ) => {
+      setDesktopTerminalStates((previousStates) => {
+        const currentState = previousStates[windowId];
+        if (!currentState) {
+          return previousStates;
+        }
+
+        return {
+          ...previousStates,
+          [windowId]:
+            typeof update === "function"
+              ? update(currentState)
+              : { ...currentState, ...update },
+        };
+      });
+    },
+    []
+  );
+
+  const closeDesktopWindow = useCallback(
+    (windowId: string) => {
+      const terminalIds = getTerminalIdsFromLayout(
+        desktopTerminalStatesRef.current[windowId]?.layout ?? null
+      );
+
+      removeDesktopWindowRecord(windowId);
+
+      if (terminalIds.length === 0) {
+        return;
+      }
+
+      void (async () => {
+        for (const terminalId of terminalIds) {
+          try {
+            await deleteTerminalById(terminalId);
+          } catch (error) {
+            toast.error(
+              `Failed closing terminal: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`
+            );
+          }
+        }
+      })();
+    },
+    [removeDesktopWindowRecord]
+  );
 
   const minimizeDesktopWindow = useCallback((windowId: string) => {
     setDesktopWindows((previousWindows) =>
@@ -2463,7 +2555,10 @@ export default function NeuralLabsPage() {
   const openDesktopApp = useCallback(
     (
       appKind: DesktopWindowState["app_kind"],
-      options?: { forceNew?: boolean }
+      options?: {
+        forceNew?: boolean;
+        initialTerminalState?: DesktopTerminalWindowState;
+      }
     ) => {
       const existingWindow = desktopWindows
         .filter((windowState) => windowState.app_kind === appKind)
@@ -2530,6 +2625,13 @@ export default function NeuralLabsPage() {
           [windowId]: createDefaultDesktopExplorerState(),
         }));
         void loadDirectory("");
+      } else if (appKind === "terminal-workspace") {
+        setDesktopTerminalStates((previousStates) => ({
+          ...previousStates,
+          [windowId]:
+            options?.initialTerminalState ??
+            createDefaultDesktopTerminalWindowState(),
+        }));
       }
 
       setDesktopWindows((previousWindows) => [
@@ -2544,8 +2646,8 @@ export default function NeuralLabsPage() {
             : isSettingsApp
               ? "Desktop Settings"
               : existingWindowCount > 0
-                ? `Terminal Workspace ${existingWindowCount + 1}`
-                : "Terminal Workspace",
+                ? `Terminal ${existingWindowCount + 1}`
+                : "Terminal",
           x: isFileExplorerApp
             ? 42 + existingOffset
             : isSettingsApp
@@ -2563,6 +2665,7 @@ export default function NeuralLabsPage() {
       ]);
     },
     [
+      createDefaultDesktopTerminalWindowState,
       desktopWindows,
       focusDesktopWindow,
       loadDirectory,
@@ -3156,21 +3259,6 @@ export default function NeuralLabsPage() {
     return payload.terminal_id;
   }, []);
 
-  const deleteTerminal = useCallback(async (terminalId: string) => {
-    const response = await fetch(
-      `${NEURAL_LABS_API_PREFIX}/terminals/${encodeURIComponent(terminalId)}`,
-      { method: "DELETE" }
-    );
-
-    if (response.status === 404 || response.status === 204) {
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(await getFetchErrorMessage(response));
-    }
-  }, []);
-
   const reconcileLiveTerminals = useCallback(
     async (preferredActiveTerminalId?: string | null) => {
       let terminalIds = await listTerminals();
@@ -3265,7 +3353,7 @@ export default function NeuralLabsPage() {
 
       try {
         const terminalId = await createTerminal();
-        const newPane: PaneState = {
+        const newPane: TerminalPaneState = {
           pane_id: createLocalId(),
           terminal_id: terminalId,
         };
@@ -3315,7 +3403,7 @@ export default function NeuralLabsPage() {
 
       for (const pane of tab.panes) {
         try {
-          await deleteTerminal(pane.terminal_id);
+          await deleteTerminalById(pane.terminal_id);
         } catch (error) {
           toast.error(
             `Failed closing terminal: ${
@@ -3367,7 +3455,7 @@ export default function NeuralLabsPage() {
 
       setLayout({ tabs: remainingTabs, active_tab_id: nextActiveId });
     },
-    [createTerminal, deleteTerminal]
+    [createTerminal]
   );
 
   const closePaneById = useCallback(
@@ -3388,7 +3476,7 @@ export default function NeuralLabsPage() {
       }
 
       try {
-        await deleteTerminal(pane.terminal_id);
+        await deleteTerminalById(pane.terminal_id);
       } catch (error) {
         toast.error(
           `Failed closing terminal pane: ${
@@ -3433,7 +3521,7 @@ export default function NeuralLabsPage() {
         };
       });
     },
-    [closeTabById, deleteTerminal]
+    [closeTabById]
   );
 
   useEffect(() => {
@@ -3981,20 +4069,6 @@ export default function NeuralLabsPage() {
             ref={previewWorkspaceRef}
             className="relative min-h-0 flex-1 overflow-hidden px-4 pb-28"
           >
-            {desktopWindows.length === 0 && previewWindows.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center p-8">
-                <div className="max-w-xl rounded-[28px] border border-white/12 bg-white/8 px-8 py-7 text-center backdrop-blur-xl">
-                  <Text className="text-lg font-medium text-white">
-                    Desktop mode is ready
-                  </Text>
-                  <Text className="mt-2 text-white/70">
-                    Launch File Explorer, Terminal, or Text Editor from the
-                    taskbar below.
-                  </Text>
-                </div>
-              </div>
-            ) : null}
-
             <NeuralLabsDesktopWindows
               windows={desktopWindows}
               workspaceBounds={workspaceBounds}
