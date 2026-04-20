@@ -158,6 +158,8 @@ export default function NeuralLabsDesktopNeura({
   const { resolvedTheme } = useTheme();
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const hasBootstrappedConversationRef = useRef(false);
   const isDarkMode = resolvedTheme !== "light";
 
   const activeConversation =
@@ -196,6 +198,33 @@ export default function NeuralLabsDesktopNeura({
     windowState.is_streaming,
   ]);
 
+  useEffect(() => {
+    if (
+      hasBootstrappedConversationRef.current ||
+      windowState.is_loading_conversations ||
+      windowState.conversations.length > 0
+    ) {
+      return;
+    }
+
+    hasBootstrappedConversationRef.current = true;
+    void onCreateConversation();
+  }, [
+    onCreateConversation,
+    windowState.conversations.length,
+    windowState.is_loading_conversations,
+  ]);
+
+  useEffect(() => {
+    if (!activeConversation || windowState.is_streaming) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, [activeConversation?.id, windowState.is_streaming]);
+
   const chromeClassName = isDarkMode
     ? "border-white/10 bg-[linear-gradient(180deg,rgba(11,18,31,0.92),rgba(7,11,21,0.92))] text-white"
     : "border-slate-200/80 bg-[linear-gradient(180deg,rgba(250,252,255,0.96),rgba(242,246,252,0.96))] text-slate-900";
@@ -203,6 +232,9 @@ export default function NeuralLabsDesktopNeura({
     ? "border-white/10 bg-white/[0.04]"
     : "border-slate-200/80 bg-white/70";
   const mutedClassName = isDarkMode ? "text-white/55" : "text-slate-500";
+  const surfaceClassName = isDarkMode
+    ? "border-white/10 bg-white/[0.04]"
+    : "border-slate-200/80 bg-white/72";
   const messageShellClassName = isDarkMode
     ? "border-white/10 bg-[#0b1322]/85"
     : "border-slate-200/90 bg-white/88";
@@ -412,11 +444,7 @@ export default function NeuralLabsDesktopNeura({
           {!activeConversation ? (
             <div className="flex h-full items-center justify-center">
               <div
-                className={`max-w-md rounded-24 border px-8 py-8 text-center ${
-                  isDarkMode
-                    ? "border-white/10 bg-white/[0.04]"
-                    : "border-slate-200/80 bg-white/70"
-                }`}
+                className={`max-w-md rounded-24 border px-8 py-8 text-center ${surfaceClassName}`}
               >
                 <div
                   className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${
@@ -439,11 +467,7 @@ export default function NeuralLabsDesktopNeura({
           ) : activeMessages.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div
-                className={`max-w-xl rounded-24 border px-8 py-8 ${
-                  isDarkMode
-                    ? "border-white/10 bg-white/[0.04]"
-                    : "border-slate-200/80 bg-white/70"
-                }`}
+                className={`max-w-xl rounded-24 border px-8 py-8 ${surfaceClassName}`}
               >
                 <Text className="text-lg font-medium">
                   Ask {windowState.assistant_name} anything
@@ -591,6 +615,7 @@ export default function NeuralLabsDesktopNeura({
 
                 <div className="min-w-0 flex-1">
                   <textarea
+                    ref={textareaRef}
                     value={activeDraft}
                     disabled={!activeConversation || windowState.is_streaming}
                     placeholder={

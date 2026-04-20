@@ -49,9 +49,11 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - desktop `File Explorer` and `Desktop Settings` now open with wider default window sizes so their initial layouts better match the rest of the Neural Labs desktop apps
     - desktop file explorer windows keep their own path, history, selection, and view mode instead of sharing the legacy navigator state
     - desktop `Text Editor` is now a first-class desktop app window instead of the old preview-window editor: Monaco editor surface, per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
+    - desktop `Text Editor` now keeps its sidebar, toolbar, tab rail, editor canvas, and save modal aligned to the active light/dark theme instead of mixing light and dark surface treatments
     - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open into the focused desktop editor window as tabs rather than using a separate preview-window editor mode
     - desktop `Neura` is now a dedicated Neural Labs chat app: multi-conversation sidebar, message timeline, streaming replies, and taskbar multi-window behavior using the same desktop shell as the other apps
     - Neura now uses a modern pill-shaped composer with inline image attachments for Sonnet vision; users can attach images directly from the composer and those uploads render back into the chat timeline
+    - a fresh Neura window now auto-creates its first conversation and focuses the composer so the app is ready to type immediately instead of waiting for a manual `+` click
     - Neura chat history is not stored in Onyx chat tables; it persists inside the user Neural Labs home at `~/.neural-labs/neura/neura.db`
     - Neura image uploads are stored alongside that history inside the user Neural Labs workspace at `~/.neural-labs/neura/uploads/`
     - new Neura conversations default to the Neural Labs Sonnet model resolved from the managed Claude provider env (`ANTHROPIC_DEFAULT_SONNET_MODEL`)

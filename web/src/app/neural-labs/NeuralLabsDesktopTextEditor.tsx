@@ -91,6 +91,24 @@ export default function NeuralLabsDesktopTextEditor({
     windowState.tabs[0] ??
     null;
   const activeLanguage = getEditorLanguage(activeTab);
+  const isDarkMode = resolvedTheme === "dark";
+
+  const shellClassName = isDarkMode
+    ? "bg-[linear-gradient(180deg,#09111d,#0c1422)] text-white"
+    : "bg-[linear-gradient(180deg,#f7faff,#eef3fa)] text-slate-900";
+  const elevatedSurfaceClassName = isDarkMode
+    ? "border-white/10 bg-white/[0.05]"
+    : "border-slate-200/80 bg-white/84";
+  const tabRailClassName = isDarkMode
+    ? "border-white/10 bg-[#0d1524]/92"
+    : "border-slate-200/80 bg-slate-100/85";
+  const editorCanvasClassName = isDarkMode ? "bg-[#0a111d]" : "bg-white";
+  const footerClassName = isDarkMode
+    ? "border-white/10 bg-white/[0.06] text-white/45"
+    : "border-slate-200/80 bg-white/82 text-slate-500";
+  const modalShellClassName = isDarkMode
+    ? "border-white/10 bg-[#101a2d]"
+    : "border-slate-200/80 bg-white";
 
   useEffect(() => {
     if (!activeTab) {
@@ -272,10 +290,14 @@ export default function NeuralLabsDesktopTextEditor({
   );
 
   return (
-    <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-slate-100 text-slate-900 dark:bg-[#0b1220] dark:text-white">
+    <div
+      className={`relative flex h-full min-h-0 w-full overflow-hidden ${shellClassName}`}
+    >
       {windowState.is_sidebar_open ? (
-        <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white/88 dark:border-white/10 dark:bg-white/5">
-          <div className="flex items-center justify-between border-b border-slate-200/80 px-3 py-2 dark:border-white/10">
+        <aside
+          className={`flex w-64 shrink-0 flex-col border-r ${elevatedSurfaceClassName}`}
+        >
+          <div className="flex items-center justify-between border-b border-inherit px-3 py-2">
             <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-white/45">
               Open Files
             </Text>
@@ -354,7 +376,9 @@ export default function NeuralLabsDesktopTextEditor({
       ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 bg-white/82 px-3 py-2 dark:border-white/10 dark:bg-white/6">
+        <div
+          className={`flex items-center justify-between gap-3 border-b px-3 py-2 ${elevatedSurfaceClassName}`}
+        >
           <div className="min-w-0">
             <Text className="truncate text-sm font-medium text-slate-900 dark:text-white">
               {formatPath(activeTab)}
@@ -426,7 +450,9 @@ export default function NeuralLabsDesktopTextEditor({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200/80 bg-slate-100/80 px-2 py-1.5 dark:border-white/10 dark:bg-[#0d1524]/95">
+          <div
+            className={`flex items-center gap-1 overflow-x-auto border-b px-2 py-1.5 ${tabRailClassName}`}
+          >
             {windowState.tabs.map((tab) => {
               const isActive = tab.tab_id === activeTab?.tab_id;
               const isDirty = isTabDirty(tab);
@@ -480,7 +506,7 @@ export default function NeuralLabsDesktopTextEditor({
             </div>
           ) : null}
 
-          <div className="relative min-h-0 flex-1 bg-white dark:bg-[#0a111d]">
+          <div className={`relative min-h-0 flex-1 ${editorCanvasClassName}`}>
             {activeTab ? (
               <Editor
                 key={activeTab.tab_id}
@@ -526,7 +552,9 @@ export default function NeuralLabsDesktopTextEditor({
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-slate-200/80 bg-white/82 px-3 py-1.5 text-xs text-slate-500 dark:border-white/10 dark:bg-white/6 dark:text-white/45">
+          <div
+            className={`flex items-center justify-between gap-3 border-t px-3 py-1.5 text-xs ${footerClassName}`}
+          >
             <div className="min-w-0 truncate">
               {activeTab
                 ? `${activeLanguage} · ${formatPath(activeTab)}`
@@ -541,7 +569,9 @@ export default function NeuralLabsDesktopTextEditor({
 
       {isSaveAsOpen ? (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] border border-white/20 bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.28)] dark:bg-[#101a2d]">
+          <div
+            className={`w-full max-w-lg rounded-[28px] border p-5 shadow-[0_28px_80px_rgba(15,23,42,0.28)] ${modalShellClassName}`}
+          >
             <div className="mb-4">
               <Text className="text-base font-semibold text-slate-900 dark:text-white">
                 Save File As
