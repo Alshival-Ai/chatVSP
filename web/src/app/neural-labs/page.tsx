@@ -83,7 +83,6 @@ interface TerminalWebSocketTokenResponse {
   ws_path: string;
 }
 
-type NeuralLabsUiMode = "legacy" | "desktop";
 type DesktopBackgroundPresetId =
   | "aurora"
   | "graphite"
@@ -135,7 +134,6 @@ const NEURAL_LABS_TERMINAL_WS_PATH = "/api/neural-labs/terminal/ws";
 const LAYOUT_STORAGE_KEY = "neural-labs-layout-v1";
 const TREE_STATE_STORAGE_KEY = "neural-labs-tree-v1";
 const PREVIEW_WINDOWS_STORAGE_KEY = "neural-labs-previews-v1";
-const UI_MODE_STORAGE_KEY = "neural-labs-ui-mode-v1";
 const DESKTOP_BACKGROUND_STORAGE_KEY = "neural-labs-desktop-background-v1";
 const DESKTOP_CUSTOM_BACKGROUND_PATH_STORAGE_KEY =
   "neural-labs-desktop-custom-background-path-v1";
@@ -1777,8 +1775,7 @@ function NeuralLabsDesktopSettingsPanel({
 
 export default function NeuralLabsPage() {
   const router = useRouter();
-  const [uiMode, setUiMode] = useState<NeuralLabsUiMode>("legacy");
-  const [hasLoadedUiMode, setHasLoadedUiMode] = useState(false);
+  const hasLoadedUiMode = true;
   const [desktopBackgroundId, setDesktopBackgroundId] =
     useState<DesktopBackgroundSelection>("sunset-grid");
   const [desktopCustomBackgroundPath, setDesktopCustomBackgroundPath] =
@@ -1869,18 +1866,6 @@ export default function NeuralLabsPage() {
   }, []);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(UI_MODE_STORAGE_KEY);
-    if (raw === "desktop" || raw === "legacy") {
-      setUiMode(raw);
-    }
-    setHasLoadedUiMode(true);
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(UI_MODE_STORAGE_KEY, uiMode);
-  }, [uiMode]);
-
-  useEffect(() => {
     const raw = window.localStorage.getItem(DESKTOP_BACKGROUND_STORAGE_KEY);
     if (
       raw &&
@@ -1934,7 +1919,7 @@ export default function NeuralLabsPage() {
     };
   }, [taskbarMenu]);
 
-  const isDesktopModeActive = isDesktopLayout && uiMode === "desktop";
+  const isDesktopModeActive = true;
 
   useEffect(() => {
     const raw = window.localStorage.getItem(NAVIGATOR_WIDTH_STORAGE_KEY);
@@ -4699,14 +4684,6 @@ export default function NeuralLabsPage() {
               >
                 Back to Main Chat
               </Button>
-              <Button
-                tertiary
-                size="md"
-                className="!border-white/15 !bg-white/10"
-                onClick={() => setUiMode("legacy")}
-              >
-                Back to Legacy UI
-              </Button>
             </div>
           </div>
 
@@ -4872,11 +4849,6 @@ export default function NeuralLabsPage() {
             </Text>
           </div>
           <div className="flex items-center gap-1.5">
-            {uiMode === "desktop" && !isDesktopLayout ? (
-              <Text text03 className="hidden md:block">
-                Desktop UI is only available on larger screens.
-              </Text>
-            ) : null}
             <div className="flex items-center gap-1 rounded-08 border border-border-01 px-2 py-1">
               <span
                 className={`h-2 w-2 rounded-full ${environmentStatus.dotClass}`}
@@ -4885,14 +4857,6 @@ export default function NeuralLabsPage() {
                 {environmentStatus.label}
               </Text>
             </div>
-            <Button
-              tertiary
-              size="md"
-              className="hidden md:inline-flex"
-              onClick={() => setUiMode("desktop")}
-            >
-              Try out the new Desktop UI
-            </Button>
             <Button tertiary size="md" onClick={() => void addTab()}>
               New Terminal
             </Button>

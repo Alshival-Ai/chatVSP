@@ -41,6 +41,8 @@
 - Frontend tree state recovery:
   - the Neural Labs file tree persists expanded and selected paths in browser storage
   - if a persisted directory no longer exists, the frontend clears that stale entry when the API returns `404`
+- Frontend route behavior:
+  - the `/neural-labs` page now resolves directly to the desktop shell; the former route-level legacy/Desktop presentation toggle is no longer exposed in the UI
 - Frontend window model:
   - file preview/editor windows continue to use the persisted floating preview-window model
   - desktop-only app windows (`File Explorer`, `Terminal`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
