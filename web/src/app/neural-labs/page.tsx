@@ -18,8 +18,10 @@ import {
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import Button from "@/refresh-components/buttons/Button";
+import InputSelect from "@/refresh-components/inputs/InputSelect";
 import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
+import ColorSwatch from "@/refresh-components/ColorSwatch";
 import NeuralLabsDesktopFileExplorer from "@/app/neural-labs/NeuralLabsDesktopFileExplorer";
 import NeuralLabsDesktopTextEditor from "@/app/neural-labs/NeuralLabsDesktopTextEditor";
 import NeuralLabsDesktopTerminal from "@/app/neural-labs/NeuralLabsDesktopTerminal";
@@ -42,6 +44,8 @@ import type {
   PreviewWindowState,
   SplitMode,
 } from "@/app/neural-labs/types";
+import { ThemePreference } from "@/lib/types";
+import { useUser } from "@/providers/UserProvider";
 import {
   SvgArrowLeft,
   SvgChevronLeft,
@@ -1697,6 +1701,8 @@ function NeuralLabsDesktopSettingsPanel({
   isDeletingCustomBackground: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { updateUserThemePreference } = useUser();
+  const { theme, setTheme, systemTheme } = useTheme();
   const hasCustomBackground = Boolean(customBackgroundPath);
   const customBackgroundUrl = customBackgroundPath
     ? getDesktopBackgroundContentUrl(customBackgroundPath)
@@ -1725,6 +1731,56 @@ function NeuralLabsDesktopSettingsPanel({
             }
           }}
         />
+
+        <div className="mb-4 rounded-16 border border-border-01 bg-background-neutral-01 px-4 py-3">
+          <Text className="font-medium">Color mode</Text>
+          <Text text03 className="mt-1 text-xs">
+            Choose the light or dark theme for Neural Labs and the main app.
+          </Text>
+          <div className="mt-3">
+            <InputSelect
+              value={theme ?? ThemePreference.SYSTEM}
+              onValueChange={(value) => {
+                setTheme(value);
+                void updateUserThemePreference(value as ThemePreference);
+              }}
+            >
+              <InputSelect.Trigger />
+              <InputSelect.Content>
+                <InputSelect.Item
+                  value={ThemePreference.SYSTEM}
+                  icon={() => (
+                    <ColorSwatch
+                      light={systemTheme === "light"}
+                      dark={systemTheme === "dark"}
+                    />
+                  )}
+                  description={
+                    systemTheme
+                      ? systemTheme.charAt(0).toUpperCase() +
+                        systemTheme.slice(1)
+                      : undefined
+                  }
+                >
+                  Auto
+                </InputSelect.Item>
+                <InputSelect.Separator />
+                <InputSelect.Item
+                  value={ThemePreference.LIGHT}
+                  icon={() => <ColorSwatch light />}
+                >
+                  Light
+                </InputSelect.Item>
+                <InputSelect.Item
+                  value={ThemePreference.DARK}
+                  icon={() => <ColorSwatch dark />}
+                >
+                  Dark
+                </InputSelect.Item>
+              </InputSelect.Content>
+            </InputSelect>
+          </div>
+        </div>
 
         <div className="mb-4 flex items-center justify-between gap-3 rounded-16 border border-border-01 bg-background-neutral-01 px-4 py-3">
           <div className="min-w-0">
@@ -1882,6 +1938,59 @@ export default function NeuralLabsPage() {
   useEffect(() => {
     desktopTerminalStatesRef.current = desktopTerminalStates;
   }, [desktopTerminalStates]);
+
+  useEffect(() => {
+    const fileExplorerWindowIds = desktopWindows
+      .filter((windowState) => windowState.app_kind === "file-explorer")
+      .map((windowState) => windowState.id);
+    if (fileExplorerWindowIds.length > 0) {
+      setDesktopExplorerStates((previousStates) => {
+        let didChange = false;
+        const nextStates = { ...previousStates };
+        fileExplorerWindowIds.forEach((windowId) => {
+          if (!(windowId in nextStates)) {
+            nextStates[windowId] = createDefaultDesktopExplorerState();
+            didChange = true;
+          }
+        });
+        return didChange ? nextStates : previousStates;
+      });
+    }
+
+    const textEditorWindowIds = desktopWindows
+      .filter((windowState) => windowState.app_kind === "text-editor")
+      .map((windowState) => windowState.id);
+    if (textEditorWindowIds.length > 0) {
+      setDesktopEditorStates((previousStates) => {
+        let didChange = false;
+        const nextStates = { ...previousStates };
+        textEditorWindowIds.forEach((windowId) => {
+          if (!(windowId in nextStates)) {
+            nextStates[windowId] = createDefaultDesktopEditorWindowState();
+            didChange = true;
+          }
+        });
+        return didChange ? nextStates : previousStates;
+      });
+    }
+
+    const terminalWindowIds = desktopWindows
+      .filter((windowState) => windowState.app_kind === "terminal-workspace")
+      .map((windowState) => windowState.id);
+    if (terminalWindowIds.length > 0) {
+      setDesktopTerminalStates((previousStates) => {
+        let didChange = false;
+        const nextStates = { ...previousStates };
+        terminalWindowIds.forEach((windowId) => {
+          if (!(windowId in nextStates)) {
+            nextStates[windowId] = createDefaultDesktopTerminalWindowState();
+            didChange = true;
+          }
+        });
+        return didChange ? nextStates : previousStates;
+      });
+    }
+  }, [desktopWindows]);
 
   const clampNavigatorWidth = useCallback((candidateWidth: number) => {
     const splitWidth = workspaceSplitRef.current?.clientWidth ?? 0;

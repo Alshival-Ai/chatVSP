@@ -47,6 +47,7 @@
   - desktop app windows (`File Explorer`, `Terminal`, `Text Editor`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
   - preview windows now render through the same desktop-style chrome treatment as app windows (matching compact title bar, macOS-style controls, shared snap/maximize affordances) while keeping their existing persisted preview content/state model
   - desktop app windows track snapped, maximized, and minimized state on the client so taskbar restore/focus behavior does not require backend changes
+  - the desktop shell now rehydrates missing per-window app state maps from the live window list so a terminal/editor/explorer window cannot get stranded on a fallback initializing shell after client-side state drift
   - desktop file explorer windows keep separate per-window navigation state (`current_path`, back/forward history, selection, and icon/list mode) while reusing the shared file API/cache layer
   - desktop terminal windows keep separate per-window terminal ownership and layout state (`tabs`, `active_tab_id`, split panes) so the Windows Terminal-style desktop app does not leak terminal sessions into the legacy terminal workspace
   - desktop editor windows keep separate per-window editor state (`tabs`, `active_tab_id`, sidebar visibility) while text-file loads/saves continue to use the existing file-content API
