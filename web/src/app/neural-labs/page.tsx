@@ -28,7 +28,6 @@ import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import type {
   DesktopTerminalWindowState,
   DesktopExplorerState,
-  DesktopExplorerViewMode,
   DesktopWindowState,
   TerminalLayoutState,
   TerminalPaneState,
@@ -488,7 +487,9 @@ function uniqueTerminalIds(layout: TerminalLayoutState): Set<string> {
   return ids;
 }
 
-function getTerminalIdsFromLayout(layout: TerminalLayoutState | null): string[] {
+function getTerminalIdsFromLayout(
+  layout: TerminalLayoutState | null
+): string[] {
   if (!layout) {
     return [];
   }
@@ -1627,14 +1628,18 @@ function NeuralLabsDesktopSettingsPanel({
   onSelectBackground,
   onSelectCustomBackground,
   onUploadCustomBackground,
+  onDeleteCustomBackground,
   isUploadingCustomBackground,
+  isDeletingCustomBackground,
 }: {
   selectedBackgroundId: DesktopBackgroundSelection;
   customBackgroundPath: string | null;
   onSelectBackground: (backgroundId: DesktopBackgroundPresetId) => void;
   onSelectCustomBackground: () => void;
   onUploadCustomBackground: (file: File) => Promise<void> | void;
+  onDeleteCustomBackground: () => Promise<void> | void;
   isUploadingCustomBackground: boolean;
+  isDeletingCustomBackground: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasCustomBackground = Boolean(customBackgroundPath);
@@ -1686,23 +1691,39 @@ function NeuralLabsDesktopSettingsPanel({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {hasCustomBackground && customBackgroundUrl ? (
-            <button
-              type="button"
-              className={`overflow-hidden rounded-16 border text-left transition ${
-                selectedBackgroundId.startsWith(CUSTOM_DESKTOP_BACKGROUND_PREFIX)
-                  ? "border-border-04 bg-background-tint-03/40"
-                  : "border-border-01 bg-background-neutral-01 hover:bg-background-neutral-00"
-              }`}
-              onClick={onSelectCustomBackground}
-            >
-              <div
-                className="h-28 w-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${customBackgroundUrl})` }}
-              />
-              <div className="px-3 py-3">
-                <Text className="font-medium">Custom Upload</Text>
-              </div>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                className={`w-full overflow-hidden rounded-16 border text-left transition ${
+                  selectedBackgroundId.startsWith(
+                    CUSTOM_DESKTOP_BACKGROUND_PREFIX
+                  )
+                    ? "border-border-04 bg-background-tint-03/40"
+                    : "border-border-01 bg-background-neutral-01 hover:bg-background-neutral-00"
+                }`}
+                onClick={onSelectCustomBackground}
+              >
+                <div
+                  className="h-28 w-full bg-cover bg-center"
+                  style={{ backgroundImage: `url(${customBackgroundUrl})` }}
+                />
+                <div className="px-3 py-3">
+                  <Text className="font-medium">Custom Upload</Text>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white transition hover:bg-black/60 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Delete uploaded background"
+                disabled={isDeletingCustomBackground}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void onDeleteCustomBackground();
+                }}
+              >
+                <SvgTrash className="h-4 w-4 stroke-current" />
+              </button>
+            </div>
           ) : null}
           {DESKTOP_BACKGROUND_PRESETS.map((preset) => {
             const isSelected = preset.id === selectedBackgroundId;
@@ -1733,6 +1754,7 @@ function NeuralLabsDesktopSettingsPanel({
 export default function NeuralLabsPage() {
   const router = useRouter();
   const [uiMode, setUiMode] = useState<NeuralLabsUiMode>("legacy");
+  const [hasLoadedUiMode, setHasLoadedUiMode] = useState(false);
   const [desktopBackgroundId, setDesktopBackgroundId] =
     useState<DesktopBackgroundSelection>("sunset-grid");
   const [desktopCustomBackgroundPath, setDesktopCustomBackgroundPath] =
@@ -1825,6 +1847,7 @@ export default function NeuralLabsPage() {
     if (raw === "desktop" || raw === "legacy") {
       setUiMode(raw);
     }
+    setHasLoadedUiMode(true);
   }, []);
 
   useEffect(() => {
@@ -2358,9 +2381,7 @@ export default function NeuralLabsPage() {
       windowId: string,
       update:
         | Partial<DesktopTerminalWindowState>
-        | ((
-            state: DesktopTerminalWindowState
-          ) => DesktopTerminalWindowState)
+        | ((state: DesktopTerminalWindowState) => DesktopTerminalWindowState)
     ) => {
       setDesktopTerminalStates((previousStates) => {
         const currentState = previousStates[windowId];
@@ -2665,7 +2686,6 @@ export default function NeuralLabsPage() {
       ]);
     },
     [
-      createDefaultDesktopTerminalWindowState,
       desktopWindows,
       focusDesktopWindow,
       loadDirectory,
@@ -3026,7 +3046,9 @@ export default function NeuralLabsPage() {
             : uploadTargetPath;
 
         setDesktopCustomBackgroundPath(nextPath);
-        setDesktopBackgroundId(createCustomDesktopBackgroundSelection(nextPath));
+        setDesktopBackgroundId(
+          createCustomDesktopBackgroundSelection(nextPath)
+        );
         setExpandedPaths((previousPaths) =>
           previousPaths.includes(CUSTOM_DESKTOP_BACKGROUND_DIRECTORY)
             ? previousPaths
@@ -3259,9 +3281,511 @@ export default function NeuralLabsPage() {
     return payload.terminal_id;
   }, []);
 
+  const initializeDesktopTerminalWindow = useCallback(
+    async (windowId: string) => {
+      if (desktopTerminalInitInFlightRef.current.has(windowId)) {
+        return;
+      }
+
+      desktopTerminalInitInFlightRef.current.add(windowId);
+
+      try {
+        const warmupResponse = await fetch(`${NEURAL_LABS_API_PREFIX}/warmup`, {
+          method: "POST",
+        });
+        if (!warmupResponse.ok) {
+          throw new Error(await getFetchErrorMessage(warmupResponse));
+        }
+
+        const warmupPayload = (await warmupResponse.json()) as WarmupResponse;
+        const terminalId =
+          warmupPayload.terminal_id ?? (await createTerminal());
+
+        if (!desktopTerminalStatesRef.current[windowId]) {
+          await deleteTerminalById(terminalId);
+          return;
+        }
+
+        const tab = createTabFromTerminal(terminalId, []);
+        updateDesktopTerminalState(windowId, {
+          layout: {
+            tabs: [tab],
+            active_tab_id: tab.tab_id,
+          },
+          is_initializing: false,
+        });
+      } catch (error) {
+        toast.error(
+          `Unable to initialize terminal window: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+        updateDesktopTerminalState(windowId, {
+          layout: { tabs: [], active_tab_id: "" },
+          is_initializing: false,
+        });
+      } finally {
+        desktopTerminalInitInFlightRef.current.delete(windowId);
+      }
+    },
+    [createTerminal, updateDesktopTerminalState]
+  );
+
+  const setActiveDesktopTerminalTab = useCallback(
+    (windowId: string, tabId: string) => {
+      updateDesktopTerminalState(windowId, (currentState) => {
+        if (!currentState.layout) {
+          return currentState;
+        }
+
+        return {
+          ...currentState,
+          layout: {
+            ...currentState.layout,
+            active_tab_id: tabId,
+          },
+        };
+      });
+    },
+    [updateDesktopTerminalState]
+  );
+
+  const setActiveDesktopTerminalPane = useCallback(
+    (windowId: string, tabId: string, paneId: string) => {
+      updateDesktopTerminalState(windowId, (currentState) => {
+        if (!currentState.layout) {
+          return currentState;
+        }
+
+        return {
+          ...currentState,
+          layout: {
+            ...currentState.layout,
+            active_tab_id: tabId,
+            tabs: currentState.layout.tabs.map((tab) =>
+              tab.tab_id === tabId ? { ...tab, active_pane_id: paneId } : tab
+            ),
+          },
+        };
+      });
+    },
+    [updateDesktopTerminalState]
+  );
+
+  const reorderDesktopTerminalTabs = useCallback(
+    (windowId: string, sourceTabId: string, targetTabId: string) => {
+      updateDesktopTerminalState(windowId, (currentState) => {
+        if (!currentState.layout || sourceTabId === targetTabId) {
+          return currentState;
+        }
+
+        const sourceIndex = currentState.layout.tabs.findIndex(
+          (tab) => tab.tab_id === sourceTabId
+        );
+        const targetIndex = currentState.layout.tabs.findIndex(
+          (tab) => tab.tab_id === targetTabId
+        );
+        if (sourceIndex === -1 || targetIndex === -1) {
+          return currentState;
+        }
+
+        const nextTabs = [...currentState.layout.tabs];
+        const [movedTab] = nextTabs.splice(sourceIndex, 1);
+        if (!movedTab) {
+          return currentState;
+        }
+        nextTabs.splice(targetIndex, 0, movedTab);
+
+        return {
+          ...currentState,
+          layout: {
+            ...currentState.layout,
+            tabs: nextTabs,
+          },
+        };
+      });
+    },
+    [updateDesktopTerminalState]
+  );
+
+  const renameDesktopTerminalTab = useCallback(
+    (windowId: string, tabId: string) => {
+      const currentState = desktopTerminalStatesRef.current[windowId];
+      const tab = currentState?.layout?.tabs.find(
+        (candidate) => candidate.tab_id === tabId
+      );
+      if (!tab) {
+        return;
+      }
+
+      const nextTitle = window.prompt("Rename tab:", tab.title)?.trim();
+      if (!nextTitle || nextTitle === tab.title) {
+        return;
+      }
+
+      updateDesktopTerminalState(windowId, (existingState) => {
+        if (!existingState.layout) {
+          return existingState;
+        }
+
+        return {
+          ...existingState,
+          layout: {
+            ...existingState.layout,
+            tabs: existingState.layout.tabs.map((candidate) =>
+              candidate.tab_id === tabId
+                ? { ...candidate, title: nextTitle }
+                : candidate
+            ),
+          },
+        };
+      });
+    },
+    [updateDesktopTerminalState]
+  );
+
+  const addDesktopTerminalTab = useCallback(
+    async (windowId: string) => {
+      try {
+        const terminalId = await createTerminal();
+        if (!desktopTerminalStatesRef.current[windowId]) {
+          await deleteTerminalById(terminalId);
+          return;
+        }
+
+        updateDesktopTerminalState(windowId, (currentState) => {
+          const layout = currentState.layout ?? { tabs: [], active_tab_id: "" };
+          const tab = createTabFromTerminal(terminalId, layout.tabs);
+          return {
+            ...currentState,
+            is_initializing: false,
+            layout: {
+              tabs: [...layout.tabs, tab],
+              active_tab_id: tab.tab_id,
+            },
+          };
+        });
+      } catch (error) {
+        toast.error(
+          `Unable to create terminal tab: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+      }
+    },
+    [createTerminal, updateDesktopTerminalState]
+  );
+
+  const splitDesktopTerminalTab = useCallback(
+    async (
+      windowId: string,
+      tabId: string,
+      direction: "horizontal" | "vertical"
+    ) => {
+      const currentState = desktopTerminalStatesRef.current[windowId];
+      const tab = currentState?.layout?.tabs.find(
+        (candidate) => candidate.tab_id === tabId
+      );
+      if (!tab || tab.panes.length !== 1) {
+        return;
+      }
+
+      try {
+        const terminalId = await createTerminal();
+        if (!desktopTerminalStatesRef.current[windowId]) {
+          await deleteTerminalById(terminalId);
+          return;
+        }
+
+        const newPane: TerminalPaneState = {
+          pane_id: createLocalId(),
+          terminal_id: terminalId,
+        };
+
+        updateDesktopTerminalState(windowId, (existingState) => {
+          if (!existingState.layout) {
+            return existingState;
+          }
+
+          return {
+            ...existingState,
+            layout: {
+              ...existingState.layout,
+              active_tab_id: tabId,
+              tabs: existingState.layout.tabs.map((candidate) =>
+                candidate.tab_id === tabId
+                  ? {
+                      ...candidate,
+                      split_mode: direction,
+                      panes: [...candidate.panes, newPane],
+                      active_pane_id: newPane.pane_id,
+                    }
+                  : candidate
+              ),
+            },
+          };
+        });
+      } catch (error) {
+        toast.error(
+          `Unable to split terminal: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+      }
+    },
+    [createTerminal, updateDesktopTerminalState]
+  );
+
+  const duplicateDesktopTerminalTab = useCallback(
+    async (windowId: string, tabId: string) => {
+      const currentState = desktopTerminalStatesRef.current[windowId];
+      const sourceTab = currentState?.layout?.tabs.find(
+        (candidate) => candidate.tab_id === tabId
+      );
+      if (!sourceTab) {
+        return;
+      }
+
+      try {
+        const terminalId = await createTerminal();
+        if (!desktopTerminalStatesRef.current[windowId]) {
+          await deleteTerminalById(terminalId);
+          return;
+        }
+
+        updateDesktopTerminalState(windowId, (existingState) => {
+          const layout = existingState.layout ?? {
+            tabs: [],
+            active_tab_id: "",
+          };
+          const duplicateTitle = `${sourceTab.title} Copy`;
+          const tab = createTabFromTerminal(
+            terminalId,
+            layout.tabs,
+            duplicateTitle
+          );
+
+          return {
+            ...existingState,
+            layout: {
+              tabs: [...layout.tabs, tab],
+              active_tab_id: tab.tab_id,
+            },
+          };
+        });
+      } catch (error) {
+        toast.error(
+          `Unable to duplicate terminal tab: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+      }
+    },
+    [createTerminal, updateDesktopTerminalState]
+  );
+
+  const closeDesktopTerminalTab = useCallback(
+    async (windowId: string, tabId: string) => {
+      const currentState = desktopTerminalStatesRef.current[windowId];
+      const tab = currentState?.layout?.tabs.find(
+        (candidate) => candidate.tab_id === tabId
+      );
+      if (!tab) {
+        return;
+      }
+
+      for (const terminalId of tab.panes.map((pane) => pane.terminal_id)) {
+        try {
+          await deleteTerminalById(terminalId);
+        } catch (error) {
+          toast.error(
+            `Failed closing terminal: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`
+          );
+        }
+      }
+
+      const latestState = desktopTerminalStatesRef.current[windowId];
+      const latestLayout = latestState?.layout;
+      if (!latestLayout) {
+        return;
+      }
+
+      const remainingTabs = latestLayout.tabs.filter(
+        (candidate) => candidate.tab_id !== tabId
+      );
+      if (remainingTabs.length === 0) {
+        removeDesktopWindowRecord(windowId);
+        return;
+      }
+
+      const closedIndex = latestLayout.tabs.findIndex(
+        (candidate) => candidate.tab_id === tabId
+      );
+      const fallbackTab =
+        remainingTabs[Math.max(0, closedIndex - 1)] ?? remainingTabs[0] ?? null;
+
+      updateDesktopTerminalState(windowId, {
+        layout: {
+          tabs: remainingTabs,
+          active_tab_id:
+            latestLayout.active_tab_id === tabId
+              ? fallbackTab?.tab_id ?? ""
+              : latestLayout.active_tab_id,
+        },
+      });
+    },
+    [removeDesktopWindowRecord, updateDesktopTerminalState]
+  );
+
+  const closeDesktopTerminalPane = useCallback(
+    async (windowId: string, tabId: string, paneId: string) => {
+      const currentState = desktopTerminalStatesRef.current[windowId];
+      const tab = currentState?.layout?.tabs.find(
+        (candidate) => candidate.tab_id === tabId
+      );
+      const pane = tab?.panes.find((candidate) => candidate.pane_id === paneId);
+      if (!tab || !pane) {
+        return;
+      }
+
+      if (tab.panes.length === 1) {
+        await closeDesktopTerminalTab(windowId, tabId);
+        return;
+      }
+
+      try {
+        await deleteTerminalById(pane.terminal_id);
+      } catch (error) {
+        toast.error(
+          `Failed closing terminal pane: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+        return;
+      }
+
+      updateDesktopTerminalState(windowId, (existingState) => {
+        if (!existingState.layout) {
+          return existingState;
+        }
+
+        return {
+          ...existingState,
+          layout: {
+            ...existingState.layout,
+            active_tab_id: tabId,
+            tabs: existingState.layout.tabs.map((candidate) => {
+              if (candidate.tab_id !== tabId) {
+                return candidate;
+              }
+
+              const remainingPanes = candidate.panes.filter(
+                (paneCandidate) => paneCandidate.pane_id !== paneId
+              );
+              const fallbackPane =
+                remainingPanes.find(
+                  (paneCandidate) =>
+                    paneCandidate.pane_id === candidate.active_pane_id
+                ) ??
+                remainingPanes[0] ??
+                null;
+
+              return {
+                ...candidate,
+                split_mode:
+                  remainingPanes.length === 1 ? "none" : candidate.split_mode,
+                panes: remainingPanes,
+                active_pane_id: fallbackPane?.pane_id ?? "",
+              };
+            }),
+          },
+        };
+      });
+    },
+    [closeDesktopTerminalTab, updateDesktopTerminalState]
+  );
+
+  const moveDesktopTerminalTabToNewWindow = useCallback(
+    (windowId: string, tabId: string) => {
+      const currentState = desktopTerminalStatesRef.current[windowId];
+      const layout = currentState?.layout;
+      const tab = layout?.tabs.find((candidate) => candidate.tab_id === tabId);
+      if (!layout || !tab) {
+        return;
+      }
+
+      openDesktopApp("terminal-workspace", {
+        forceNew: true,
+        initialTerminalState: {
+          layout: {
+            tabs: [tab],
+            active_tab_id: tab.tab_id,
+          },
+          is_initializing: false,
+        },
+      });
+
+      const remainingTabs = layout.tabs.filter(
+        (candidate) => candidate.tab_id !== tabId
+      );
+      if (remainingTabs.length === 0) {
+        removeDesktopWindowRecord(windowId);
+        return;
+      }
+
+      const closedIndex = layout.tabs.findIndex(
+        (candidate) => candidate.tab_id === tabId
+      );
+      const fallbackTab =
+        remainingTabs[Math.max(0, closedIndex - 1)] ?? remainingTabs[0] ?? null;
+
+      updateDesktopTerminalState(windowId, {
+        layout: {
+          tabs: remainingTabs,
+          active_tab_id:
+            layout.active_tab_id === tabId
+              ? fallbackTab?.tab_id ?? ""
+              : layout.active_tab_id,
+        },
+      });
+    },
+    [openDesktopApp, removeDesktopWindowRecord, updateDesktopTerminalState]
+  );
+
+  useEffect(() => {
+    const pendingWindowIds = desktopWindows
+      .filter((windowState) => windowState.app_kind === "terminal-workspace")
+      .map((windowState) => windowState.id)
+      .filter((windowId) => {
+        const terminalState = desktopTerminalStates[windowId];
+        if (!terminalState) {
+          return false;
+        }
+
+        return (
+          terminalState.is_initializing &&
+          terminalState.layout === null &&
+          !desktopTerminalInitInFlightRef.current.has(windowId)
+        );
+      });
+
+    pendingWindowIds.forEach((windowId) => {
+      void initializeDesktopTerminalWindow(windowId);
+    });
+  }, [desktopTerminalStates, desktopWindows, initializeDesktopTerminalWindow]);
+
   const reconcileLiveTerminals = useCallback(
     async (preferredActiveTerminalId?: string | null) => {
-      let terminalIds = await listTerminals();
+      const desktopTerminalIds = new Set(
+        Object.values(desktopTerminalStatesRef.current).flatMap((state) =>
+          getTerminalIdsFromLayout(state.layout)
+        )
+      );
+      let terminalIds = (await listTerminals()).filter(
+        (terminalId) => !desktopTerminalIds.has(terminalId)
+      );
       if (terminalIds.length === 0) {
         const terminalId = await createTerminal();
         terminalIds = [terminalId];
@@ -3525,6 +4049,10 @@ export default function NeuralLabsPage() {
   );
 
   useEffect(() => {
+    if (!hasLoadedUiMode || isDesktopModeActive) {
+      return;
+    }
+
     let isCancelled = false;
 
     const initialize = async () => {
@@ -3562,7 +4090,7 @@ export default function NeuralLabsPage() {
     return () => {
       isCancelled = true;
     };
-  }, [reconcileLiveTerminals]);
+  }, [hasLoadedUiMode, isDesktopModeActive, reconcileLiveTerminals]);
 
   useEffect(() => {
     if (!layout) {
@@ -3596,7 +4124,7 @@ export default function NeuralLabsPage() {
   const activeTerminalId = activePane?.terminal_id ?? null;
 
   useEffect(() => {
-    if (isInitializingTerminals) {
+    if (!hasLoadedUiMode || isDesktopModeActive || isInitializingTerminals) {
       return;
     }
 
@@ -3625,10 +4153,21 @@ export default function NeuralLabsPage() {
       window.removeEventListener("focus", handleVisibilityChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activeTerminalId, isInitializingTerminals, reconcileLiveTerminals]);
+  }, [
+    activeTerminalId,
+    hasLoadedUiMode,
+    isDesktopModeActive,
+    isInitializingTerminals,
+    reconcileLiveTerminals,
+  ]);
 
   useEffect(() => {
-    if (isInitializingTerminals || !activeTerminalId) {
+    if (
+      !hasLoadedUiMode ||
+      isDesktopModeActive ||
+      isInitializingTerminals ||
+      !activeTerminalId
+    ) {
       setActiveTerminalStatus(null);
       return;
     }
@@ -3695,7 +4234,13 @@ export default function NeuralLabsPage() {
         window.clearInterval(intervalId);
       }
     };
-  }, [activeTerminalId, isInitializingTerminals, reconcileLiveTerminals]);
+  }, [
+    activeTerminalId,
+    hasLoadedUiMode,
+    isDesktopModeActive,
+    isInitializingTerminals,
+    reconcileLiveTerminals,
+  ]);
 
   const pathLabel = useMemo(() => {
     return currentPath ? `~/${currentPath}` : "~";
@@ -3907,54 +4452,81 @@ export default function NeuralLabsPage() {
         );
       }
 
+      const terminalState =
+        desktopTerminalStates[windowState.id] ??
+        createDefaultDesktopTerminalWindowState();
+
       return (
-        <NeuralLabsTerminalWorkspacePanel
-          layout={layout}
-          activeTab={activeTab}
-          activePane={activePane}
-          isInitializingTerminals={isInitializingTerminals}
-          environmentStatus={environmentStatus}
-          canSplitActiveTab={canSplitActiveTab}
-          onAddTab={addTab}
-          onSplitActiveTab={splitActiveTab}
-          onSetActiveTab={setActiveTab}
-          onSetActivePane={setActivePane}
-          onCloseTabById={closeTabById}
-          onClosePaneById={closePaneById}
-          isTerminalNavigatorVisible
+        <NeuralLabsDesktopTerminal
+          layout={terminalState.layout}
+          isInitializing={terminalState.is_initializing}
+          onAddTab={() => addDesktopTerminalTab(windowState.id)}
+          onSetActiveTab={(tabId) =>
+            setActiveDesktopTerminalTab(windowState.id, tabId)
+          }
+          onSetActivePane={(tabId, paneId) =>
+            setActiveDesktopTerminalPane(windowState.id, tabId, paneId)
+          }
+          onCloseTab={(tabId) => closeDesktopTerminalTab(windowState.id, tabId)}
+          onClosePane={(tabId, paneId) =>
+            closeDesktopTerminalPane(windowState.id, tabId, paneId)
+          }
+          onSplitTab={(tabId, direction) =>
+            splitDesktopTerminalTab(windowState.id, tabId, direction)
+          }
+          onDuplicateTab={(tabId) =>
+            duplicateDesktopTerminalTab(windowState.id, tabId)
+          }
+          onRenameTab={(tabId) =>
+            renameDesktopTerminalTab(windowState.id, tabId)
+          }
+          onMoveTabToNewWindow={(tabId) =>
+            moveDesktopTerminalTabToNewWindow(windowState.id, tabId)
+          }
+          onReorderTabs={(sourceTabId, targetTabId) =>
+            reorderDesktopTerminalTabs(windowState.id, sourceTabId, targetTabId)
+          }
+          renderTerminalPane={(pane, isActive, onFocus) => (
+            <TerminalPane
+              terminalId={pane.terminal_id}
+              isActive={isActive}
+              onFocus={onFocus}
+            />
+          )}
         />
       );
     },
     [
-      activePane,
-      activeTab,
-      addTab,
-      canSplitActiveTab,
-      closePaneById,
-      closeTabById,
+      addDesktopTerminalTab,
+      closeDesktopTerminalPane,
+      closeDesktopTerminalTab,
       copyPath,
       createFolderAtPath,
       downloadFile,
       desktopExplorerStates,
+      desktopTerminalStates,
       environmentStatus,
       deleteEntryAtPath,
+      duplicateDesktopTerminalTab,
       isPreviewable,
-      layout,
       loadingPaths,
       loadDirectory,
       moveEntries,
+      moveDesktopTerminalTabToNewWindow,
       navigateDesktopExplorerBack,
       navigateDesktopExplorerForward,
       navigateDesktopExplorerToPath,
       navigateDesktopExplorerUp,
       openPreview,
+      reorderDesktopTerminalTabs,
+      renameDesktopTerminalTab,
       refreshDirectoryPaths,
       renameEntryAtPath,
-      setActivePane,
-      setActiveTab,
       setDesktopExplorerSelection,
+      setActiveDesktopTerminalPane,
+      setActiveDesktopTerminalTab,
       desktopBackgroundId,
-      splitActiveTab,
+      splitDesktopTerminalTab,
       treeEntries,
       uploadFilesToPath,
       updateDesktopExplorerState,

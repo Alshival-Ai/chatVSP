@@ -63,6 +63,31 @@ export type NeuralLabsDesktopAppKind =
 
 export type DesktopExplorerViewMode = "icon" | "list";
 
+export type SplitMode = "none" | "horizontal" | "vertical";
+
+export interface TerminalPaneState {
+  pane_id: string;
+  terminal_id: string;
+}
+
+export interface TerminalTabState {
+  tab_id: string;
+  title: string;
+  split_mode: SplitMode;
+  panes: TerminalPaneState[];
+  active_pane_id: string;
+}
+
+export interface TerminalLayoutState {
+  tabs: TerminalTabState[];
+  active_tab_id: string;
+}
+
+export interface DesktopTerminalWindowState {
+  layout: TerminalLayoutState | null;
+  is_initializing: boolean;
+}
+
 export interface DesktopExplorerState {
   current_path: string;
   back_history: string[];

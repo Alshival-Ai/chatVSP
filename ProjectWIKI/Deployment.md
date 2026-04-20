@@ -99,6 +99,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - legacy layout still uses the fixed File Navigator / Neural Apps / Terminal Navigator structure, including collapsed rails
   - desktop layout replaces fixed sidebars with a pill taskbar using icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, and `Desktop Settings` apps
   - desktop `File Explorer` now uses a Finder-style hybrid explorer instead of the legacy tree: sidebar locations, breadcrumb path navigation, per-window history/state, icon/list views, and drag/drop move or OS-file upload
+  - desktop `Terminal` now uses a dedicated Windows Terminal-style app surface rather than the legacy terminal panel: independent terminal windows, top tabs, right-click tab actions, drag-reorder, move-tab-to-new-window, and in-window split controls
   - taskbar icons expose app names on hover through the same themed Neural Labs tooltip treatment
   - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps
   - split terminal tabs/panes
