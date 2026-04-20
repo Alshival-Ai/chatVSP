@@ -1962,6 +1962,7 @@ function NeuralLabsDesktopSettingsPanel({
 
 export default function NeuralLabsPage() {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const hasLoadedUiMode = true;
   const [desktopBackgroundId, setDesktopBackgroundId] =
     useState<DesktopBackgroundSelection>("sunset-grid");
@@ -6278,6 +6279,36 @@ export default function NeuralLabsPage() {
     const hasVisibleNeuraWindow = neuraWindows.some(
       (windowState) => !windowState.is_minimized
     );
+    const isDesktopDarkMode = resolvedTheme !== "light";
+    const taskbarShellClassName = isDesktopDarkMode
+      ? "border-white/15 bg-[#0a1220]/88 shadow-[0_18px_48px_rgba(0,0,0,0.35)]"
+      : "border-slate-300/70 bg-[rgba(255,255,255,0.78)] shadow-[0_18px_48px_rgba(148,163,184,0.28)]";
+    const taskbarDividerClassName = isDesktopDarkMode
+      ? "bg-white/12"
+      : "bg-slate-300/80";
+    const getTaskbarButtonClassName = (
+      isVisible: boolean,
+      isRunning: boolean
+    ) =>
+      `flex h-11 w-11 items-center justify-center rounded-full transition ${
+        isDesktopDarkMode
+          ? isVisible
+            ? "bg-white/16 text-white"
+            : isRunning
+              ? "bg-white/8 text-white/80 ring-1 ring-white/20"
+              : "text-white/80 hover:bg-white/10"
+          : isVisible
+            ? "bg-slate-900 text-white"
+            : isRunning
+              ? "bg-slate-900/8 text-slate-700 ring-1 ring-slate-400/35"
+              : "text-slate-700 hover:bg-slate-900/8"
+      }`;
+    const taskbarMenuClassName = isDesktopDarkMode
+      ? "border-white/12 bg-[#0b1320]/96"
+      : "border-slate-300/70 bg-[rgba(255,255,255,0.96)]";
+    const taskbarMenuItemClassName = isDesktopDarkMode
+      ? "text-white/85 hover:bg-white/10"
+      : "text-slate-800 hover:bg-slate-900/8";
 
     return (
       <div className="relative h-[100dvh] w-full overflow-hidden bg-[#060b16] text-white">
@@ -6344,18 +6375,17 @@ export default function NeuralLabsPage() {
           </div>
 
           <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
-            <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-[#0a1220]/88 px-3 py-2 shadow-[0_18px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div
+              className={`pointer-events-auto flex items-center gap-2 rounded-full border px-3 py-2 backdrop-blur-xl ${taskbarShellClassName}`}
+            >
               <IconActionButton label="File Explorer">
                 <button
                   type="button"
                   aria-label="File Explorer"
-                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasVisibleFileExplorerWindow
-                      ? "bg-white/16 text-white"
-                      : hasFileExplorerWindow
-                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
-                        : "text-white/80 hover:bg-white/10"
-                  }`}
+                  className={getTaskbarButtonClassName(
+                    hasVisibleFileExplorerWindow,
+                    hasFileExplorerWindow
+                  )}
                   onClick={() => activateTaskbarDesktopApp("file-explorer")}
                   onContextMenu={(event) =>
                     handleTaskbarContextMenu(event, "file-explorer")
@@ -6368,13 +6398,10 @@ export default function NeuralLabsPage() {
                 <button
                   type="button"
                   aria-label="Terminal"
-                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasVisibleTerminalWindow
-                      ? "bg-white/16 text-white"
-                      : hasTerminalWindow
-                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
-                        : "text-white/80 hover:bg-white/10"
-                  }`}
+                  className={getTaskbarButtonClassName(
+                    hasVisibleTerminalWindow,
+                    hasTerminalWindow
+                  )}
                   onClick={() =>
                     activateTaskbarDesktopApp("terminal-workspace")
                   }
@@ -6389,13 +6416,10 @@ export default function NeuralLabsPage() {
                 <button
                   type="button"
                   aria-label="Text Editor"
-                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasVisibleTextEditorWindow
-                      ? "bg-white/16 text-white"
-                      : hasTextEditorWindow
-                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
-                        : "text-white/80 hover:bg-white/10"
-                  }`}
+                  className={getTaskbarButtonClassName(
+                    hasVisibleTextEditorWindow,
+                    hasTextEditorWindow
+                  )}
                   onClick={focusOrRestoreLatestTextEditor}
                   onContextMenu={(event) =>
                     handleTaskbarContextMenu(event, "text-editor")
@@ -6408,13 +6432,10 @@ export default function NeuralLabsPage() {
                 <button
                   type="button"
                   aria-label="Neura"
-                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasVisibleNeuraWindow
-                      ? "bg-white/16 text-white"
-                      : hasNeuraWindow
-                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
-                        : "text-white/80 hover:bg-white/10"
-                  }`}
+                  className={getTaskbarButtonClassName(
+                    hasVisibleNeuraWindow,
+                    hasNeuraWindow
+                  )}
                   onClick={() => activateTaskbarDesktopApp("neura-chat")}
                   onContextMenu={(event) =>
                     handleTaskbarContextMenu(event, "neura-chat")
@@ -6423,18 +6444,15 @@ export default function NeuralLabsPage() {
                   <SvgSparkle className="h-5 w-5 shrink-0 fill-current stroke-none" />
                 </button>
               </IconActionButton>
-              <div className="mx-1 h-8 w-px bg-white/12" />
+              <div className={`mx-1 h-8 w-px ${taskbarDividerClassName}`} />
               <IconActionButton label="Desktop Settings">
                 <button
                   type="button"
                   aria-label="Desktop Settings"
-                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                    hasVisibleSettingsWindow
-                      ? "bg-white/16 text-white"
-                      : hasSettingsWindow
-                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
-                        : "text-white/80 hover:bg-white/10"
-                  }`}
+                  className={getTaskbarButtonClassName(
+                    hasVisibleSettingsWindow,
+                    hasSettingsWindow
+                  )}
                   onClick={() => activateTaskbarDesktopApp("desktop-settings")}
                 >
                   <SvgSettings className="h-5 w-5 shrink-0 stroke-current" />
@@ -6445,7 +6463,7 @@ export default function NeuralLabsPage() {
 
           {taskbarMenu ? (
             <div
-              className="absolute z-30 min-w-[11rem] rounded-16 border border-white/12 bg-[#0b1320]/96 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+              className={`absolute z-30 min-w-[11rem] rounded-16 border p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.24)] backdrop-blur-xl ${taskbarMenuClassName}`}
               style={{
                 left: Math.max(16, taskbarMenu.x - 16),
                 top: Math.max(16, taskbarMenu.y - 72),
@@ -6457,7 +6475,7 @@ export default function NeuralLabsPage() {
                 taskbarMenu.appKind === "neura-chat") && (
                 <button
                   type="button"
-                  className="flex w-full items-center rounded-12 px-3 py-2 text-left text-sm text-white/85 transition hover:bg-white/10"
+                  className={`flex w-full items-center rounded-12 px-3 py-2 text-left text-sm transition ${taskbarMenuItemClassName}`}
                   onClick={() => {
                     if (taskbarMenu.appKind === "text-editor") {
                       openTextEditorApp({ forceNew: true });

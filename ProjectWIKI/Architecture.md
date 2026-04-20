@@ -46,6 +46,7 @@
   - floating preview windows remain a persisted client model for non-editor file previews (image, PDF, HTML, KMZ, XLSX)
   - desktop app windows (`File Explorer`, `Terminal`, `Text Editor`, `Neura`, `Desktop Settings`) are client-side windows layered into the same workspace and focus ordering
   - the desktop window workspace spans under the pinned top header overlay, and the header sits behind the window stack while the taskbar remains above it, so snapped/maximized windows can occupy the full top edge without the header painting over window chrome
+  - the taskbar chrome now switches between dark and light glass treatments with matching icon/button contrast, rather than assuming a dark backdrop behind the dock
   - preview windows now render through the same desktop-style chrome treatment as app windows (matching compact title bar, macOS-style controls, shared snap/maximize affordances) while keeping their existing persisted preview content/state model
   - desktop app windows track snapped, maximized, and minimized state on the client so taskbar restore/focus behavior does not require backend changes
   - the desktop top-bar environment badge now uses a one-time Neural Labs warmup on desktop load instead of waiting for a visible terminal tab, so the shell can show `Ready` even before the Terminal app is opened
