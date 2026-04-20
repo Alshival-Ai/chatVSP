@@ -6288,7 +6288,7 @@ export default function NeuralLabsPage() {
         <div className="absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent)]" />
 
         <div className="relative z-10 h-full">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-5 py-4">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-0 px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -6322,7 +6322,7 @@ export default function NeuralLabsPage() {
 
           <div
             ref={previewWorkspaceRef}
-            className="absolute inset-0 overflow-hidden px-4 pb-28"
+            className="absolute inset-0 z-10 overflow-hidden px-4 pb-28"
           >
             <NeuralLabsDesktopWindows
               windows={desktopWindows}

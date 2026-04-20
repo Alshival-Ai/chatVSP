@@ -39,7 +39,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - `/neural-labs` now launches directly into the desktop Neural Labs experience; the route-level legacy UI switch and `Back to Legacy UI` action were removed
     - tree-based file navigator (expand/collapse, context menu, drag/drop move, hidden file toggle) remains as implementation support for shared file operations, but the user-facing Neural Labs route now resolves to the desktop shell
     - desktop mode replaces those fixed sidebars with a browser-OS shell: a pill taskbar on the bottom with icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, `Neura`, and `Desktop Settings` apps
-    - desktop windows now render across the full workspace height under the pinned top header, so maximized and snapped windows can use that upper strip instead of stopping below it
+    - desktop windows now render across the full workspace height under the pinned top header, and the header itself sits behind the window stack so window chrome can overlap it while the taskbar remains above windows
     - taskbar apps now show their names on hover via the Neural Labs tooltip treatment instead of always rendering text labels inline
     - desktop taskbar icons restore minimized app windows, focus the front-most running instance on left click, and expose `New Window` on right click for multi-window apps such as `Terminal`, `File Explorer`, `Text Editor`, and `Neura`
     - desktop `Terminal` app is now a separate Windows Terminal-style surface instead of the legacy panel in a window: independent terminal windows, top tab strip, tab context menus, drag-reorder, move-tab-to-new-window, and in-window split controls

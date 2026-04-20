@@ -96,7 +96,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - legacy tree navigator with context actions and drag/drop move
   - `/neural-labs` now opens directly into the desktop Neural Labs experience; the route-level legacy UI switch and return link were removed
   - desktop layout replaces fixed sidebars with a pill taskbar using icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, `Neura`, and `Desktop Settings` apps
-  - desktop windows now use the full workspace height under the pinned header overlay, so maximized and snapped windows can extend into the top strip instead of stopping below the header
+  - desktop windows now use the full workspace height under the pinned header overlay, and that header renders behind the window stack so maximized and snapped windows can extend into the top strip without header chrome sitting above them
   - desktop `File Explorer` now uses a Finder-style hybrid explorer instead of the legacy tree: sidebar locations, breadcrumb path navigation, per-window history/state, icon/list views, and drag/drop move or OS-file upload
   - desktop `Terminal` now uses a dedicated Windows Terminal-style app surface rather than the legacy terminal panel: independent terminal windows, top tabs, right-click tab actions, drag-reorder, move-tab-to-new-window, and in-window split controls
   - desktop `Text Editor` is now a dedicated Monaco-based app window instead of the former preview-window editor: per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
