@@ -65,13 +65,21 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - image also restores CLI paths from `/etc/profile.d` so login shells still resolve `codex` and `claude`
   - shell env injection from configured providers:
     - `OPENAI_API_KEY` (required for `codex`)
-    - preferred Claude path is AWS Bedrock via IAM role and shell env:
+    - preferred Claude Code path is Microsoft Foundry when the configured `azure` provider uses a Foundry Claude endpoint (`https://{resource}.services.ai.azure.com/anthropic`):
+      - `CLAUDE_CODE_USE_FOUNDRY=1`
+      - `ANTHROPIC_FOUNDRY_BASE_URL=https://{resource}.services.ai.azure.com/anthropic`
+      - optional: `ANTHROPIC_FOUNDRY_API_KEY` from the Azure provider API key
+      - pinned defaults:
+        - `ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6`
+        - `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-7`
+        - `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4-5`
+    - otherwise Claude Code falls back to AWS Bedrock via IAM role and shell env:
       - `CLAUDE_CODE_USE_BEDROCK=1`
       - `AWS_REGION=us-east-1` (or the configured Bedrock provider region)
       - `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`
       - `ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-4-7`
       - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
-    - fallback path only: `ANTHROPIC_API_KEY` remains supported when no Bedrock provider is configured
+    - fallback path only: `ANTHROPIC_API_KEY` remains supported when neither Foundry nor Bedrock is configured
   - Claude defaults now prefer AWS Bedrock provider models over direct Anthropic when a Bedrock provider is configured
 - Important behavior:
   - Neural Labs no longer writes any MCP server entries into `~/.codex/config.toml`
@@ -79,6 +87,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
 - Current deployment requirement:
   - `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
   - per-user access enabled from Admin Users
+  - to provision Claude Code from Azure Foundry, configure an `azure` provider whose `api_base` points at the Foundry Claude endpoint (`https://{resource}.services.ai.azure.com/anthropic`)
   - configure an AWS Bedrock provider with IAM auth and region `us-east-1` to make Bedrock-backed Claude the preferred runtime
   - ensure the runtime EC2 role includes Bedrock Claude access:
     - `bedrock:ListFoundationModels`

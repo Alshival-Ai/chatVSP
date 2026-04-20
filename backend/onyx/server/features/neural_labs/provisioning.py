@@ -17,17 +17,24 @@ CODEX_CONFIG_DIR_NAME = ".codex"
 CODEX_CONFIG_FILE_NAME = "config.toml"
 OPENAI_ENV_KEY_NAME = "OPENAI_API_KEY"
 ANTHROPIC_ENV_KEY_NAME = "ANTHROPIC_API_KEY"
+CLAUDE_CODE_USE_FOUNDRY_ENV_KEY_NAME = "CLAUDE_CODE_USE_FOUNDRY"
 CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME = "CLAUDE_CODE_USE_BEDROCK"
 AWS_REGION_ENV_KEY_NAME = "AWS_REGION"
+ANTHROPIC_FOUNDRY_API_KEY_ENV_KEY_NAME = "ANTHROPIC_FOUNDRY_API_KEY"
+ANTHROPIC_FOUNDRY_BASE_URL_ENV_KEY_NAME = "ANTHROPIC_FOUNDRY_BASE_URL"
 ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_SONNET_MODEL"
 ANTHROPIC_DEFAULT_OPUS_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_OPUS_MODEL"
 ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV_KEY_NAME = "ANTHROPIC_DEFAULT_HAIKU_MODEL"
 OPENAI_STANDARD_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_OPENAI_CODEX_MODEL = "gpt-5.4"
+AZURE_FOUNDRY_ANTHROPIC_PATH = "/anthropic"
 DEFAULT_BEDROCK_REGION = "us-east-1"
 DEFAULT_BEDROCK_CLAUDE_SONNET_MODEL = "us.anthropic.claude-sonnet-4-6"
 DEFAULT_BEDROCK_CLAUDE_OPUS_MODEL = "us.anthropic.claude-opus-4-7"
 DEFAULT_BEDROCK_CLAUDE_HAIKU_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+DEFAULT_FOUNDRY_CLAUDE_SONNET_MODEL = "claude-sonnet-4-6"
+DEFAULT_FOUNDRY_CLAUDE_OPUS_MODEL = "claude-opus-4-7"
+DEFAULT_FOUNDRY_CLAUDE_HAIKU_MODEL = "claude-haiku-4-5"
 
 # Use both names for compatibility with existing configs/scripts.
 NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR = "NEURAL_LABS_MCP_BEARER_TOKEN"
@@ -56,13 +63,17 @@ def provision_neural_labs_home(home_dir: Path, db_session: Session) -> dict[str,
         (codex_dir / CODEX_CONFIG_FILE_NAME).write_text(config_text, encoding="utf-8")
         env_overrides[OPENAI_ENV_KEY_NAME] = openai_api_key
 
-    bedrock_settings = _resolve_bedrock_claude_settings(db_session)
-    if bedrock_settings:
-        env_overrides.update(bedrock_settings)
+    foundry_settings = _resolve_foundry_claude_settings(db_session)
+    if foundry_settings:
+        env_overrides.update(foundry_settings)
     else:
-        anthropic_api_key = _resolve_anthropic_api_key(db_session)
-        if anthropic_api_key:
-            env_overrides[ANTHROPIC_ENV_KEY_NAME] = anthropic_api_key
+        bedrock_settings = _resolve_bedrock_claude_settings(db_session)
+        if bedrock_settings:
+            env_overrides.update(bedrock_settings)
+        else:
+            anthropic_api_key = _resolve_anthropic_api_key(db_session)
+            if anthropic_api_key:
+                env_overrides[ANTHROPIC_ENV_KEY_NAME] = anthropic_api_key
     return env_overrides
 
 
@@ -120,6 +131,31 @@ def _resolve_anthropic_api_key(db_session: Session) -> str | None:
     return provider.api_key.get_value(apply_mask=False)
 
 
+def _resolve_foundry_claude_settings(db_session: Session) -> dict[str, str] | None:
+    provider = _fetch_provider_by_type(
+        db_session=db_session, provider_type=str(LlmProviderNames.AZURE)
+    )
+    if not provider:
+        return None
+
+    base_url = _normalize_foundry_base_url(provider.api_base)
+    if not base_url:
+        return None
+
+    env = {
+        CLAUDE_CODE_USE_FOUNDRY_ENV_KEY_NAME: "1",
+        ANTHROPIC_FOUNDRY_BASE_URL_ENV_KEY_NAME: base_url,
+        ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME: DEFAULT_FOUNDRY_CLAUDE_SONNET_MODEL,
+        ANTHROPIC_DEFAULT_OPUS_MODEL_ENV_KEY_NAME: DEFAULT_FOUNDRY_CLAUDE_OPUS_MODEL,
+        ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV_KEY_NAME: DEFAULT_FOUNDRY_CLAUDE_HAIKU_MODEL,
+    }
+    if provider.api_key:
+        api_key = provider.api_key.get_value(apply_mask=False)
+        if api_key:
+            env[ANTHROPIC_FOUNDRY_API_KEY_ENV_KEY_NAME] = api_key
+    return env
+
+
 def _resolve_bedrock_claude_settings(db_session: Session) -> dict[str, str] | None:
     provider = _fetch_provider_by_type(
         db_session=db_session, provider_type=str(LlmProviderNames.BEDROCK)
@@ -139,6 +175,20 @@ def _resolve_bedrock_claude_settings(db_session: Session) -> dict[str, str] | No
         ANTHROPIC_DEFAULT_OPUS_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_OPUS_MODEL,
         ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV_KEY_NAME: DEFAULT_BEDROCK_CLAUDE_HAIKU_MODEL,
     }
+
+
+def _normalize_foundry_base_url(api_base: str | None) -> str | None:
+    if not api_base:
+        return None
+
+    normalized = api_base.strip().rstrip("/")
+    if not normalized:
+        return None
+    if ".services.ai.azure.com" not in normalized:
+        return None
+    if normalized.endswith(AZURE_FOUNDRY_ANTHROPIC_PATH):
+        return normalized
+    return f"{normalized}{AZURE_FOUNDRY_ANTHROPIC_PATH}"
 
 
 def _fetch_provider_by_type(db_session: Session, provider_type: str) -> LLMProvider | None:

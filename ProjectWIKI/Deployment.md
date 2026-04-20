@@ -121,13 +121,21 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - `/etc/profile.d` restores `/root/.local/bin` and `/root/.opencode/bin` for login shells so `bash -lc 'claude ...'` still works after `/etc/profile` rewrites `PATH`
 - Neural Labs shell sessions inject provider credentials/config:
   - `OPENAI_API_KEY` from the OpenAI provider (required for Codex)
-  - preferred Claude path is AWS Bedrock via IAM role:
+  - preferred Claude Code path is Microsoft Foundry when the configured `azure` provider points at a Foundry Claude endpoint:
+    - `CLAUDE_CODE_USE_FOUNDRY=1`
+    - `ANTHROPIC_FOUNDRY_BASE_URL=https://{resource}.services.ai.azure.com/anthropic`
+    - optional: `ANTHROPIC_FOUNDRY_API_KEY` from the Azure provider API key
+    - pinned defaults:
+      - `ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6`
+      - `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-7`
+      - `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4-5`
+  - otherwise Claude Code falls back to AWS Bedrock via IAM role:
     - `CLAUDE_CODE_USE_BEDROCK=1`
     - `AWS_REGION=us-east-1` unless the configured Bedrock provider overrides it
     - `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`
     - `ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-4-7`
     - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
-  - direct Anthropic fallback remains supported via `ANTHROPIC_API_KEY` only when no Bedrock provider is configured
+  - direct Anthropic fallback remains supported via `ANTHROPIC_API_KEY` only when neither Foundry nor Bedrock is configured
 
 Bedrock rollout notes:
 
