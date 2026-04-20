@@ -6287,40 +6287,42 @@ export default function NeuralLabsPage() {
         />
         <div className="absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent)]" />
 
-        <div className="relative z-10 flex h-full flex-col">
-          <div className="flex items-center justify-between gap-3 px-5 py-4">
-            <div className="min-w-0">
+        <div className="relative z-10 h-full">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <SvgTerminal className="h-4 w-4 shrink-0 stroke-white" />
+                  <Text className="text-sm font-medium uppercase tracking-[0.22em] text-white/80">
+                    Neural Labs Desktop
+                  </Text>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
-                <SvgTerminal className="h-4 w-4 shrink-0 stroke-white" />
-                <Text className="text-sm font-medium uppercase tracking-[0.22em] text-white/80">
-                  Neural Labs Desktop
-                </Text>
+                <div className="pointer-events-auto hidden items-center gap-1 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 md:flex">
+                  <span
+                    className={`h-2 w-2 rounded-full ${environmentStatus.dotClass}`}
+                  />
+                  <Text className="whitespace-nowrap text-sm text-white/80">
+                    {environmentStatus.label}
+                  </Text>
+                </div>
+                <Button
+                  tertiary
+                  size="md"
+                  leftIcon={SvgArrowLeft}
+                  className="pointer-events-auto !border-white/15 !bg-white/10"
+                  onClick={() => router.push("/app")}
+                >
+                  Back to Main Chat
+                </Button>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-1 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 md:flex">
-                <span
-                  className={`h-2 w-2 rounded-full ${environmentStatus.dotClass}`}
-                />
-                <Text className="whitespace-nowrap text-sm text-white/80">
-                  {environmentStatus.label}
-                </Text>
-              </div>
-              <Button
-                tertiary
-                size="md"
-                leftIcon={SvgArrowLeft}
-                className="!border-white/15 !bg-white/10"
-                onClick={() => router.push("/app")}
-              >
-                Back to Main Chat
-              </Button>
             </div>
           </div>
 
           <div
             ref={previewWorkspaceRef}
-            className="relative min-h-0 flex-1 overflow-hidden px-4 pb-28"
+            className="absolute inset-0 overflow-hidden px-4 pb-28"
           >
             <NeuralLabsDesktopWindows
               windows={desktopWindows}
