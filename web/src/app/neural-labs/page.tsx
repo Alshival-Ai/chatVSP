@@ -1150,7 +1150,7 @@ function NeuralLabsTerminalWorkspacePanel({
   overlayChildren?: ReactNode;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background-neutral-02">
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background-neutral-02">
       <div className="flex items-center justify-between gap-2 border-b border-border-01 bg-background-neutral-01 p-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
