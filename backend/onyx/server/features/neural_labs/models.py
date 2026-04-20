@@ -92,3 +92,41 @@ class PathResponse(BaseModel):
 
 class DeletePathResponse(BaseModel):
     deleted: bool
+
+
+class NeuraConfigResponse(BaseModel):
+    assistant_name: str
+    default_model: str
+
+
+class NeuraConversationSummary(BaseModel):
+    id: str
+    title: str
+    model_name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class NeuraConversationListResponse(BaseModel):
+    conversations: list[NeuraConversationSummary]
+
+
+class NeuraMessage(BaseModel):
+    id: str
+    conversation_id: str
+    role: str
+    content: str
+    created_at: datetime
+
+
+class NeuraConversationResponse(BaseModel):
+    conversation: NeuraConversationSummary
+    messages: list[NeuraMessage]
+
+
+class NeuraCreateConversationRequest(BaseModel):
+    title: str | None = None
+
+
+class NeuraSendMessageRequest(BaseModel):
+    content: str

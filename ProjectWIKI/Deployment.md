@@ -95,13 +95,14 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
 - browser UI for:
   - legacy tree navigator with context actions and drag/drop move
   - `/neural-labs` now opens directly into the desktop Neural Labs experience; the route-level legacy UI switch and return link were removed
-  - desktop layout replaces fixed sidebars with a pill taskbar using icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, and `Desktop Settings` apps
+  - desktop layout replaces fixed sidebars with a pill taskbar using icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, `Neura`, and `Desktop Settings` apps
   - desktop `File Explorer` now uses a Finder-style hybrid explorer instead of the legacy tree: sidebar locations, breadcrumb path navigation, per-window history/state, icon/list views, and drag/drop move or OS-file upload
   - desktop `Terminal` now uses a dedicated Windows Terminal-style app surface rather than the legacy terminal panel: independent terminal windows, top tabs, right-click tab actions, drag-reorder, move-tab-to-new-window, and in-window split controls
   - desktop `Text Editor` is now a dedicated Monaco-based app window instead of the former preview-window editor: per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
+  - desktop `Neura` is now a dedicated Neural Labs chat app with a conversation sidebar, streaming replies, and taskbar `New Window` support; it is separate from the main Onyx assistant UI
   - desktop explorer and terminal visuals now follow the app light/dark theme, including explicit theme-safe file/folder icon colors and xterm foreground/background switching
   - taskbar icons expose app names on hover through the same themed Neural Labs tooltip treatment
-  - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps
+  - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps including `Neura`
   - split terminal tabs/panes
   - Terminal Navigator shows a single terminal as `Terminal 1` without a group wrapper; group cards only render when a tab contains multiple panes
   - file action icons expose hover helper text for create/upload/refresh
@@ -120,6 +121,9 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - KMZ preview uses a client-only Leaflet bundle to avoid server-side `window is not defined` crashes on the Neural Labs page
 - websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
 - managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
+- Neura workspace-local persistence:
+  - conversation history is stored in the user Neural Labs home at `~/.neural-labs/neura/neura.db`
+  - Neura traffic stays on the dedicated `/api/neural-labs/neura/*` endpoints and does not write into Onyx chat-session/message tables
 - backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
   - `claude` via Anthropic native installer (`curl -fsSL https://claude.ai/install.sh | bash`)
   - `/etc/profile.d` restores `/root/.local/bin` and `/root/.opencode/bin` for login shells so `bash -lc 'claude ...'` still works after `/etc/profile` rewrites `PATH`

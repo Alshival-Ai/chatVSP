@@ -23,6 +23,7 @@ import Text from "@/refresh-components/texts/Text";
 import { toast } from "@/hooks/useToast";
 import ColorSwatch from "@/refresh-components/ColorSwatch";
 import NeuralLabsDesktopFileExplorer from "@/app/neural-labs/NeuralLabsDesktopFileExplorer";
+import NeuralLabsDesktopNeura from "@/app/neural-labs/NeuralLabsDesktopNeura";
 import NeuralLabsDesktopTextEditor from "@/app/neural-labs/NeuralLabsDesktopTextEditor";
 import NeuralLabsDesktopTerminal from "@/app/neural-labs/NeuralLabsDesktopTerminal";
 import NeuralLabsDesktopWindows from "@/app/neural-labs/NeuralLabsDesktopWindows";
@@ -30,11 +31,14 @@ import NeuralLabsFileTree from "@/app/neural-labs/NeuralLabsFileTree";
 import NeuralLabsPreviewWindows from "@/app/neural-labs/NeuralLabsPreviewWindows";
 import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import type {
+  DesktopNeuraWindowState,
   DesktopEditorTabState,
   DesktopEditorWindowState,
   DesktopTerminalWindowState,
   DesktopExplorerState,
   DesktopWindowState,
+  NeuraConversationSummary,
+  NeuraMessage,
   TerminalLayoutState,
   TerminalPaneState,
   TerminalTabState,
@@ -55,6 +59,7 @@ import {
   SvgFolderPlus,
   SvgRefreshCw,
   SvgSettings,
+  SvgSparkle,
   SvgTerminal,
   SvgTrash,
   SvgUploadCloud,
@@ -126,6 +131,16 @@ interface TaskbarMenuState {
   y: number;
 }
 
+interface NeuraConfigResponse {
+  assistant_name: string;
+  default_model: string;
+}
+
+interface NeuraConversationResponse {
+  conversation: NeuraConversationSummary;
+  messages: NeuraMessage[];
+}
+
 function IconActionButton({
   label,
   children,
@@ -171,6 +186,10 @@ const DEFAULT_SETTINGS_WINDOW = {
 const DEFAULT_TEXT_EDITOR_WINDOW = {
   width: 1080,
   height: 700,
+};
+const DEFAULT_NEURA_WINDOW = {
+  width: 980,
+  height: 720,
 };
 const DESKTOP_BACKGROUND_PRESETS: {
   id: DesktopBackgroundPresetId;
@@ -368,6 +387,22 @@ function createDefaultDesktopEditorWindowState(): DesktopEditorWindowState {
   };
 }
 
+function createDefaultDesktopNeuraWindowState(): DesktopNeuraWindowState {
+  return {
+    conversations: [],
+    selected_conversation_id: null,
+    messages_by_conversation_id: {},
+    draft_by_conversation_id: {},
+    is_sidebar_open: true,
+    is_loading_conversations: true,
+    is_loading_messages: false,
+    is_streaming: false,
+    error_message: null,
+    assistant_name: "Neura",
+    default_model: "",
+  };
+}
+
 function replacePathPrefix(
   targetPath: string,
   sourcePath: string,
@@ -491,6 +526,65 @@ async function getFetchErrorMessage(response: Response): Promise<string> {
     return response.statusText;
   }
   return `Request failed (${response.status})`;
+}
+
+function sortNeuraConversations(
+  conversations: NeuraConversationSummary[]
+): NeuraConversationSummary[] {
+  return [...conversations].sort((left, right) => {
+    const leftTime = Date.parse(left.updated_at);
+    const rightTime = Date.parse(right.updated_at);
+    return rightTime - leftTime;
+  });
+}
+
+async function readNeuraSseStream(
+  response: Response,
+  onEvent: (event: string, payload: Record<string, unknown>) => void
+): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("No response body");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let currentEvent = "message";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    chunks.forEach((chunk) => {
+      const lines = chunk.split("\n");
+      let dataLine = "";
+      currentEvent = "message";
+
+      lines.forEach((line) => {
+        if (line.startsWith("event:")) {
+          currentEvent = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          dataLine += line.slice(5).trim();
+        }
+      });
+
+      if (!dataLine) {
+        return;
+      }
+
+      try {
+        onEvent(currentEvent, JSON.parse(dataLine) as Record<string, unknown>);
+      } catch {
+        // Ignore malformed chunks.
+      }
+    });
+  }
 }
 
 async function deleteTerminalById(terminalId: string): Promise<void> {
@@ -1888,6 +1982,9 @@ export default function NeuralLabsPage() {
   const [desktopEditorStates, setDesktopEditorStates] = useState<
     Record<string, DesktopEditorWindowState>
   >({});
+  const [desktopNeuraStates, setDesktopNeuraStates] = useState<
+    Record<string, DesktopNeuraWindowState>
+  >({});
   const [desktopTerminalStates, setDesktopTerminalStates] = useState<
     Record<string, DesktopTerminalWindowState>
   >({});
@@ -1917,6 +2014,10 @@ export default function NeuralLabsPage() {
   const desktopEditorStatesRef = useRef<
     Record<string, DesktopEditorWindowState>
   >({});
+  const desktopNeuraStatesRef = useRef<Record<string, DesktopNeuraWindowState>>(
+    {}
+  );
+  const desktopNeuraInitInFlightRef = useRef(new Set<string>());
   const desktopTerminalStatesRef = useRef<
     Record<string, DesktopTerminalWindowState>
   >({});
@@ -1934,6 +2035,10 @@ export default function NeuralLabsPage() {
   useEffect(() => {
     desktopEditorStatesRef.current = desktopEditorStates;
   }, [desktopEditorStates]);
+
+  useEffect(() => {
+    desktopNeuraStatesRef.current = desktopNeuraStates;
+  }, [desktopNeuraStates]);
 
   useEffect(() => {
     desktopTerminalStatesRef.current = desktopTerminalStates;
@@ -1967,6 +2072,23 @@ export default function NeuralLabsPage() {
         textEditorWindowIds.forEach((windowId) => {
           if (!(windowId in nextStates)) {
             nextStates[windowId] = createDefaultDesktopEditorWindowState();
+            didChange = true;
+          }
+        });
+        return didChange ? nextStates : previousStates;
+      });
+    }
+
+    const neuraWindowIds = desktopWindows
+      .filter((windowState) => windowState.app_kind === "neura-chat")
+      .map((windowState) => windowState.id);
+    if (neuraWindowIds.length > 0) {
+      setDesktopNeuraStates((previousStates) => {
+        let didChange = false;
+        const nextStates = { ...previousStates };
+        neuraWindowIds.forEach((windowId) => {
+          if (!(windowId in nextStates)) {
+            nextStates[windowId] = createDefaultDesktopNeuraWindowState();
             didChange = true;
           }
         });
@@ -2838,6 +2960,14 @@ export default function NeuralLabsPage() {
       delete nextStates[windowId];
       return nextStates;
     });
+    setDesktopNeuraStates((previousStates) => {
+      if (!(windowId in previousStates)) {
+        return previousStates;
+      }
+      const nextStates = { ...previousStates };
+      delete nextStates[windowId];
+      return nextStates;
+    });
     setDesktopTerminalStates((previousStates) => {
       if (!(windowId in previousStates)) {
         return previousStates;
@@ -2856,6 +2986,31 @@ export default function NeuralLabsPage() {
         | ((state: DesktopEditorWindowState) => DesktopEditorWindowState)
     ) => {
       setDesktopEditorStates((previousStates) => {
+        const currentState = previousStates[windowId];
+        if (!currentState) {
+          return previousStates;
+        }
+
+        return {
+          ...previousStates,
+          [windowId]:
+            typeof update === "function"
+              ? update(currentState)
+              : { ...currentState, ...update },
+        };
+      });
+    },
+    []
+  );
+
+  const updateDesktopNeuraState = useCallback(
+    (
+      windowId: string,
+      update:
+        | Partial<DesktopNeuraWindowState>
+        | ((state: DesktopNeuraWindowState) => DesktopNeuraWindowState)
+    ) => {
+      setDesktopNeuraStates((previousStates) => {
         const currentState = previousStates[windowId];
         if (!currentState) {
           return previousStates;
@@ -3102,6 +3257,7 @@ export default function NeuralLabsPage() {
       const isFileExplorerApp = appKind === "file-explorer";
       const isSettingsApp = appKind === "desktop-settings";
       const isTextEditorApp = appKind === "text-editor";
+      const isNeuraApp = appKind === "neura-chat";
       const width = isFileExplorerApp
         ? workspaceBounds.width > 0
           ? Math.min(
@@ -3123,12 +3279,19 @@ export default function NeuralLabsPage() {
                   Math.max(820, workspaceBounds.width * 0.78)
                 )
               : DEFAULT_TEXT_EDITOR_WINDOW.width
-            : workspaceBounds.width > 0
-              ? Math.min(
-                  DEFAULT_TERMINAL_WINDOW.width,
-                  Math.max(760, workspaceBounds.width * 0.72)
-                )
-              : DEFAULT_TERMINAL_WINDOW.width;
+            : isNeuraApp
+              ? workspaceBounds.width > 0
+                ? Math.min(
+                    DEFAULT_NEURA_WINDOW.width,
+                    Math.max(760, workspaceBounds.width * 0.74)
+                  )
+                : DEFAULT_NEURA_WINDOW.width
+              : workspaceBounds.width > 0
+                ? Math.min(
+                    DEFAULT_TERMINAL_WINDOW.width,
+                    Math.max(760, workspaceBounds.width * 0.72)
+                  )
+                : DEFAULT_TERMINAL_WINDOW.width;
       const height = isFileExplorerApp
         ? workspaceBounds.height > 0
           ? Math.min(
@@ -3150,12 +3313,19 @@ export default function NeuralLabsPage() {
                   Math.max(520, workspaceBounds.height * 0.82)
                 )
               : DEFAULT_TEXT_EDITOR_WINDOW.height
-            : workspaceBounds.height > 0
-              ? Math.min(
-                  DEFAULT_TERMINAL_WINDOW.height,
-                  Math.max(520, workspaceBounds.height * 0.78)
-                )
-              : DEFAULT_TERMINAL_WINDOW.height;
+            : isNeuraApp
+              ? workspaceBounds.height > 0
+                ? Math.min(
+                    DEFAULT_NEURA_WINDOW.height,
+                    Math.max(540, workspaceBounds.height * 0.8)
+                  )
+                : DEFAULT_NEURA_WINDOW.height
+              : workspaceBounds.height > 0
+                ? Math.min(
+                    DEFAULT_TERMINAL_WINDOW.height,
+                    Math.max(520, workspaceBounds.height * 0.78)
+                  )
+                : DEFAULT_TERMINAL_WINDOW.height;
 
       const existingOffset = existingWindowCount * 24;
       const windowId = createLocalId();
@@ -3170,6 +3340,11 @@ export default function NeuralLabsPage() {
         setDesktopEditorStates((previousStates) => ({
           ...previousStates,
           [windowId]: createDefaultDesktopEditorWindowState(),
+        }));
+      } else if (isNeuraApp) {
+        setDesktopNeuraStates((previousStates) => ({
+          ...previousStates,
+          [windowId]: createDefaultDesktopNeuraWindowState(),
         }));
       } else if (appKind === "terminal-workspace") {
         setDesktopTerminalStates((previousStates) => ({
@@ -3195,23 +3370,37 @@ export default function NeuralLabsPage() {
                 ? existingWindowCount > 0
                   ? `Text Editor ${existingWindowCount + 1}`
                   : "Text Editor"
-                : existingWindowCount > 0
-                  ? `Terminal ${existingWindowCount + 1}`
-                  : "Terminal",
+                : isNeuraApp
+                  ? existingWindowCount > 0
+                    ? `Neura ${existingWindowCount + 1}`
+                    : "Neura"
+                  : existingWindowCount > 0
+                    ? `Terminal ${existingWindowCount + 1}`
+                    : "Terminal",
           x: isFileExplorerApp
             ? 42 + existingOffset
             : isSettingsApp
               ? Math.max(72, Math.round((workspaceBounds.width - width) / 2))
               : isTextEditorApp
                 ? Math.max(52, Math.round((workspaceBounds.width - width) / 2))
-                : Math.max(56, Math.round((workspaceBounds.width - width) / 2)),
+                : isNeuraApp
+                  ? Math.max(
+                      60,
+                      Math.round((workspaceBounds.width - width) / 2)
+                    )
+                  : Math.max(
+                      56,
+                      Math.round((workspaceBounds.width - width) / 2)
+                    ),
           y: isFileExplorerApp
             ? 42 + existingOffset
             : isSettingsApp
               ? 72
               : isTextEditorApp
                 ? 48
-                : 54,
+                : isNeuraApp
+                  ? 58
+                  : 54,
           width,
           height,
           z_index: highestPreviewZIndexRef.current,
@@ -3230,6 +3419,500 @@ export default function NeuralLabsPage() {
       workspaceBounds.height,
       workspaceBounds.width,
     ]
+  );
+
+  const toggleDesktopNeuraSidebar = useCallback(
+    (windowId: string) => {
+      updateDesktopNeuraState(windowId, (currentState) => ({
+        ...currentState,
+        is_sidebar_open: !currentState.is_sidebar_open,
+      }));
+    },
+    [updateDesktopNeuraState]
+  );
+
+  const updateDesktopNeuraDraft = useCallback(
+    (windowId: string, conversationId: string, draft: string) => {
+      updateDesktopNeuraState(windowId, (currentState) => ({
+        ...currentState,
+        draft_by_conversation_id: {
+          ...currentState.draft_by_conversation_id,
+          [conversationId]: draft,
+        },
+      }));
+    },
+    [updateDesktopNeuraState]
+  );
+
+  const loadDesktopNeuraConversation = useCallback(
+    async (windowId: string, conversationId: string) => {
+      updateDesktopNeuraState(windowId, (currentState) => ({
+        ...currentState,
+        selected_conversation_id: conversationId,
+        is_loading_messages: true,
+        error_message: null,
+      }));
+
+      try {
+        const response = await fetch(
+          `${NEURAL_LABS_API_PREFIX}/neura/conversations/${encodeURIComponent(
+            conversationId
+          )}`
+        );
+        if (!response.ok) {
+          throw new Error(await getFetchErrorMessage(response));
+        }
+
+        const payload = (await response.json()) as NeuraConversationResponse;
+        updateDesktopNeuraState(windowId, (currentState) => ({
+          ...currentState,
+          selected_conversation_id: payload.conversation.id,
+          conversations: sortNeuraConversations(
+            currentState.conversations.some(
+              (conversation) => conversation.id === payload.conversation.id
+            )
+              ? currentState.conversations.map((conversation) =>
+                  conversation.id === payload.conversation.id
+                    ? payload.conversation
+                    : conversation
+                )
+              : [...currentState.conversations, payload.conversation]
+          ),
+          messages_by_conversation_id: {
+            ...currentState.messages_by_conversation_id,
+            [payload.conversation.id]: payload.messages,
+          },
+          is_loading_messages: false,
+          error_message: null,
+        }));
+      } catch (error) {
+        updateDesktopNeuraState(windowId, (currentState) => ({
+          ...currentState,
+          is_loading_messages: false,
+          error_message:
+            error instanceof Error
+              ? error.message
+              : "Unable to load conversation",
+        }));
+      }
+    },
+    [updateDesktopNeuraState]
+  );
+
+  const loadDesktopNeuraWindow = useCallback(
+    async (windowId: string) => {
+      updateDesktopNeuraState(windowId, (currentState) => ({
+        ...currentState,
+        is_loading_conversations: true,
+        error_message: null,
+      }));
+
+      try {
+        const [configResponse, conversationsResponse] = await Promise.all([
+          fetch(`${NEURAL_LABS_API_PREFIX}/neura/config`),
+          fetch(`${NEURAL_LABS_API_PREFIX}/neura/conversations`),
+        ]);
+        if (!configResponse.ok) {
+          throw new Error(await getFetchErrorMessage(configResponse));
+        }
+        if (!conversationsResponse.ok) {
+          throw new Error(await getFetchErrorMessage(conversationsResponse));
+        }
+
+        const configPayload =
+          (await configResponse.json()) as NeuraConfigResponse;
+        const conversationsPayload = (await conversationsResponse.json()) as {
+          conversations: NeuraConversationSummary[];
+        };
+        const sortedConversations = sortNeuraConversations(
+          conversationsPayload.conversations ?? []
+        );
+        const existingSelectedConversationId =
+          desktopNeuraStatesRef.current[windowId]?.selected_conversation_id ??
+          null;
+        const nextConversationId =
+          existingSelectedConversationId &&
+          sortedConversations.some(
+            (conversation) => conversation.id === existingSelectedConversationId
+          )
+            ? existingSelectedConversationId
+            : sortedConversations[0]?.id ?? null;
+
+        updateDesktopNeuraState(windowId, (currentState) => ({
+          ...currentState,
+          assistant_name:
+            configPayload.assistant_name || currentState.assistant_name,
+          default_model:
+            configPayload.default_model || currentState.default_model,
+          conversations: sortedConversations,
+          selected_conversation_id:
+            currentState.selected_conversation_id &&
+            sortedConversations.some(
+              (conversation) =>
+                conversation.id === currentState.selected_conversation_id
+            )
+              ? currentState.selected_conversation_id
+              : nextConversationId,
+          is_loading_conversations: false,
+          error_message: null,
+        }));
+
+        if (nextConversationId) {
+          const neuraState = desktopNeuraStatesRef.current[windowId];
+          if (!neuraState?.messages_by_conversation_id[nextConversationId]) {
+            void loadDesktopNeuraConversation(windowId, nextConversationId);
+          }
+        }
+      } catch (error) {
+        updateDesktopNeuraState(windowId, (currentState) => ({
+          ...currentState,
+          is_loading_conversations: false,
+          error_message:
+            error instanceof Error ? error.message : "Unable to load Neura",
+        }));
+      }
+    },
+    [loadDesktopNeuraConversation, updateDesktopNeuraState]
+  );
+
+  const createDesktopNeuraConversation = useCallback(
+    async (windowId: string) => {
+      updateDesktopNeuraState(windowId, (currentState) => ({
+        ...currentState,
+        error_message: null,
+      }));
+
+      try {
+        const response = await fetch(
+          `${NEURAL_LABS_API_PREFIX}/neura/conversations`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }
+        );
+        if (!response.ok) {
+          throw new Error(await getFetchErrorMessage(response));
+        }
+
+        const payload = (await response.json()) as NeuraConversationResponse;
+        updateDesktopNeuraState(windowId, (currentState) => ({
+          ...currentState,
+          conversations: sortNeuraConversations([
+            payload.conversation,
+            ...currentState.conversations.filter(
+              (conversation) => conversation.id !== payload.conversation.id
+            ),
+          ]),
+          selected_conversation_id: payload.conversation.id,
+          messages_by_conversation_id: {
+            ...currentState.messages_by_conversation_id,
+            [payload.conversation.id]: payload.messages,
+          },
+          draft_by_conversation_id: {
+            ...currentState.draft_by_conversation_id,
+            [payload.conversation.id]: "",
+          },
+          error_message: null,
+        }));
+        focusDesktopWindow(windowId);
+      } catch (error) {
+        updateDesktopNeuraState(windowId, (currentState) => ({
+          ...currentState,
+          error_message:
+            error instanceof Error
+              ? error.message
+              : "Unable to create conversation",
+        }));
+      }
+    },
+    [focusDesktopWindow, updateDesktopNeuraState]
+  );
+
+  const deleteDesktopNeuraConversation = useCallback(
+    async (windowId: string, conversation: NeuraConversationSummary) => {
+      const confirmed = window.confirm(
+        `Delete "${conversation.title}" from Neura history?`
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        const fallbackConversationId =
+          desktopNeuraStatesRef.current[windowId]?.conversations.find(
+            (candidate) => candidate.id !== conversation.id
+          )?.id ?? null;
+        const response = await fetch(
+          `${NEURAL_LABS_API_PREFIX}/neura/conversations/${encodeURIComponent(
+            conversation.id
+          )}`,
+          { method: "DELETE" }
+        );
+        if (!response.ok) {
+          throw new Error(await getFetchErrorMessage(response));
+        }
+
+        updateDesktopNeuraState(windowId, (currentState) => {
+          const nextConversations = currentState.conversations.filter(
+            (candidate) => candidate.id !== conversation.id
+          );
+          const nextSelectedConversationId =
+            currentState.selected_conversation_id === conversation.id
+              ? nextConversations[0]?.id ?? null
+              : currentState.selected_conversation_id;
+          const nextMessages = { ...currentState.messages_by_conversation_id };
+          delete nextMessages[conversation.id];
+          const nextDrafts = { ...currentState.draft_by_conversation_id };
+          delete nextDrafts[conversation.id];
+          return {
+            ...currentState,
+            conversations: nextConversations,
+            selected_conversation_id: nextSelectedConversationId,
+            messages_by_conversation_id: nextMessages,
+            draft_by_conversation_id: nextDrafts,
+            error_message: null,
+          };
+        });
+
+        if (
+          fallbackConversationId &&
+          !desktopNeuraStatesRef.current[windowId]?.messages_by_conversation_id[
+            fallbackConversationId
+          ]
+        ) {
+          void loadDesktopNeuraConversation(windowId, fallbackConversationId);
+        }
+      } catch (error) {
+        updateDesktopNeuraState(windowId, (currentState) => ({
+          ...currentState,
+          error_message:
+            error instanceof Error
+              ? error.message
+              : "Unable to delete conversation",
+        }));
+      }
+    },
+    [loadDesktopNeuraConversation, updateDesktopNeuraState]
+  );
+
+  const sendDesktopNeuraMessage = useCallback(
+    async (windowId: string, conversationId: string) => {
+      const currentState = desktopNeuraStatesRef.current[windowId];
+      const draft =
+        currentState?.draft_by_conversation_id[conversationId] ?? "";
+      const trimmedDraft = draft.trim();
+      if (!trimmedDraft || currentState?.is_streaming) {
+        return;
+      }
+
+      updateDesktopNeuraState(windowId, (state) => ({
+        ...state,
+        is_streaming: true,
+        error_message: null,
+        draft_by_conversation_id: {
+          ...state.draft_by_conversation_id,
+          [conversationId]: "",
+        },
+      }));
+
+      try {
+        const response = await fetch(
+          `${NEURAL_LABS_API_PREFIX}/neura/conversations/${encodeURIComponent(
+            conversationId
+          )}/messages/stream`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream",
+            },
+            body: JSON.stringify({ content: trimmedDraft }),
+          }
+        );
+        if (!response.ok) {
+          throw new Error(await getFetchErrorMessage(response));
+        }
+
+        await readNeuraSseStream(response, (event, payload) => {
+          if (event === "message_start") {
+            const conversation = payload.conversation as
+              | NeuraConversationSummary
+              | undefined;
+            const userMessage = payload.user_message as
+              | NeuraMessage
+              | undefined;
+            const assistantMessage = payload.assistant_message as
+              | NeuraMessage
+              | undefined;
+
+            updateDesktopNeuraState(windowId, (state) => {
+              const existingMessages =
+                state.messages_by_conversation_id[conversationId] ?? [];
+              const nextMessages = [...existingMessages];
+
+              if (
+                userMessage &&
+                !nextMessages.some((message) => message.id === userMessage.id)
+              ) {
+                nextMessages.push(userMessage);
+              }
+              if (
+                assistantMessage &&
+                !nextMessages.some(
+                  (message) => message.id === assistantMessage.id
+                )
+              ) {
+                nextMessages.push(assistantMessage);
+              }
+
+              return {
+                ...state,
+                conversations:
+                  conversation != null
+                    ? sortNeuraConversations([
+                        conversation,
+                        ...state.conversations.filter(
+                          (candidate) => candidate.id !== conversation.id
+                        ),
+                      ])
+                    : state.conversations,
+                selected_conversation_id: conversationId,
+                messages_by_conversation_id: {
+                  ...state.messages_by_conversation_id,
+                  [conversationId]: nextMessages,
+                },
+              };
+            });
+            return;
+          }
+
+          if (event === "delta") {
+            const delta =
+              typeof payload.delta === "string" ? payload.delta : "";
+            if (!delta) {
+              return;
+            }
+
+            updateDesktopNeuraState(windowId, (state) => {
+              const nextMessages = [
+                ...(state.messages_by_conversation_id[conversationId] ?? []),
+              ];
+              const lastMessage = nextMessages[nextMessages.length - 1];
+              if (!lastMessage || lastMessage.role !== "assistant") {
+                return state;
+              }
+              nextMessages[nextMessages.length - 1] = {
+                ...lastMessage,
+                content: `${lastMessage.content}${delta}`,
+              };
+              return {
+                ...state,
+                messages_by_conversation_id: {
+                  ...state.messages_by_conversation_id,
+                  [conversationId]: nextMessages,
+                },
+              };
+            });
+            return;
+          }
+
+          if (event === "message_complete") {
+            const conversation = payload.conversation as
+              | NeuraConversationSummary
+              | undefined;
+            const assistantMessage = payload.assistant_message as
+              | NeuraMessage
+              | undefined;
+            updateDesktopNeuraState(windowId, (state) => {
+              const nextMessages = [
+                ...(state.messages_by_conversation_id[conversationId] ?? []),
+              ];
+              if (assistantMessage) {
+                const existingIndex = nextMessages.findIndex(
+                  (message) => message.id === assistantMessage.id
+                );
+                if (existingIndex >= 0) {
+                  nextMessages[existingIndex] = assistantMessage;
+                } else if (
+                  nextMessages[nextMessages.length - 1]?.role === "assistant"
+                ) {
+                  nextMessages[nextMessages.length - 1] = assistantMessage;
+                } else {
+                  nextMessages.push(assistantMessage);
+                }
+              }
+
+              return {
+                ...state,
+                conversations:
+                  conversation != null
+                    ? sortNeuraConversations([
+                        conversation,
+                        ...state.conversations.filter(
+                          (candidate) => candidate.id !== conversation.id
+                        ),
+                      ])
+                    : state.conversations,
+                messages_by_conversation_id: {
+                  ...state.messages_by_conversation_id,
+                  [conversationId]: nextMessages,
+                },
+                is_streaming: false,
+                error_message: null,
+              };
+            });
+            return;
+          }
+
+          if (event === "error") {
+            const message =
+              typeof payload.message === "string"
+                ? payload.message
+                : "Unable to send message";
+            updateDesktopNeuraState(windowId, (state) => {
+              const nextMessages = [
+                ...(state.messages_by_conversation_id[conversationId] ?? []),
+              ];
+              const lastMessage = nextMessages[nextMessages.length - 1];
+              if (lastMessage?.role === "assistant" && !lastMessage.content) {
+                nextMessages.pop();
+              }
+              return {
+                ...state,
+                messages_by_conversation_id: {
+                  ...state.messages_by_conversation_id,
+                  [conversationId]: nextMessages,
+                },
+                draft_by_conversation_id: {
+                  ...state.draft_by_conversation_id,
+                  [conversationId]: trimmedDraft,
+                },
+                is_streaming: false,
+                error_message: message,
+              };
+            });
+          }
+        });
+
+        updateDesktopNeuraState(windowId, (state) => ({
+          ...state,
+          is_streaming: false,
+        }));
+      } catch (error) {
+        updateDesktopNeuraState(windowId, (state) => ({
+          ...state,
+          draft_by_conversation_id: {
+            ...state.draft_by_conversation_id,
+            [conversationId]: trimmedDraft,
+          },
+          is_streaming: false,
+          error_message:
+            error instanceof Error ? error.message : "Unable to send message",
+        }));
+      }
+    },
+    [updateDesktopNeuraState]
   );
 
   const openPreview = useCallback(
@@ -4482,6 +5165,31 @@ export default function NeuralLabsPage() {
     });
   }, [desktopTerminalStates, desktopWindows, initializeDesktopTerminalWindow]);
 
+  useEffect(() => {
+    const pendingWindowIds = desktopWindows
+      .filter((windowState) => windowState.app_kind === "neura-chat")
+      .map((windowState) => windowState.id)
+      .filter((windowId) => {
+        const neuraState = desktopNeuraStates[windowId];
+        if (!neuraState) {
+          return false;
+        }
+
+        return (
+          neuraState.is_loading_conversations &&
+          neuraState.conversations.length === 0 &&
+          !desktopNeuraInitInFlightRef.current.has(windowId)
+        );
+      });
+
+    pendingWindowIds.forEach((windowId) => {
+      desktopNeuraInitInFlightRef.current.add(windowId);
+      void loadDesktopNeuraWindow(windowId).finally(() => {
+        desktopNeuraInitInFlightRef.current.delete(windowId);
+      });
+    });
+  }, [desktopNeuraStates, desktopWindows, loadDesktopNeuraWindow]);
+
   const reconcileLiveTerminals = useCallback(
     async (preferredActiveTerminalId?: string | null) => {
       const desktopTerminalIds = new Set(
@@ -5191,6 +5899,34 @@ export default function NeuralLabsPage() {
         );
       }
 
+      if (windowState.app_kind === "neura-chat") {
+        const neuraState =
+          desktopNeuraStates[windowState.id] ??
+          createDefaultDesktopNeuraWindowState();
+
+        return (
+          <NeuralLabsDesktopNeura
+            windowState={neuraState}
+            onToggleSidebar={() => toggleDesktopNeuraSidebar(windowState.id)}
+            onCreateConversation={() =>
+              createDesktopNeuraConversation(windowState.id)
+            }
+            onSelectConversation={(conversationId) =>
+              loadDesktopNeuraConversation(windowState.id, conversationId)
+            }
+            onDeleteConversation={(conversation) =>
+              deleteDesktopNeuraConversation(windowState.id, conversation)
+            }
+            onUpdateDraft={(conversationId, draft) =>
+              updateDesktopNeuraDraft(windowState.id, conversationId, draft)
+            }
+            onSendMessage={(conversationId) =>
+              sendDesktopNeuraMessage(windowState.id, conversationId)
+            }
+          />
+        );
+      }
+
       const terminalState =
         desktopTerminalStates[windowState.id] ??
         createDefaultDesktopTerminalWindowState();
@@ -5241,15 +5977,19 @@ export default function NeuralLabsPage() {
       closeDesktopTerminalTab,
       copyPath,
       createFolderAtPath,
+      createDesktopNeuraConversation,
       downloadFile,
       desktopExplorerStates,
+      desktopNeuraStates,
       desktopTerminalStates,
       environmentStatus,
       deleteEntryAtPath,
+      deleteDesktopNeuraConversation,
       duplicateDesktopTerminalTab,
       isPreviewable,
       loadingPaths,
       loadDirectory,
+      loadDesktopNeuraConversation,
       addDesktopEditorScratchTab,
       moveEntries,
       moveDesktopTerminalTabToNewWindow,
@@ -5265,6 +6005,7 @@ export default function NeuralLabsPage() {
       renameEntryAtPath,
       saveDesktopEditorTab,
       saveDesktopEditorTabAs,
+      sendDesktopNeuraMessage,
       setDesktopExplorerSelection,
       setActiveDesktopEditorTab,
       setActiveDesktopTerminalPane,
@@ -5272,7 +6013,9 @@ export default function NeuralLabsPage() {
       desktopBackgroundId,
       splitDesktopTerminalTab,
       treeEntries,
+      toggleDesktopNeuraSidebar,
       uploadFilesToPath,
+      updateDesktopNeuraDraft,
       updateDesktopEditorTabContent,
       updateDesktopExplorerState,
       toggleDesktopEditorSidebar,
@@ -5323,6 +6066,9 @@ export default function NeuralLabsPage() {
     const settingsWindows = desktopWindows.filter(
       (windowState) => windowState.app_kind === "desktop-settings"
     );
+    const neuraWindows = desktopWindows.filter(
+      (windowState) => windowState.app_kind === "neura-chat"
+    );
     const hasFileExplorerWindow = fileExplorerWindows.length > 0;
     const hasVisibleFileExplorerWindow = fileExplorerWindows.some(
       (windowState) => !windowState.is_minimized
@@ -5333,6 +6079,10 @@ export default function NeuralLabsPage() {
     );
     const hasSettingsWindow = settingsWindows.length > 0;
     const hasVisibleSettingsWindow = settingsWindows.some(
+      (windowState) => !windowState.is_minimized
+    );
+    const hasNeuraWindow = neuraWindows.length > 0;
+    const hasVisibleNeuraWindow = neuraWindows.some(
       (windowState) => !windowState.is_minimized
     );
 
@@ -5459,6 +6209,25 @@ export default function NeuralLabsPage() {
                   <SvgFileText className="h-5 w-5 shrink-0 stroke-current" />
                 </button>
               </IconActionButton>
+              <IconActionButton label="Neura">
+                <button
+                  type="button"
+                  aria-label="Neura"
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
+                    hasVisibleNeuraWindow
+                      ? "bg-white/16 text-white"
+                      : hasNeuraWindow
+                        ? "bg-white/8 text-white/80 ring-1 ring-white/20"
+                        : "text-white/80 hover:bg-white/10"
+                  }`}
+                  onClick={() => activateTaskbarDesktopApp("neura-chat")}
+                  onContextMenu={(event) =>
+                    handleTaskbarContextMenu(event, "neura-chat")
+                  }
+                >
+                  <SvgSparkle className="h-5 w-5 shrink-0 fill-current stroke-none" />
+                </button>
+              </IconActionButton>
               <div className="mx-1 h-8 w-px bg-white/12" />
               <IconActionButton label="Desktop Settings">
                 <button
@@ -5489,7 +6258,8 @@ export default function NeuralLabsPage() {
             >
               {(taskbarMenu.appKind === "terminal-workspace" ||
                 taskbarMenu.appKind === "file-explorer" ||
-                taskbarMenu.appKind === "text-editor") && (
+                taskbarMenu.appKind === "text-editor" ||
+                taskbarMenu.appKind === "neura-chat") && (
                 <button
                   type="button"
                   className="flex w-full items-center rounded-12 px-3 py-2 text-left text-sm text-white/85 transition hover:bg-white/10"

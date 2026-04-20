@@ -38,9 +38,9 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - modular web UI with:
     - `/neural-labs` now launches directly into the desktop Neural Labs experience; the route-level legacy UI switch and `Back to Legacy UI` action were removed
     - tree-based file navigator (expand/collapse, context menu, drag/drop move, hidden file toggle) remains as implementation support for shared file operations, but the user-facing Neural Labs route now resolves to the desktop shell
-    - desktop mode replaces those fixed sidebars with a browser-OS shell: a pill taskbar on the bottom with icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, and `Desktop Settings` apps
+    - desktop mode replaces those fixed sidebars with a browser-OS shell: a pill taskbar on the bottom with icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, `Neura`, and `Desktop Settings` apps
     - taskbar apps now show their names on hover via the Neural Labs tooltip treatment instead of always rendering text labels inline
-    - desktop taskbar icons restore minimized app windows, focus the front-most running instance on left click, and expose `New Window` on right click for multi-window apps such as `Terminal`, `File Explorer`, and `Text Editor`
+    - desktop taskbar icons restore minimized app windows, focus the front-most running instance on left click, and expose `New Window` on right click for multi-window apps such as `Terminal`, `File Explorer`, `Text Editor`, and `Neura`
     - desktop `Terminal` app is now a separate Windows Terminal-style surface instead of the legacy panel in a window: independent terminal windows, top tab strip, tab context menus, drag-reorder, move-tab-to-new-window, and in-window split controls
     - desktop `Terminal` app now follows the app light/dark theme for both its window chrome and the xterm surface instead of staying hardcoded dark
     - desktop terminal windows keep their own tab and pane state; the desktop app no longer depends on the legacy Terminal Navigator
@@ -49,6 +49,9 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - desktop file explorer windows keep their own path, history, selection, and view mode instead of sharing the legacy navigator state
     - desktop `Text Editor` is now a first-class desktop app window instead of the old preview-window editor: Monaco editor surface, per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
     - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open into the focused desktop editor window as tabs rather than using a separate preview-window editor mode
+    - desktop `Neura` is now a dedicated Neural Labs chat app: multi-conversation sidebar, message timeline, streaming replies, and taskbar multi-window behavior using the same desktop shell as the other apps
+    - Neura chat history is not stored in Onyx chat tables; it persists inside the user Neural Labs home at `~/.neural-labs/neura/neura.db`
+    - new Neura conversations default to the Neural Labs Sonnet model resolved from the managed Claude provider env (`ANTHROPIC_DEFAULT_SONNET_MODEL`)
     - desktop settings now include a color-mode selector for `Auto` / `Light` / `Dark`, default to `Sunset Grid`, allow preset switching without extra per-card helper copy, and support uploading or deleting one custom desktop background image in the persisted Neural Labs workspace
     - desktop mode now opens on a blank workspace without the bordered onboarding card when no windows are open
     - desktop app windows now support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snapping (`N/NE/E/SE/S/SW/W/NW`), and minimize-to-taskbar behavior

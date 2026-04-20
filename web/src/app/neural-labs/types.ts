@@ -53,7 +53,8 @@ export type NeuralLabsDesktopAppKind =
   | "file-explorer"
   | "terminal-workspace"
   | "desktop-settings"
-  | "text-editor";
+  | "text-editor"
+  | "neura-chat";
 
 export type DesktopExplorerViewMode = "icon" | "list";
 
@@ -99,6 +100,36 @@ export interface DesktopEditorWindowState {
   tabs: DesktopEditorTabState[];
   active_tab_id: string;
   is_sidebar_open: boolean;
+}
+
+export interface NeuraConversationSummary {
+  id: string;
+  title: string;
+  model_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NeuraMessage {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface DesktopNeuraWindowState {
+  conversations: NeuraConversationSummary[];
+  selected_conversation_id: string | null;
+  messages_by_conversation_id: Record<string, NeuraMessage[]>;
+  draft_by_conversation_id: Record<string, string>;
+  is_sidebar_open: boolean;
+  is_loading_conversations: boolean;
+  is_loading_messages: boolean;
+  is_streaming: boolean;
+  error_message: string | null;
+  assistant_name: string;
+  default_model: string;
 }
 
 export interface DesktopExplorerState {

@@ -4,7 +4,9 @@ from datetime import timezone
 import json
 from pathlib import Path
 import secrets
+from typing import Any
 from typing import AsyncGenerator
+from uuid import uuid4
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -38,6 +40,11 @@ from onyx.server.features.neural_labs.models import DeletePathResponse
 from onyx.server.features.neural_labs.models import DirectoryResponse
 from onyx.server.features.neural_labs.models import FileEntry
 from onyx.server.features.neural_labs.models import MovePathRequest
+from onyx.server.features.neural_labs.models import NeuraConfigResponse
+from onyx.server.features.neural_labs.models import NeuraConversationListResponse
+from onyx.server.features.neural_labs.models import NeuraConversationResponse
+from onyx.server.features.neural_labs.models import NeuraCreateConversationRequest
+from onyx.server.features.neural_labs.models import NeuraSendMessageRequest
 from onyx.server.features.neural_labs.models import PathResponse
 from onyx.server.features.neural_labs.models import RenamePathRequest
 from onyx.server.features.neural_labs.models import TerminalDescriptor
@@ -50,6 +57,33 @@ from onyx.server.features.neural_labs.models import TerminalWebSocketTokenReques
 from onyx.server.features.neural_labs.models import TerminalWebSocketTokenResponse
 from onyx.server.features.neural_labs.models import UpdateFileContentRequest
 from onyx.server.features.neural_labs.models import WarmupResponse
+from onyx.server.features.neural_labs.neura_store import append_message
+from onyx.server.features.neural_labs.neura_store import create_conversation
+from onyx.server.features.neural_labs.neura_store import delete_conversation
+from onyx.server.features.neural_labs.neura_store import get_conversation
+from onyx.server.features.neural_labs.neura_store import list_conversations
+from onyx.server.features.neural_labs.neura_store import maybe_update_title_from_first_user_message
+from onyx.server.features.neural_labs.provisioning import (
+    ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME,
+)
+from onyx.server.features.neural_labs.provisioning import (
+    ANTHROPIC_ENV_KEY_NAME,
+)
+from onyx.server.features.neural_labs.provisioning import (
+    ANTHROPIC_FOUNDRY_API_KEY_ENV_KEY_NAME,
+)
+from onyx.server.features.neural_labs.provisioning import (
+    ANTHROPIC_FOUNDRY_BASE_URL_ENV_KEY_NAME,
+)
+from onyx.server.features.neural_labs.provisioning import (
+    CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME,
+)
+from onyx.server.features.neural_labs.provisioning import (
+    CLAUDE_CODE_USE_FOUNDRY_ENV_KEY_NAME,
+)
+from onyx.server.features.neural_labs.provisioning import (
+    DEFAULT_FOUNDRY_CLAUDE_SONNET_MODEL,
+)
 from onyx.server.features.neural_labs.provisioning import (
     NEURAL_LABS_MCP_BEARER_TOKEN_ENV_VAR,
 )
@@ -57,12 +91,17 @@ from onyx.server.features.neural_labs.provisioning import (
     WARDGPT_MCP_BEARER_TOKEN_ENV_VAR,
 )
 from onyx.server.features.neural_labs.provisioning import provision_neural_labs_home
+from onyx.llm.litellm_singleton import litellm
+from onyx.llm.model_response import from_litellm_model_response_stream
+from onyx.llm.multi_llm import temporary_env_and_lock
+from onyx.llm.utils import litellm_exception_to_error_msg
 from onyx.redis.redis_pool import store_ws_token
 from onyx.redis.redis_pool import WsTokenRateLimitExceeded
 from shared_configs.contextvars import get_current_tenant_id
 
 NEURAL_LABS_MCP_PAT_NAME = "neural-labs-mcp"
 NEURAL_LABS_MCP_PAT_FILE_RELATIVE_PATH = ".neural-labs/mcp_pat.token"
+NEURA_ASSISTANT_NAME = "Neura"
 
 
 def require_neural_labs_enabled(user: User = Depends(current_user)) -> User:
@@ -220,6 +259,66 @@ def _get_or_create_default_session(
         home_dir=home_dir,
         env_overrides=env_overrides,
     )
+
+
+def _get_neural_labs_home_dir(*, tenant_id: str, user: User) -> Path:
+    return get_neural_labs_manager().get_user_home(tenant_id=tenant_id, user_id=user.id)
+
+
+def _get_neura_env_overrides(*, home_dir: Path, db_session: Session) -> dict[str, str]:
+    return provision_neural_labs_home(home_dir=home_dir, db_session=db_session)
+
+
+def _get_neura_default_model(env_overrides: dict[str, str]) -> str:
+    return (
+        env_overrides.get(ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME, "").strip()
+        or DEFAULT_FOUNDRY_CLAUDE_SONNET_MODEL
+    )
+
+
+def _build_neura_litellm_config(env_overrides: dict[str, str], model_name: str) -> dict[str, Any]:
+    if env_overrides.get(CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME) == "1":
+        return {
+            "model": f"bedrock/{model_name}",
+            "api_key": None,
+            "base_url": None,
+            "custom_llm_provider": None,
+            "extra_kwargs": {},
+        }
+
+    if env_overrides.get(CLAUDE_CODE_USE_FOUNDRY_ENV_KEY_NAME) == "1":
+        return {
+            "model": f"anthropic/{model_name}",
+            "api_key": env_overrides.get(ANTHROPIC_FOUNDRY_API_KEY_ENV_KEY_NAME),
+            "base_url": env_overrides.get(ANTHROPIC_FOUNDRY_BASE_URL_ENV_KEY_NAME),
+            "custom_llm_provider": None,
+            "extra_kwargs": {},
+        }
+
+    return {
+        "model": f"anthropic/{model_name}",
+        "api_key": env_overrides.get(ANTHROPIC_ENV_KEY_NAME),
+        "base_url": None,
+        "custom_llm_provider": None,
+        "extra_kwargs": {},
+    }
+
+
+def _build_neura_messages_payload(
+    conversation_messages: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    payload: list[dict[str, str]] = []
+    for message in conversation_messages:
+        role = message.get("role", "").strip()
+        content = message.get("content", "")
+        if role not in {"user", "assistant", "system"}:
+            continue
+        payload.append({"role": role, "content": content})
+    return payload
+
+
+def _sse_event(event: str, payload: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
 
 
 @router.post("/warmup", response_model=WarmupResponse)
@@ -767,3 +866,189 @@ def delete_file(
     except ValueError as e:
         _raise_files_http_error(e)
     return DeletePathResponse(deleted=deleted)
+
+
+@router.get("/neura/config", response_model=NeuraConfigResponse)
+def get_neura_config(
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> NeuraConfigResponse:
+    tenant_id = get_current_tenant_id()
+    home_dir = _get_neural_labs_home_dir(tenant_id=tenant_id, user=user)
+    env_overrides = _get_neura_env_overrides(home_dir=home_dir, db_session=db_session)
+    return NeuraConfigResponse(
+        assistant_name=NEURA_ASSISTANT_NAME,
+        default_model=_get_neura_default_model(env_overrides),
+    )
+
+
+@router.get("/neura/conversations", response_model=NeuraConversationListResponse)
+def get_neura_conversations(
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> NeuraConversationListResponse:
+    tenant_id = get_current_tenant_id()
+    home_dir = _get_neural_labs_home_dir(tenant_id=tenant_id, user=user)
+    return NeuraConversationListResponse(conversations=list_conversations(home_dir))
+
+
+@router.post("/neura/conversations", response_model=NeuraConversationResponse)
+def create_neura_conversation(
+    request: NeuraCreateConversationRequest,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> NeuraConversationResponse:
+    tenant_id = get_current_tenant_id()
+    home_dir = _get_neural_labs_home_dir(tenant_id=tenant_id, user=user)
+    env_overrides = _get_neura_env_overrides(home_dir=home_dir, db_session=db_session)
+    conversation = create_conversation(
+        home_dir,
+        model_name=_get_neura_default_model(env_overrides),
+        title=request.title,
+    )
+    return NeuraConversationResponse(conversation=conversation, messages=[])
+
+
+@router.get(
+    "/neura/conversations/{conversation_id}",
+    response_model=NeuraConversationResponse,
+)
+def get_neura_conversation(
+    conversation_id: str,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> NeuraConversationResponse:
+    tenant_id = get_current_tenant_id()
+    home_dir = _get_neural_labs_home_dir(tenant_id=tenant_id, user=user)
+    try:
+        conversation, messages = get_conversation(home_dir, conversation_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return NeuraConversationResponse(conversation=conversation, messages=messages)
+
+
+@router.delete("/neura/conversations/{conversation_id}")
+def delete_neura_conversation(
+    conversation_id: str,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> Response:
+    tenant_id = get_current_tenant_id()
+    home_dir = _get_neural_labs_home_dir(tenant_id=tenant_id, user=user)
+    deleted = delete_conversation(home_dir, conversation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return Response(status_code=204)
+
+
+@router.post("/neura/conversations/{conversation_id}/messages/stream")
+def stream_neura_message(
+    conversation_id: str,
+    request: NeuraSendMessageRequest,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> StreamingResponse:
+    prompt = request.content.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Message content cannot be empty")
+
+    tenant_id = get_current_tenant_id()
+    home_dir = _get_neural_labs_home_dir(tenant_id=tenant_id, user=user)
+    env_overrides = _get_neura_env_overrides(home_dir=home_dir, db_session=db_session)
+
+    try:
+        conversation, _existing_messages = get_conversation(home_dir, conversation_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    user_message = append_message(
+        home_dir,
+        conversation_id=conversation_id,
+        role="user",
+        content=prompt,
+    )
+    maybe_update_title_from_first_user_message(
+        home_dir, conversation_id=conversation_id, content=prompt
+    )
+    conversation, persisted_messages = get_conversation(home_dir, conversation_id)
+    assistant_message_id = str(uuid4())
+
+    def event_generator() -> Any:
+        assistant_chunks: list[str] = []
+        yield _sse_event(
+            "message_start",
+            {
+                "conversation": conversation.model_dump(mode="json"),
+                "user_message": user_message.model_dump(mode="json"),
+                "assistant_message": {
+                    "id": assistant_message_id,
+                    "conversation_id": conversation_id,
+                    "role": "assistant",
+                    "content": "",
+                },
+            },
+        )
+
+        messages_payload = _build_neura_messages_payload(
+            [
+                {"role": message.role, "content": message.content}
+                for message in persisted_messages
+            ]
+        )
+        llm_config = _build_neura_litellm_config(
+            env_overrides, conversation.model_name
+        )
+
+        try:
+            with temporary_env_and_lock(env_overrides):
+                stream = litellm.completion(
+                    model=llm_config["model"],
+                    api_key=llm_config["api_key"],
+                    base_url=llm_config["base_url"],
+                    custom_llm_provider=llm_config["custom_llm_provider"],
+                    messages=messages_payload,
+                    stream=True,
+                    temperature=0.7,
+                    timeout=120,
+                    max_tokens=2048,
+                    **llm_config["extra_kwargs"],
+                )
+
+            for chunk in stream:
+                parsed_chunk = from_litellm_model_response_stream(chunk)
+                delta = parsed_chunk.choice.delta.content or ""
+                if not delta:
+                    continue
+                assistant_chunks.append(delta)
+                yield _sse_event("delta", {"delta": delta})
+        except Exception as e:
+            error_message, _error_code, _is_retryable = litellm_exception_to_error_msg(
+                e, llm=None, fallback_to_error_msg=True
+            )
+            yield _sse_event("error", {"message": error_message})
+            return
+
+        assistant_message = append_message(
+            home_dir,
+            conversation_id=conversation_id,
+            role="assistant",
+            content="".join(assistant_chunks),
+        )
+        updated_conversation, _ = get_conversation(home_dir, conversation_id)
+        yield _sse_event(
+            "message_complete",
+            {
+                "conversation": updated_conversation.model_dump(mode="json"),
+                "assistant_message": assistant_message.model_dump(mode="json"),
+            },
+        )
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
