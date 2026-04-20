@@ -86,5 +86,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - `bedrock:InvokeModel`
     - `bedrock:InvokeModelWithResponseStream`
     - `bedrock:ListInferenceProfiles`
+    - `bedrock:GetInferenceProfile`
+  - for `us.anthropic.*` cross-region inference profiles, invoke permissions must cover the routed Bedrock foundation-model ARNs in all destination regions, not only `us-east-1`
 - Note:
   - infrastructure-level Codex/Craft compose wiring remains intentionally separate from this Neural Labs parity import.

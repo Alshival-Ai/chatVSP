@@ -139,6 +139,9 @@ Bedrock rollout notes:
   - `bedrock:InvokeModel`
   - `bedrock:InvokeModelWithResponseStream`
   - `bedrock:ListInferenceProfiles`
+  - `bedrock:GetInferenceProfile`
+- for Bedrock `us.anthropic.*` inference profiles, allow invoke access on the routed foundation-model ARNs across the profile's destination regions
+  - example: `us.anthropic.claude-sonnet-4-6` can route to `us-east-1`, `us-east-2`, and `us-west-2`
 - Bedrock Claude model access must be enabled in the AWS account before rollout
 
 Neural Labs intentionally does not write MCP server blocks into `~/.codex/config.toml`.
