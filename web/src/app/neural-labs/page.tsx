@@ -174,7 +174,7 @@ const MAX_NAVIGATOR_WIDTH_PX = 860;
 const MAX_NAVIGATOR_WIDTH_RATIO = 0.7;
 const COLLAPSED_NAVIGATOR_RAIL_PX = 52;
 const DEFAULT_FILE_EXPLORER_WINDOW = {
-  width: 460,
+  width: 640,
   height: 620,
 };
 const DEFAULT_TERMINAL_WINDOW = {
@@ -182,7 +182,7 @@ const DEFAULT_TERMINAL_WINDOW = {
   height: 640,
 };
 const DEFAULT_SETTINGS_WINDOW = {
-  width: 520,
+  width: 640,
   height: 420,
 };
 const DEFAULT_TEXT_EDITOR_WINDOW = {
@@ -3266,14 +3266,14 @@ export default function NeuralLabsPage() {
         ? workspaceBounds.width > 0
           ? Math.min(
               DEFAULT_FILE_EXPLORER_WINDOW.width,
-              Math.max(400, workspaceBounds.width * 0.34)
+              Math.max(520, workspaceBounds.width * 0.44)
             )
           : DEFAULT_FILE_EXPLORER_WINDOW.width
         : isSettingsApp
           ? workspaceBounds.width > 0
             ? Math.min(
                 DEFAULT_SETTINGS_WINDOW.width,
-                Math.max(420, workspaceBounds.width * 0.38)
+                Math.max(520, workspaceBounds.width * 0.46)
               )
             : DEFAULT_SETTINGS_WINDOW.width
           : isTextEditorApp

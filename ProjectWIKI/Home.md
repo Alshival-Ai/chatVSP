@@ -46,6 +46,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - desktop terminal windows keep their own tab and pane state; the desktop app no longer depends on the legacy Terminal Navigator
     - desktop `File Explorer` app now uses a Finder-style explorer instead of the legacy tree navigator: per-window folder history, breadcrumb navigation, sidebar locations, icon/list views, click-through folders, and drag/drop move or upload behavior
     - desktop `File Explorer` iconography now uses explicit theme-aware folder/file colors so the same icon treatment stays readable in both light and dark mode
+    - desktop `File Explorer` and `Desktop Settings` now open with wider default window sizes so their initial layouts better match the rest of the Neural Labs desktop apps
     - desktop file explorer windows keep their own path, history, selection, and view mode instead of sharing the legacy navigator state
     - desktop `Text Editor` is now a first-class desktop app window instead of the old preview-window editor: Monaco editor surface, per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
     - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open into the focused desktop editor window as tabs rather than using a separate preview-window editor mode
