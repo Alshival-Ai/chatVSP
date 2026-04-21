@@ -544,6 +544,7 @@ export default function NeuralLabsDesktopTextEditor({
                 }
                 options={{
                   automaticLayout: true,
+                  editContext: false,
                   fontSize: 14,
                   fontLigatures: true,
                   lineNumbers: "on",

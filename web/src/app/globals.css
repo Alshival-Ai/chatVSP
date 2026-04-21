@@ -485,8 +485,7 @@ textarea:not(.inputarea) {
 }
 
 .neural-labs-monaco-host .inputarea,
-.neural-labs-monaco-host .ime-text-area,
-.neural-labs-monaco-host .native-edit-context {
+.neural-labs-monaco-host .ime-text-area {
   min-width: 0 !important;
   min-height: 0 !important;
   width: 0 !important;
