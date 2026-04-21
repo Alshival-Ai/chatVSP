@@ -484,6 +484,25 @@ textarea:not(.inputarea) {
   pointer-events: none !important;
 }
 
+.neural-labs-monaco-host .inputarea,
+.neural-labs-monaco-host .ime-text-area,
+.neural-labs-monaco-host .native-edit-context {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  outline: none !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  color: transparent !important;
+  opacity: 0 !important;
+  z-index: -10 !important;
+  pointer-events: none !important;
+}
+
 .nextjs-portal {
   display: none !important;
   visibility: hidden !important;
