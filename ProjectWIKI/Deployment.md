@@ -103,6 +103,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - desktop `Text Editor` is now a dedicated Monaco-based app window instead of the former preview-window editor: per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
   - desktop `Text Editor` now keeps its internal surfaces theme-consistent in both light and dark mode instead of mixing bright and dark panels within the same window
   - desktop `Neura` is now a dedicated Neural Labs chat app with a conversation sidebar, streaming replies, and taskbar `New Window` support; it is separate from the main Onyx assistant UI
+  - selected rows in the `Text Editor` and `Neura` sidebars now use explicit active-state text colors so light mode keeps those labels readable against the dark selected background treatment
   - Neura now uses a modern pill-style composer with inline image uploads for Sonnet vision instead of a text-only chat bar
   - a new Neura window now auto-creates its first conversation and focuses the composer once the workspace has no existing Neura chats
   - desktop explorer and terminal visuals now follow the app light/dark theme, including explicit theme-safe file/folder icon colors and xterm foreground/background switching

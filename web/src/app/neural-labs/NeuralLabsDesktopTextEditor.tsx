@@ -320,7 +320,7 @@ export default function NeuralLabsDesktopTextEditor({
                   type="button"
                   className={`group mb-1 flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition ${
                     isActive
-                      ? "bg-slate-900 text-white shadow-sm dark:bg-white/14 dark:text-white"
+                      ? "bg-slate-950 text-white shadow-sm dark:bg-white/14 dark:text-white"
                       : "text-slate-700 hover:bg-slate-200/80 dark:text-white/78 dark:hover:bg-white/8"
                   }`}
                   onClick={() => onSetActiveTab(tab.tab_id)}
@@ -334,14 +334,26 @@ export default function NeuralLabsDesktopTextEditor({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <Text className="truncate text-sm font-medium">
+                      <Text
+                        className={`truncate text-sm font-medium ${
+                          isActive
+                            ? "text-white"
+                            : "text-slate-900 dark:text-white"
+                        }`}
+                      >
                         {tab.name}
                       </Text>
                       {isDirty ? (
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
                       ) : null}
                     </div>
-                    <Text className="truncate text-xs text-current/60">
+                    <Text
+                      className={`truncate text-xs ${
+                        isActive
+                          ? "text-white/70"
+                          : "text-slate-500 dark:text-white/45"
+                      }`}
+                    >
                       {tab.path ? `~/${tab.path}` : "Unsaved scratch"}
                     </Text>
                   </div>

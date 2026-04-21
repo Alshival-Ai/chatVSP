@@ -56,6 +56,7 @@
   - desktop editor windows keep separate per-window editor state (`tabs`, `active_tab_id`, sidebar visibility) while text-file loads/saves continue to use the existing file-content API
   - desktop editor surface chrome now normalizes its sidebar, toolbar, tab strip, editor canvas, and save modal around the active light/dark theme instead of mixing palette treatments
   - desktop Neura windows keep separate per-window chat view state (`selected_conversation_id`, drafts, sidebar visibility, streaming state, pending image attachments`) while the persisted conversation/message history lives under the user Neural Labs home
+  - selected sidebar rows in the desktop editor and Neura now set their own active-state foreground colors explicitly instead of relying on inherited text tokens from the shared `Text` component
   - a newly opened Neura window auto-bootstraps its first conversation client-side once the conversation list is confirmed empty, then focuses the composer for immediate typing
   - text-like files now route into the desktop editor window model instead of the preview-window model
   - desktop explorer/terminal presentation colors now follow the shared app light/dark theme; the terminal xterm theme is switched client-side alongside the window chrome

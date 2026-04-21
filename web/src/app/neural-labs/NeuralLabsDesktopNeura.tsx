@@ -315,8 +315,8 @@ export default function NeuralLabsDesktopNeura({
                     className={`group mb-1 flex w-full items-start gap-3 rounded-16 px-3 py-3 text-left transition ${
                       isActive
                         ? isDarkMode
-                          ? "bg-white/12"
-                          : "bg-slate-900 text-white"
+                          ? "bg-white/12 text-white"
+                          : "bg-slate-950 text-white shadow-[0_10px_30px_rgba(15,23,42,0.18)]"
                         : isDarkMode
                           ? "hover:bg-white/7"
                           : "hover:bg-slate-100"
@@ -337,7 +337,13 @@ export default function NeuralLabsDesktopNeura({
                       <SvgSparkle className="h-4 w-4 fill-current stroke-none" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <Text className="truncate text-sm font-medium">
+                      <Text
+                        className={`truncate text-sm font-medium ${
+                          isActive
+                            ? "text-white"
+                            : "text-slate-900 dark:text-white"
+                        }`}
+                      >
                         {conversation.title}
                       </Text>
                       <Text
