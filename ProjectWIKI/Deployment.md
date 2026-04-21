@@ -155,6 +155,56 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
     - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
   - direct Anthropic fallback remains supported via `ANTHROPIC_API_KEY` only when neither Foundry nor Bedrock is configured
 - Neural Labs no longer provisions OpenAI/Codex credentials or config; the managed shell is Claude-only
+
+## Dependency Vulnerability Investigation (April 21, 2026)
+
+Snapshot from local audits performed against tracked manifests:
+
+- `web/package-lock.json`:
+  - `npm audit --json`: `critical=1 high=6 moderate=4 total=11`
+  - `npm audit --omit=dev --json`: `high=4 moderate=4 total=8`
+- `widget/package-lock.json`:
+  - full audit: `high=2 moderate=1 total=3`
+  - runtime-only: `moderate=1 total=1`
+- `examples/widget/package-lock.json`:
+  - full audit: `high=3 moderate=2 total=5`
+  - runtime-only: `high=1 total=1`
+- `backend/onyx/server/features/build/sandbox/kubernetes/docker/templates/outputs/web/package-lock.json`:
+  - full audit: `high=5 moderate=3 total=8`
+- `desktop/package-lock.json`: `total=0`
+
+Python requirement graph (`pip-audit`):
+
+- `backend/requirements/default.txt`: `38 vulnerabilities in 17 packages`
+- `backend/requirements/dev.txt`: `22 vulnerabilities in 10 packages`
+- `backend/requirements/ee.txt`: `18 vulnerabilities in 6 packages`
+- `backend/requirements/model_server.txt`: `20 vulnerabilities in 8 packages`
+- `backend/requirements/combined.txt`: `40 vulnerabilities in 19 packages`
+  - highest-count packages: `aiohttp` (10), `pypdf` (6), `litellm` (3), `nltk` (3)
+
+Important repository-level finding:
+
+- The branch tracks a large `temp/` tree (`~4,972` files) containing additional manifests.
+- Tracked dependency manifests under `temp/`: `17`.
+- Some are exact duplicates of active manifests; others are older and carry higher vulnerability counts.
+  - example: `temp/.../onyx-main/backend/requirements/default.txt` shows `48 vulnerabilities in 21 packages`
+  - example: `temp/.../onyx-main/backend/requirements/combined.txt` shows `50 vulnerabilities in 23 packages`
+
+Interpretation:
+
+- The reported GitHub total (`458`) is materially inflated by tracked `temp/` manifests in addition to real vulnerabilities in active backend Python and web dependency graphs.
+- Production-facing JS runtime risk in active apps is comparatively small (single digits per app), while backend Python manifests are the largest active risk concentration.
+
+Recommended remediation order:
+
+1. Remove tracked `temp/` extracted project trees from the default branch and add an explicit `.gitignore` rule for those paths.
+2. Patch active runtime JS dependencies first:
+   - `next` (DoS advisory; upgrade to patched 16.2.x),
+   - `lodash`/`lodash-es`,
+   - `dompurify`/`monaco-editor` path.
+3. Patch backend Python high-volume packages in `backend/requirements/*.txt` and regenerate lock artifacts:
+   - prioritize `aiohttp`, `pypdf`, `litellm`, `nltk`, `cryptography`.
+4. Re-run dependency scans after each batch to validate alert reduction and avoid introducing incompatible transitive upgrades.
 - Build/Craft sessions now resolve Bedrock Claude only and pass the configured Bedrock region into the local `opencode` subprocess
 
 Bedrock rollout notes:
