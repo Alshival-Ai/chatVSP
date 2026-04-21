@@ -526,7 +526,6 @@ export default function NeuralLabsDesktopTextEditor({
             {activeTab ? (
               <Editor
                 key={activeTab.tab_id}
-                className="neural-labs-monaco-host"
                 path={activeTab.path ?? activeTab.name}
                 value={activeTab.content}
                 language={activeLanguage}
@@ -552,6 +551,7 @@ export default function NeuralLabsDesktopTextEditor({
                   scrollBeyondLastLine: false,
                   smoothScrolling: true,
                   tabSize: 2,
+                  useShadowDOM: false,
                   wordWrap: "on",
                   padding: { top: 14, bottom: 14 },
                 }}
