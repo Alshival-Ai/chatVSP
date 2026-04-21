@@ -23,14 +23,20 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload
 
 from onyx.auth.pat import hash_pat
 from onyx.auth.users import current_user
 from onyx.auth.users import current_user_from_websocket
+from onyx.db.enums import LLMModelFlowType
 from onyx.db.engine.sql_engine import get_session
+from onyx.db.llm import fetch_default_llm_model
+from onyx.db.models import LLMModelFlow
+from onyx.db.models import ModelConfiguration
 from onyx.db.models import PersonalAccessToken
 from onyx.db.models import User
 from onyx.db.pat import create_pat
+from onyx.llm.constants import LlmProviderNames
 from onyx.server.features.build.configs import ENABLE_NEURAL_LABS
 from onyx.server.features.build.utils import sanitize_filename
 from onyx.server.features.neural_labs.manager import NeuralLabsSessionManager
@@ -271,21 +277,78 @@ def _get_neura_env_overrides(*, home_dir: Path, db_session: Session) -> dict[str
     return provision_neural_labs_home(home_dir=home_dir, db_session=db_session)
 
 
-def _get_neura_default_model(env_overrides: dict[str, str]) -> str:
-    return (
-        env_overrides.get(ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME, "").strip()
-        or DEFAULT_FOUNDRY_CLAUDE_SONNET_MODEL
+def _fallback_neura_model_from_env(env_overrides: dict[str, str]) -> str:
+    return env_overrides.get(ANTHROPIC_DEFAULT_SONNET_MODEL_ENV_KEY_NAME, "").strip() or (
+        DEFAULT_FOUNDRY_CLAUDE_SONNET_MODEL
     )
 
 
-def _build_neura_litellm_config(env_overrides: dict[str, str], model_name: str) -> dict[str, Any]:
+def _get_neura_default_model(*, db_session: Session, env_overrides: dict[str, str]) -> str:
+    default_model = fetch_default_llm_model(db_session)
+    if default_model:
+        return default_model.name
+    return _fallback_neura_model_from_env(env_overrides)
+
+
+def _get_neura_model_configuration(
+    *,
+    db_session: Session,
+    model_name: str,
+) -> ModelConfiguration | None:
+    return db_session.scalar(
+        select(ModelConfiguration)
+        .options(selectinload(ModelConfiguration.llm_provider))
+        .join(LLMModelFlow)
+        .where(ModelConfiguration.name == model_name)
+        .where(LLMModelFlow.llm_model_flow_type == LLMModelFlowType.CHAT)
+        .order_by(LLMModelFlow.is_default.desc())
+    )
+
+
+def _build_neura_litellm_config(
+    *,
+    db_session: Session,
+    env_overrides: dict[str, str],
+    model_name: str,
+) -> dict[str, Any]:
+    model_configuration = _get_neura_model_configuration(
+        db_session=db_session, model_name=model_name
+    )
+    default_model = fetch_default_llm_model(db_session)
+
+    if model_configuration is None or not model_configuration.is_visible:
+        model_configuration = default_model
+
+    if model_configuration is not None:
+        provider = model_configuration.llm_provider
+        provider_name = (provider.provider or "").strip()
+        deployment_or_model = provider.deployment_name or model_configuration.name
+        model = f"{provider_name}/{deployment_or_model}"
+        if provider_name == str(LlmProviderNames.BEDROCK_CONVERSE):
+            model = f"{LlmProviderNames.BEDROCK}/{deployment_or_model}"
+
+        api_key = provider.api_key.get_value(apply_mask=False) if provider.api_key else None
+        return {
+            "model": model,
+            "api_key": api_key,
+            "base_url": provider.api_base,
+            "api_version": provider.api_version,
+            "custom_llm_provider": None,
+            "extra_kwargs": {},
+            "env_overrides": env_overrides,
+            "resolved_model_name": model_configuration.name,
+        }
+
     if env_overrides.get(CLAUDE_CODE_USE_BEDROCK_ENV_KEY_NAME) == "1":
         return {
             "model": f"bedrock/{model_name}",
             "api_key": None,
             "base_url": None,
+            "api_version": None,
             "custom_llm_provider": None,
             "extra_kwargs": {},
+            "env_overrides": env_overrides,
+            "resolved_model_name": model_name,
         }
 
     if env_overrides.get(CLAUDE_CODE_USE_FOUNDRY_ENV_KEY_NAME) == "1":
@@ -293,16 +356,22 @@ def _build_neura_litellm_config(env_overrides: dict[str, str], model_name: str) 
             "model": f"anthropic/{model_name}",
             "api_key": env_overrides.get(ANTHROPIC_FOUNDRY_API_KEY_ENV_KEY_NAME),
             "base_url": env_overrides.get(ANTHROPIC_FOUNDRY_BASE_URL_ENV_KEY_NAME),
+            "api_version": None,
             "custom_llm_provider": None,
             "extra_kwargs": {},
+            "env_overrides": env_overrides,
+            "resolved_model_name": model_name,
         }
 
     return {
         "model": f"anthropic/{model_name}",
         "api_key": env_overrides.get(ANTHROPIC_ENV_KEY_NAME),
         "base_url": None,
+        "api_version": None,
         "custom_llm_provider": None,
         "extra_kwargs": {},
+        "env_overrides": env_overrides,
+        "resolved_model_name": model_name,
     }
 
 
@@ -969,7 +1038,9 @@ def get_neura_config(
     env_overrides = _get_neura_env_overrides(home_dir=home_dir, db_session=db_session)
     return NeuraConfigResponse(
         assistant_name=NEURA_ASSISTANT_NAME,
-        default_model=_get_neura_default_model(env_overrides),
+        default_model=_get_neura_default_model(
+            db_session=db_session, env_overrides=env_overrides
+        ),
     )
 
 
@@ -994,7 +1065,9 @@ def create_neura_conversation(
     env_overrides = _get_neura_env_overrides(home_dir=home_dir, db_session=db_session)
     conversation = create_conversation(
         home_dir,
-        model_name=_get_neura_default_model(env_overrides),
+        model_name=_get_neura_default_model(
+            db_session=db_session, env_overrides=env_overrides
+        ),
         title=request.title,
     )
     return NeuraConversationResponse(conversation=conversation, messages=[])
@@ -1097,15 +1170,18 @@ async def stream_neura_message(
             conversation_messages=persisted_messages,
         )
         llm_config = _build_neura_litellm_config(
-            env_overrides, conversation.model_name
+            db_session=db_session,
+            env_overrides=env_overrides,
+            model_name=conversation.model_name,
         )
 
         try:
-            with temporary_env_and_lock(env_overrides):
+            with temporary_env_and_lock(llm_config["env_overrides"]):
                 stream = litellm.completion(
                     model=llm_config["model"],
                     api_key=llm_config["api_key"],
                     base_url=llm_config["base_url"],
+                    api_version=llm_config["api_version"],
                     custom_llm_provider=llm_config["custom_llm_provider"],
                     messages=messages_payload,
                     stream=True,
@@ -1114,6 +1190,8 @@ async def stream_neura_message(
                     max_tokens=2048,
                     **llm_config["extra_kwargs"],
                 )
+            if llm_config["resolved_model_name"] != conversation.model_name:
+                conversation.model_name = llm_config["resolved_model_name"]
 
             for chunk in stream:
                 parsed_chunk = from_litellm_model_response_stream(chunk)

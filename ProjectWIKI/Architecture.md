@@ -70,7 +70,8 @@
   - desktop presentation preferences such as the selected preset/custom background choice persist in browser storage on the client
   - uploaded custom desktop background images are stored in the user Neural Labs workspace under `~/.neural-labs/backgrounds/` and served back through the existing file-content API
   - Neura uses separate Neural Labs endpoints under `/api/neural-labs/neura/*` and a local SQLite store at `~/.neural-labs/neura/neura.db`; it does not create Onyx chat sessions/messages or use the `query_and_chat` persistence model
-  - Neura image uploads are stored in `~/.neural-labs/neura/uploads/`, attached to user messages in the local SQLite metadata, and translated into multimodal message parts for Sonnet inference
+  - Neura image uploads are stored in `~/.neural-labs/neura/uploads/`, attached to user messages in the local SQLite metadata, and translated into multimodal message parts for the configured default chat model
+  - default model selection for new Neura conversations resolves from the same CHAT default model flow used by `Admin -> Language Models`, rather than a Neural Labs-only hardcoded Sonnet default
 
 ## SSH Path
 

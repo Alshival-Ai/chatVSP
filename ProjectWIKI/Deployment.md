@@ -105,7 +105,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - the desktop text editor now ships Monaco's official editor CSS from app root and runs with `useShadowDOM: false` in Neural Labs so Monaco's built-in input/caret styling is applied consistently without ad-hoc host CSS that can leak visible browser input elements
   - desktop `Neura` is now a dedicated Neural Labs chat app with a conversation sidebar, streaming replies, and taskbar `New Window` support; it is separate from the main Onyx assistant UI
   - selected rows in the `Text Editor` and `Neura` sidebars now use explicit active-state text colors so light mode keeps those labels readable against the dark selected background treatment
-  - Neura now uses a modern pill-style composer with inline image uploads for Sonnet vision instead of a text-only chat bar
+  - Neura now uses a modern pill-style composer with inline image uploads for multimodal vision-capable models instead of a text-only chat bar
   - the Neura composer now keeps icon-only voice/attach/image controls with hover labels; the voice button is present as a placeholder only and the keyboard shortcut hint sits below the composer
   - a new Neura window now auto-creates its first conversation and focuses the composer once the workspace has no existing Neura chats
   - file explorer/tree actions now distinguish rendered preview from editing: HTML keeps a real `Preview`, while editable text files expose `Open in Text Editor`

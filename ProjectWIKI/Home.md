@@ -58,12 +58,12 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - HTML files now keep a true `Preview` action that opens the rendered site in a preview window, instead of being forced into the text editor path
     - spreadsheet preview now uses explicit light/dark table colors so XLSX text remains readable in light mode
     - desktop `Neura` is now a dedicated Neural Labs chat app: multi-conversation sidebar, message timeline, streaming replies, and taskbar multi-window behavior using the same desktop shell as the other apps
-    - Neura now uses a modern pill-shaped composer with inline image attachments for Sonnet vision; users can attach images directly from the composer and those uploads render back into the chat timeline
+    - Neura now uses a modern pill-shaped composer with inline image attachments for multimodal vision-capable models; users can attach images directly from the composer and those uploads render back into the chat timeline
     - the Neura composer now uses icon-only voice/attach/image controls with hover labels, leaves the voice button as an inert placeholder for now, and moves the keyboard hint below the composer shell
     - a fresh Neura window now auto-creates its first conversation and focuses the composer so the app is ready to type immediately instead of waiting for a manual `+` click
     - Neura chat history is not stored in Onyx chat tables; it persists inside the user Neural Labs home at `~/.neural-labs/neura/neura.db`
     - Neura image uploads are stored alongside that history inside the user Neural Labs workspace at `~/.neural-labs/neura/uploads/`
-    - new Neura conversations default to the Neural Labs Sonnet model resolved from the managed Claude provider env (`ANTHROPIC_DEFAULT_SONNET_MODEL`)
+    - new Neura conversations now default to the same default chat model configured in `Admin -> Language Models` (CHAT flow default), with managed Neural Labs env defaults used only as a backend fallback when no default model is configured
     - desktop settings now include a color-mode selector for `Auto` / `Light` / `Dark`, default to `Sunset Grid`, allow preset switching without extra per-card helper copy, and support uploading or deleting one custom desktop background image in the persisted Neural Labs workspace
     - desktop mode now opens on a blank workspace without the bordered onboarding card when no windows are open
     - desktop app windows now support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snapping (`N/NE/E/SE/S/SW/W/NW`), and minimize-to-taskbar behavior
