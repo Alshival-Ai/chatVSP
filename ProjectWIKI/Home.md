@@ -61,6 +61,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - Neura now uses a modern pill-shaped composer with inline image attachments for multimodal vision-capable models; users can attach images directly from the composer and those uploads render back into the chat timeline
     - the Neura composer now uses icon-only voice/attach/image controls with hover labels, leaves the voice button as an inert placeholder for now, and moves the keyboard hint below the composer shell
     - a fresh Neura window now auto-creates its first conversation and focuses the composer so the app is ready to type immediately instead of waiting for a manual `+` click
+    - Neura streaming UI now renders a single assistant thinking state (no duplicate blank assistant bubble while the model is still producing tokens)
     - Neura chat history is not stored in Onyx chat tables; it persists inside the user Neural Labs home at `~/.neural-labs/neura/neura.db`
     - Neura image uploads are stored alongside that history inside the user Neural Labs workspace at `~/.neural-labs/neura/uploads/`
     - new Neura conversations now default to the same default chat model configured in `Admin -> Language Models` (CHAT flow default), with managed Neural Labs env defaults used only as a backend fallback when no default model is configured

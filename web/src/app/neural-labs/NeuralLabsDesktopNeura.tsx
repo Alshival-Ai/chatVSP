@@ -191,6 +191,32 @@ export default function NeuralLabsDesktopNeura({
   const pendingAttachments = activeConversation
     ? pendingAttachmentsByConversationId[activeConversation.id] ?? []
     : [];
+  const renderedMessages = useMemo(
+    () =>
+      activeMessages.filter((message) => {
+        const attachments = Array.isArray(message.attachments)
+          ? message.attachments
+          : [];
+        if (message.role !== "assistant") {
+          return true;
+        }
+        return Boolean(message.content?.trim()) || attachments.length > 0;
+      }),
+    [activeMessages]
+  );
+  const lastMessage = activeMessages[activeMessages.length - 1];
+  const shouldShowThinkingBubble = useMemo(() => {
+    if (!windowState.is_streaming) {
+      return false;
+    }
+    if (!lastMessage || lastMessage.role !== "assistant") {
+      return true;
+    }
+    const attachments = Array.isArray(lastMessage.attachments)
+      ? lastMessage.attachments
+      : [];
+    return !lastMessage.content?.trim() && attachments.length === 0;
+  }, [lastMessage, windowState.is_streaming]);
 
   useEffect(() => {
     const timeline = timelineRef.current;
@@ -495,7 +521,7 @@ export default function NeuralLabsDesktopNeura({
             </div>
           ) : (
             <div className="mx-auto flex max-w-4xl flex-col gap-4">
-              {activeMessages.map((message) => {
+              {renderedMessages.map((message) => {
                 const isAssistant = message.role === "assistant";
                 const attachments = Array.isArray(message.attachments)
                   ? message.attachments
@@ -543,7 +569,7 @@ export default function NeuralLabsDesktopNeura({
                   </div>
                 );
               })}
-              {windowState.is_streaming ? (
+              {shouldShowThinkingBubble ? (
                 <div className="flex justify-start">
                   <div
                     className={`max-w-[82%] rounded-[26px] border px-4 py-3 ${messageShellClassName}`}
