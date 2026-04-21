@@ -526,6 +526,7 @@ export default function NeuralLabsDesktopTextEditor({
             {activeTab ? (
               <Editor
                 key={activeTab.tab_id}
+                className="neural-labs-monaco-host"
                 path={activeTab.path ?? activeTab.name}
                 value={activeTab.content}
                 language={activeLanguage}

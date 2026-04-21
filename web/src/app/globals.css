@@ -464,7 +464,7 @@ textarea:not(.inputarea) {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-.monaco-editor textarea.inputarea:not(.ime-input) {
+.neural-labs-monaco-host textarea {
   min-width: 0 !important;
   min-height: 0 !important;
   width: 0 !important;
@@ -481,6 +481,7 @@ textarea:not(.inputarea) {
   background: transparent !important;
   opacity: 0 !important;
   z-index: -10 !important;
+  pointer-events: none !important;
 }
 
 .nextjs-portal {
