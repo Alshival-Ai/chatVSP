@@ -464,7 +464,7 @@ textarea:not(.inputarea) {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-.neural-labs-monaco-host textarea {
+.neural-labs-monaco-host textarea.inputarea:not(.ime-input) {
   min-width: 0 !important;
   min-height: 0 !important;
   width: 0 !important;
@@ -484,22 +484,21 @@ textarea:not(.inputarea) {
   pointer-events: none !important;
 }
 
-.neural-labs-monaco-host .inputarea,
+.neural-labs-monaco-host .native-edit-context,
 .neural-labs-monaco-host .ime-text-area {
-  min-width: 0 !important;
-  min-height: 0 !important;
-  width: 0 !important;
-  height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-  outline: none !important;
-  overflow: hidden !important;
   background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   color: transparent !important;
-  opacity: 0 !important;
-  z-index: -10 !important;
-  pointer-events: none !important;
+  outline: none !important;
+}
+
+.neural-labs-monaco-host .native-edit-context:focus,
+.neural-labs-monaco-host .ime-text-area:focus,
+.neural-labs-monaco-host .monaco-editor [tabindex="0"]:focus,
+.neural-labs-monaco-host .monaco-editor textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .nextjs-portal {
