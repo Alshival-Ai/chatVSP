@@ -436,30 +436,30 @@
 
 /* TEXTAREA */
 
-textarea::-webkit-scrollbar {
+textarea:not(.inputarea)::-webkit-scrollbar {
   width: 8px;
 }
 
-textarea::-webkit-scrollbar-track {
+textarea:not(.inputarea)::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
   border-radius: 4px;
 }
 
-textarea::-webkit-scrollbar-thumb {
+textarea:not(.inputarea)::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
-textarea::-webkit-scrollbar-thumb:hover {
+textarea:not(.inputarea)::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
 
-textarea {
+textarea:not(.inputarea) {
   resize: vertical;
 }
 
 /* For Firefox */
-textarea {
+textarea:not(.inputarea) {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
