@@ -55,6 +55,7 @@ interface NeuralLabsDesktopFileExplorerProps {
   canGoForward: boolean;
   canGoUp: boolean;
   canPreviewEntry: (entry: NeuralLabsFileEntry) => boolean;
+  canOpenInTextEditor: (entry: NeuralLabsFileEntry) => boolean;
   onNavigateBack: () => Promise<void> | void;
   onNavigateForward: () => Promise<void> | void;
   onNavigateUp: () => Promise<void> | void;
@@ -69,6 +70,7 @@ interface NeuralLabsDesktopFileExplorerProps {
   onSetViewMode: (mode: DesktopExplorerViewMode) => void;
   onOpenEntry: (entry: NeuralLabsFileEntry) => void;
   onPreviewEntry: (entry: NeuralLabsFileEntry) => void;
+  onOpenInTextEditor: (entry: NeuralLabsFileEntry) => void;
   onDownloadEntry: (entry: NeuralLabsFileEntry) => void;
   onCopyPath: (entry: NeuralLabsFileEntry) => void;
   onRenameEntry: (entry: NeuralLabsFileEntry) => void;
@@ -213,6 +215,7 @@ export default function NeuralLabsDesktopFileExplorer({
   canGoForward,
   canGoUp,
   canPreviewEntry,
+  canOpenInTextEditor,
   onNavigateBack,
   onNavigateForward,
   onNavigateUp,
@@ -224,6 +227,7 @@ export default function NeuralLabsDesktopFileExplorer({
   onSetViewMode,
   onOpenEntry,
   onPreviewEntry,
+  onOpenInTextEditor,
   onDownloadEntry,
   onCopyPath,
   onRenameEntry,
@@ -475,6 +479,10 @@ export default function NeuralLabsDesktopFileExplorer({
   const previewable = contextMenuState?.entry
     ? canPreviewEntry(contextMenuState.entry)
     : false;
+  const editableInTextEditor =
+    contextMenuState?.entry && !contextMenuState.entry.is_directory
+      ? canOpenInTextEditor(contextMenuState.entry)
+      : false;
 
   return (
     <div
@@ -1039,6 +1047,22 @@ export default function NeuralLabsDesktopFileExplorer({
                 className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
               />
               <Text>Preview</Text>
+            </button>
+          ) : null}
+
+          {contextMenuState.entry && editableInTextEditor ? (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+              onClick={() => {
+                onOpenInTextEditor(contextMenuState.entry!);
+                setContextMenuState(null);
+              }}
+            >
+              <SvgFileText
+                className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
+              />
+              <Text>Open in Text Editor</Text>
             </button>
           ) : null}
 

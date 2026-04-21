@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import JSZip from "jszip";
 import { kml as kmlToGeoJson } from "@tmcw/togeojson";
 import Text from "@/refresh-components/texts/Text";
@@ -674,6 +675,7 @@ function KmzMapContent({ windowState }: { windowState: PreviewWindowState }) {
 }
 
 function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
+  const { resolvedTheme } = useTheme();
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -731,11 +733,34 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
           Math.min(activeSheetIndex, previewData.sheets.length - 1)
         ]!
       : null;
+  const isDarkMode = resolvedTheme === "dark";
+  const surfaceClassName = isDarkMode
+    ? "bg-[#09111d] text-white"
+    : "bg-white text-slate-900";
+  const borderClassName = isDarkMode ? "border-white/10" : "border-slate-200";
+  const mutedTextClassName = isDarkMode ? "text-white/55" : "text-slate-500";
+  const buttonClassName = isDarkMode
+    ? "border-white/10 hover:bg-white/10"
+    : "border-slate-300 hover:bg-slate-100";
+  const sheetInactiveClassName = isDarkMode
+    ? "border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/10"
+    : "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100";
+  const sheetActiveClassName = isDarkMode
+    ? "border-cyan-400/30 bg-cyan-400/16 text-white"
+    : "border-slate-900/20 bg-slate-900 text-white";
+  const tableHeaderClassName = isDarkMode
+    ? "border-white/10 bg-[#0d1524] text-white/70"
+    : "border-slate-200 bg-slate-100 text-slate-600";
+  const tableCellClassName = isDarkMode
+    ? "border-white/10 bg-[#09111d] text-white"
+    : "border-slate-200 bg-white text-slate-900";
 
   return (
-    <div className="flex h-full w-full flex-col bg-background-neutral-00">
-      <div className="flex items-center justify-between border-b border-border-01 px-2 py-1.5">
-        <Text text03 className="truncate text-xs">
+    <div className={`flex h-full w-full flex-col ${surfaceClassName}`}>
+      <div
+        className={`flex items-center justify-between border-b px-2 py-1.5 ${borderClassName}`}
+      >
+        <Text className={`truncate text-xs ${mutedTextClassName}`}>
           {isLoading
             ? "Loading spreadsheet preview..."
             : errorMessage
@@ -748,7 +773,7 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
         </Text>
         <button
           type="button"
-          className="rounded-08 border border-border-01 px-2 py-0.5 text-xs hover:bg-background-neutral-01"
+          className={`rounded-08 border px-2 py-0.5 text-xs ${buttonClassName}`}
           onClick={() => setRefreshKey((value) => value + 1)}
         >
           Reload
@@ -756,15 +781,17 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
       </div>
 
       {previewData?.sheets.length ? (
-        <div className="flex items-center gap-1 overflow-auto border-b border-border-01 px-2 py-1">
+        <div
+          className={`flex items-center gap-1 overflow-auto border-b px-2 py-1 ${borderClassName}`}
+        >
           {previewData.sheets.map((sheet, index) => (
             <button
               key={`${sheet.name}-${index}`}
               type="button"
               className={`shrink-0 rounded-08 border px-2 py-1 text-xs ${
                 index === activeSheetIndex
-                  ? "border-border-04 bg-background-tint-03 text-text-00"
-                  : "border-border-01 bg-background-neutral-01 text-text-03 hover:bg-background-neutral-02"
+                  ? sheetActiveClassName
+                  : sheetInactiveClassName
               }`}
               onClick={() => setActiveSheetIndex(index)}
             >
@@ -774,14 +801,20 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-auto bg-background-neutral-02">
+      <div
+        className={`min-h-0 flex-1 overflow-auto ${
+          isDarkMode ? "bg-[#0b1322]" : "bg-slate-50"
+        }`}
+      >
         {isLoading ? (
           <div className="flex h-full w-full items-center justify-center px-4 text-center">
-            <Text text03>Loading spreadsheet preview...</Text>
+            <Text className={mutedTextClassName}>
+              Loading spreadsheet preview...
+            </Text>
           </div>
         ) : errorMessage || !activeSheet ? (
           <div className="flex h-full w-full items-center justify-center px-4 text-center">
-            <Text text03>
+            <Text className={mutedTextClassName}>
               {errorMessage || "Spreadsheet preview unavailable."}
             </Text>
           </div>
@@ -790,7 +823,9 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
             <table className="border-collapse text-xs">
               <thead>
                 <tr>
-                  <th className="sticky top-0 left-0 z-20 border border-border-01 bg-background-neutral-01 px-2 py-1 text-right text-text-03">
+                  <th
+                    className={`sticky top-0 left-0 z-20 border px-2 py-1 text-right ${tableHeaderClassName}`}
+                  >
                     #
                   </th>
                   {Array.from(
@@ -798,7 +833,7 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
                     (_, index) => (
                       <th
                         key={index}
-                        className="sticky top-0 z-10 min-w-[7rem] border border-border-01 bg-background-neutral-01 px-2 py-1 text-left text-text-03"
+                        className={`sticky top-0 z-10 min-w-[7rem] border px-2 py-1 text-left ${tableHeaderClassName}`}
                       >
                         {columnIndexToLabel(index)}
                       </th>
@@ -809,7 +844,9 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
               <tbody>
                 {activeSheet.rows.map((row, rowIndex) => (
                   <tr key={rowIndex}>
-                    <td className="sticky left-0 z-10 border border-border-01 bg-background-neutral-01 px-2 py-1 text-right text-text-03">
+                    <td
+                      className={`sticky left-0 z-10 border px-2 py-1 text-right ${tableHeaderClassName}`}
+                    >
                       {rowIndex + 1}
                     </td>
                     {Array.from(
@@ -817,7 +854,7 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
                       (_, columnIndex) => (
                         <td
                           key={columnIndex}
-                          className="max-w-[20rem] border border-border-01 bg-background-neutral-00 px-2 py-1 align-top font-mono text-text-00"
+                          className={`max-w-[20rem] border px-2 py-1 align-top font-mono ${tableCellClassName}`}
                           title={row[columnIndex] ?? ""}
                         >
                           <div className="line-clamp-3 whitespace-pre-wrap break-words">
@@ -834,7 +871,7 @@ function XlsxContent({ windowState }: { windowState: PreviewWindowState }) {
             {previewData &&
             (previewData.truncatedRows || previewData.truncatedColumns) ? (
               <div className="pt-2">
-                <Text text03 className="text-xs">
+                <Text className={`text-xs ${mutedTextClassName}`}>
                   Preview truncated to {MAX_XLSX_PREVIEW_ROWS} rows and{" "}
                   {MAX_XLSX_PREVIEW_COLUMNS} columns.
                 </Text>

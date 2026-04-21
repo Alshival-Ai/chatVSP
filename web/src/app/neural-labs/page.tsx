@@ -482,7 +482,11 @@ function isTextEditorEntry(entry: NeuralLabsFileEntry): boolean {
 }
 
 function isPreviewable(entry: NeuralLabsFileEntry): boolean {
-  return isTextEditorEntry(entry) || getPreviewKind(entry) !== null;
+  return getPreviewKind(entry) !== null;
+}
+
+function canOpenInTextEditor(entry: NeuralLabsFileEntry): boolean {
+  return isTextEditorEntry(entry);
 }
 
 function triggerBrowserDownload(path: string, name: string): void {
@@ -1272,11 +1276,13 @@ function NeuralLabsFileExplorerPanel({
   loadingPaths,
   selectedPath,
   isPreviewable,
+  canOpenInTextEditor,
   fileUploadInputRef,
   onSelectEntry,
   onToggleDirectory,
   onActivateEntry,
   onPreviewEntry,
+  onOpenInTextEditor,
   onDownloadEntry,
   onCopyPath,
   onRenameEntry,
@@ -1299,11 +1305,13 @@ function NeuralLabsFileExplorerPanel({
   loadingPaths: string[];
   selectedPath: string | null;
   isPreviewable: (entry: NeuralLabsFileEntry) => boolean;
+  canOpenInTextEditor: (entry: NeuralLabsFileEntry) => boolean;
   fileUploadInputRef: RefObject<HTMLInputElement | null>;
   onSelectEntry: (entry: NeuralLabsFileEntry) => void;
   onToggleDirectory: (entry: NeuralLabsFileEntry) => void;
   onActivateEntry: (entry: NeuralLabsFileEntry) => void;
   onPreviewEntry: (entry: NeuralLabsFileEntry) => void;
+  onOpenInTextEditor: (entry: NeuralLabsFileEntry) => void;
   onDownloadEntry: (entry: NeuralLabsFileEntry) => void;
   onCopyPath: (entry: NeuralLabsFileEntry) => void;
   onRenameEntry: (entry: NeuralLabsFileEntry) => void;
@@ -1405,6 +1413,7 @@ function NeuralLabsFileExplorerPanel({
             onToggleDirectory={onToggleDirectory}
             onActivateEntry={onActivateEntry}
             onPreviewEntry={onPreviewEntry}
+            onOpenInTextEditor={onOpenInTextEditor}
             onDownloadEntry={onDownloadEntry}
             onCopyPath={onCopyPath}
             onRenameEntry={onRenameEntry}
@@ -1412,6 +1421,7 @@ function NeuralLabsFileExplorerPanel({
             onMoveEntry={onMoveEntry}
             onUploadFiles={onUploadFiles}
             canPreviewEntry={isPreviewable}
+            canOpenInTextEditor={canOpenInTextEditor}
           />
         </div>
 
@@ -4035,7 +4045,9 @@ export default function NeuralLabsPage() {
       entry: NeuralLabsFileEntry,
       options?: { syncLegacySelection?: boolean }
     ) => {
-      if (isTextEditorEntry(entry)) {
+      const previewKind = getPreviewKind(entry);
+
+      if (!previewKind && isTextEditorEntry(entry)) {
         if (options?.syncLegacySelection !== false) {
           setSelectedPath(entry.path);
           setCurrentPath(getParentPath(entry.path));
@@ -4044,7 +4056,6 @@ export default function NeuralLabsPage() {
         return;
       }
 
-      const previewKind = getPreviewKind(entry);
       if (!previewKind) {
         return;
       }
@@ -4685,9 +4696,14 @@ export default function NeuralLabsPage() {
 
       if (isPreviewable(entry)) {
         openPreview(entry);
+        return;
+      }
+
+      if (canOpenInTextEditor(entry)) {
+        openTextFileInEditor(entry);
       }
     },
-    [openPreview, toggleDirectory]
+    [openPreview, openTextFileInEditor, toggleDirectory]
   );
 
   useEffect(() => {
@@ -5926,6 +5942,7 @@ export default function NeuralLabsPage() {
             canGoForward={explorerState.forward_history.length > 0}
             canGoUp={Boolean(explorerCurrentPath)}
             canPreviewEntry={isPreviewable}
+            canOpenInTextEditor={canOpenInTextEditor}
             onNavigateBack={() => navigateDesktopExplorerBack(windowState.id)}
             onNavigateForward={() =>
               navigateDesktopExplorerForward(windowState.id)
@@ -5968,11 +5985,16 @@ export default function NeuralLabsPage() {
               }
               if (isPreviewable(entry)) {
                 openPreview(entry, { syncLegacySelection: false });
+                return;
+              }
+              if (canOpenInTextEditor(entry)) {
+                openTextFileInEditor(entry);
               }
             }}
             onPreviewEntry={(entry) =>
               openPreview(entry, { syncLegacySelection: false })
             }
+            onOpenInTextEditor={(entry) => openTextFileInEditor(entry)}
             onDownloadEntry={downloadFile}
             onCopyPath={copyPath}
             onRenameEntry={async (entry) => {
@@ -6179,6 +6201,7 @@ export default function NeuralLabsPage() {
       deleteEntryAtPath,
       deleteDesktopNeuraConversation,
       duplicateDesktopTerminalTab,
+      canOpenInTextEditor,
       isPreviewable,
       loadingPaths,
       loadDirectory,
@@ -6191,6 +6214,7 @@ export default function NeuralLabsPage() {
       navigateDesktopExplorerToPath,
       navigateDesktopExplorerUp,
       openPreview,
+      openTextFileInEditor,
       removeDesktopNeuraAttachment,
       reorderDesktopTerminalTabs,
       renameDesktopTerminalTab,
@@ -6566,11 +6590,13 @@ export default function NeuralLabsPage() {
                 loadingPaths={loadingPaths}
                 selectedPath={selectedPath}
                 isPreviewable={isPreviewable}
+                canOpenInTextEditor={canOpenInTextEditor}
                 fileUploadInputRef={fileUploadInputRef}
                 onSelectEntry={selectEntry}
                 onToggleDirectory={toggleDirectory}
                 onActivateEntry={activateTreeEntry}
                 onPreviewEntry={openPreview}
+                onOpenInTextEditor={openTextFileInEditor}
                 onDownloadEntry={downloadFile}
                 onCopyPath={copyPath}
                 onRenameEntry={renamePath}

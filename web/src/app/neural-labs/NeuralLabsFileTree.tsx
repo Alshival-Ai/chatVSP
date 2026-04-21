@@ -40,13 +40,18 @@ interface NeuralLabsFileTreeProps {
   onToggleDirectory: (entry: NeuralLabsFileEntry) => void;
   onActivateEntry: (entry: NeuralLabsFileEntry) => void;
   onPreviewEntry: (entry: NeuralLabsFileEntry) => void;
+  onOpenInTextEditor: (entry: NeuralLabsFileEntry) => void;
   onDownloadEntry: (entry: NeuralLabsFileEntry) => void;
   onCopyPath: (entry: NeuralLabsFileEntry) => void;
   onRenameEntry: (entry: NeuralLabsFileEntry) => void;
   onDeleteEntry: (entry: NeuralLabsFileEntry) => void;
   onMoveEntry: (entry: NeuralLabsFileEntry, destinationPath: string) => void;
-  onUploadFiles: (files: File[], destinationPath: string) => Promise<void> | void;
+  onUploadFiles: (
+    files: File[],
+    destinationPath: string
+  ) => Promise<void> | void;
   canPreviewEntry: (entry: NeuralLabsFileEntry) => boolean;
+  canOpenInTextEditor: (entry: NeuralLabsFileEntry) => boolean;
 }
 
 function getParentPath(path: string): string {
@@ -127,8 +132,8 @@ function TreeRow({
         isDropTarget
           ? "bg-background-tint-02 ring-1 ring-border-04"
           : isSelected
-          ? "bg-background-tint-03 text-text-00"
-          : "hover:bg-background-neutral-01"
+            ? "bg-background-tint-03 text-text-00"
+            : "hover:bg-background-neutral-01"
       }`}
       style={{ paddingLeft: `${depth * 0.875 + 0.5}rem` }}
       draggable={draggedPath !== entry.path}
@@ -296,6 +301,7 @@ export default function NeuralLabsFileTree({
   onToggleDirectory,
   onActivateEntry,
   onPreviewEntry,
+  onOpenInTextEditor,
   onDownloadEntry,
   onCopyPath,
   onRenameEntry,
@@ -303,8 +309,10 @@ export default function NeuralLabsFileTree({
   onMoveEntry,
   onUploadFiles,
   canPreviewEntry,
+  canOpenInTextEditor,
 }: NeuralLabsFileTreeProps) {
-  const [contextMenuState, setContextMenuState] = useState<ContextMenuState | null>(null);
+  const [contextMenuState, setContextMenuState] =
+    useState<ContextMenuState | null>(null);
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
   const [showHiddenEntries, setShowHiddenEntries] = useState(false);
@@ -414,7 +422,9 @@ export default function NeuralLabsFileTree({
     );
     const maxY = Math.max(
       CONTEXT_MENU_MARGIN_PX,
-      containerNode.clientHeight - menuNode.offsetHeight - CONTEXT_MENU_MARGIN_PX
+      containerNode.clientHeight -
+        menuNode.offsetHeight -
+        CONTEXT_MENU_MARGIN_PX
     );
     const nextX = Math.min(
       Math.max(contextMenuState.x, CONTEXT_MENU_MARGIN_PX),
@@ -464,6 +474,11 @@ export default function NeuralLabsFileTree({
 
   const previewable = contextMenuState
     ? contextMenuState.entry !== null && canPreviewEntry(contextMenuState.entry)
+    : false;
+  const editableInTextEditor = contextMenuState
+    ? contextMenuState.entry !== null &&
+      !contextMenuState.entry.is_directory &&
+      canOpenInTextEditor(contextMenuState.entry)
     : false;
   const contextMenuEntry = contextMenuState?.entry ?? null;
   const handleDragStartEntry = (entry: NeuralLabsFileEntry) => {
@@ -666,6 +681,22 @@ export default function NeuralLabsFileTree({
             >
               <SvgEye className="h-4 w-4 shrink-0 stroke-text-03" />
               <Text>Preview</Text>
+            </button>
+          ) : null}
+
+          {editableInTextEditor ? (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-08 px-2 py-1.5 text-left hover:bg-background-neutral-01"
+              onClick={() => {
+                if (contextMenuEntry) {
+                  onOpenInTextEditor(contextMenuEntry);
+                }
+                setContextMenuState(null);
+              }}
+            >
+              <SvgFileText className="h-4 w-4 shrink-0 stroke-text-03" />
+              <Text>Open in Text Editor</Text>
             </button>
           ) : null}
 

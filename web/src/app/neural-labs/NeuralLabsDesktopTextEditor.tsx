@@ -389,27 +389,31 @@ export default function NeuralLabsDesktopTextEditor({
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div
-          className={`flex items-center justify-between gap-3 border-b px-3 py-2 ${elevatedSurfaceClassName}`}
+          className={`flex items-center justify-between gap-3 border-b px-3 py-1.5 ${elevatedSurfaceClassName}`}
         >
-          <div className="min-w-0">
-            <Text className="truncate text-sm font-medium text-slate-900 dark:text-white">
-              {formatPath(activeTab)}
-            </Text>
-            <Text className="truncate text-xs text-slate-500 dark:text-white/45">
-              {activeTab?.is_loading
-                ? "Loading file..."
-                : activeTab?.is_saving
-                  ? "Saving..."
-                  : activeTab
-                    ? isTabDirty(activeTab)
-                      ? "Unsaved changes"
-                      : activeTab.last_saved_at
-                        ? "Saved"
-                        : activeTab.path
-                          ? "Ready"
-                          : "Scratch file"
-                    : "No active document"}
-            </Text>
+          <div className="min-w-0 flex items-center gap-2">
+            <div className="min-w-0 rounded-full bg-slate-900/6 px-2.5 py-1 dark:bg-white/8">
+              <Text className="truncate text-xs font-medium text-slate-900 dark:text-white">
+                {activeTab ? formatPath(activeTab) : "No active document"}
+              </Text>
+            </div>
+            <div className="rounded-full bg-slate-900/6 px-2.5 py-1 dark:bg-white/8">
+              <Text className="whitespace-nowrap text-[11px] text-slate-500 dark:text-white/45">
+                {activeTab?.is_loading
+                  ? "Loading"
+                  : activeTab?.is_saving
+                    ? "Saving"
+                    : activeTab
+                      ? isTabDirty(activeTab)
+                        ? "Unsaved"
+                        : activeTab.last_saved_at
+                          ? "Saved"
+                          : activeTab.path
+                            ? "Ready"
+                            : "Scratch"
+                      : "Idle"}
+              </Text>
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <button
