@@ -6347,8 +6347,8 @@ export default function NeuralLabsPage() {
           ? isVisible
             ? "bg-white/16 text-white"
             : isRunning
-              ? "bg-white/8 text-white/80 ring-1 ring-white/20"
-              : "text-white/80 hover:bg-white/10"
+              ? "bg-white/8 text-white ring-1 ring-white/20"
+              : "text-white hover:bg-white/10"
           : isVisible
             ? "bg-slate-900 text-white"
             : isRunning

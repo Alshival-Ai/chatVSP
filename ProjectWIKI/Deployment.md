@@ -113,6 +113,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - desktop explorer and terminal visuals now follow the app light/dark theme, including explicit theme-safe file/folder icon colors and xterm foreground/background switching
   - taskbar icons expose app names on hover through the same themed Neural Labs tooltip treatment
   - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps including `Neura`
+  - taskbar icon foreground colors now consistently revert after close/minimize transitions, so dark mode no longer leaves closed-app icons in a dark/low-contrast state
   - split terminal tabs/panes
   - Terminal Navigator shows a single terminal as `Terminal 1` without a group wrapper; group cards only render when a tab contains multiple panes
   - file action icons expose hover helper text for create/upload/refresh
