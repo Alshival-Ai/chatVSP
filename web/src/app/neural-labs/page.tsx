@@ -489,6 +489,13 @@ function canOpenInTextEditor(entry: NeuralLabsFileEntry): boolean {
   return isTextEditorEntry(entry);
 }
 
+function canSetAsDesktopBackground(entry: NeuralLabsFileEntry): boolean {
+  if (entry.is_directory) {
+    return false;
+  }
+  return getPreviewKind(entry) === "image";
+}
+
 function triggerBrowserDownload(path: string, name: string): void {
   const anchor = document.createElement("a");
   anchor.href = `${NEURAL_LABS_API_PREFIX}/files/download?path=${encodeURIComponent(
@@ -4535,6 +4542,58 @@ export default function NeuralLabsPage() {
     [refreshDirectoryPaths]
   );
 
+  const setDesktopBackgroundFromEntry = useCallback(
+    async (entry: NeuralLabsFileEntry) => {
+      if (!canSetAsDesktopBackground(entry)) {
+        toast.error("Choose an image file for the desktop background");
+        return;
+      }
+
+      setIsUploadingCustomBackground(true);
+      try {
+        const response = await fetch(
+          `${NEURAL_LABS_API_PREFIX}/files/background/from-file`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: entry.path }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(await getFetchErrorMessage(response));
+        }
+
+        const payload = (await response.json()) as { path?: string };
+        const nextPath = payload.path?.trim();
+        if (!nextPath) {
+          throw new Error("Background path missing from response");
+        }
+
+        setDesktopCustomBackgroundPath(nextPath);
+        setDesktopBackgroundId(createCustomDesktopBackgroundSelection(nextPath));
+        setExpandedPaths((previousPaths) =>
+          previousPaths.includes(CUSTOM_DESKTOP_BACKGROUND_DIRECTORY)
+            ? previousPaths
+            : [...previousPaths, CUSTOM_DESKTOP_BACKGROUND_DIRECTORY]
+        );
+        await refreshDirectoryPaths([CUSTOM_DESKTOP_BACKGROUND_DIRECTORY], {
+          silent: true,
+        });
+        toast.success("Desktop background updated");
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Unable to set desktop background";
+        toast.error(message);
+      } finally {
+        setIsUploadingCustomBackground(false);
+      }
+    },
+    [refreshDirectoryPaths]
+  );
+
   const selectCustomBackground = useCallback(() => {
     if (!desktopCustomBackgroundPath) {
       toast.error("Upload a custom background first");
@@ -5971,6 +6030,7 @@ export default function NeuralLabsPage() {
             canGoUp={Boolean(explorerCurrentPath)}
             canPreviewEntry={isPreviewable}
             canOpenInTextEditor={canOpenInTextEditor}
+            canSetAsBackground={canSetAsDesktopBackground}
             onNavigateBack={() => navigateDesktopExplorerBack(windowState.id)}
             onNavigateForward={() =>
               navigateDesktopExplorerForward(windowState.id)
@@ -6023,6 +6083,7 @@ export default function NeuralLabsPage() {
               openPreview(entry, { syncLegacySelection: false })
             }
             onOpenInTextEditor={(entry) => openTextFileInEditor(entry)}
+            onSetAsBackground={(entry) => setDesktopBackgroundFromEntry(entry)}
             onDownloadEntry={downloadFile}
             onCopyPath={copyPath}
             onRenameEntry={async (entry) => {

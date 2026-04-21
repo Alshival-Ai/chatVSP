@@ -25,6 +25,7 @@ import {
   SvgFolderOpen,
   SvgFolderPlus,
   SvgHardDrive,
+  SvgImage,
   SvgRefreshCw,
   SvgTrash,
   SvgUploadCloud,
@@ -56,6 +57,7 @@ interface NeuralLabsDesktopFileExplorerProps {
   canGoUp: boolean;
   canPreviewEntry: (entry: NeuralLabsFileEntry) => boolean;
   canOpenInTextEditor: (entry: NeuralLabsFileEntry) => boolean;
+  canSetAsBackground: (entry: NeuralLabsFileEntry) => boolean;
   onNavigateBack: () => Promise<void> | void;
   onNavigateForward: () => Promise<void> | void;
   onNavigateUp: () => Promise<void> | void;
@@ -71,6 +73,7 @@ interface NeuralLabsDesktopFileExplorerProps {
   onOpenEntry: (entry: NeuralLabsFileEntry) => void;
   onPreviewEntry: (entry: NeuralLabsFileEntry) => void;
   onOpenInTextEditor: (entry: NeuralLabsFileEntry) => void;
+  onSetAsBackground: (entry: NeuralLabsFileEntry) => Promise<void> | void;
   onDownloadEntry: (entry: NeuralLabsFileEntry) => void;
   onCopyPath: (entry: NeuralLabsFileEntry) => void;
   onRenameEntry: (entry: NeuralLabsFileEntry) => void;
@@ -216,6 +219,7 @@ export default function NeuralLabsDesktopFileExplorer({
   canGoUp,
   canPreviewEntry,
   canOpenInTextEditor,
+  canSetAsBackground,
   onNavigateBack,
   onNavigateForward,
   onNavigateUp,
@@ -228,6 +232,7 @@ export default function NeuralLabsDesktopFileExplorer({
   onOpenEntry,
   onPreviewEntry,
   onOpenInTextEditor,
+  onSetAsBackground,
   onDownloadEntry,
   onCopyPath,
   onRenameEntry,
@@ -482,6 +487,10 @@ export default function NeuralLabsDesktopFileExplorer({
   const editableInTextEditor =
     contextMenuState?.entry && !contextMenuState.entry.is_directory
       ? canOpenInTextEditor(contextMenuState.entry)
+      : false;
+  const canSetContextEntryAsBackground =
+    contextMenuState?.entry && !contextMenuState.entry.is_directory
+      ? canSetAsBackground(contextMenuState.entry)
       : false;
 
   return (
@@ -1063,6 +1072,22 @@ export default function NeuralLabsDesktopFileExplorer({
                 className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
               />
               <Text>Open in Text Editor</Text>
+            </button>
+          ) : null}
+
+          {contextMenuState.entry && canSetContextEntryAsBackground ? (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-12 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+              onClick={() => {
+                void onSetAsBackground(contextMenuState.entry!);
+                setContextMenuState(null);
+              }}
+            >
+              <SvgImage
+                className={`h-4 w-4 shrink-0 ${EXPLORER_FILE_ICON_CLASS}`}
+              />
+              <Text>Set as Background</Text>
             </button>
           ) : null}
 

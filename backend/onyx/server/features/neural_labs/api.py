@@ -3,6 +3,7 @@ import base64
 from datetime import datetime
 from datetime import timezone
 import json
+import mimetypes
 from pathlib import Path
 import secrets
 from typing import Any
@@ -53,6 +54,7 @@ from onyx.server.features.neural_labs.models import NeuraConversationResponse
 from onyx.server.features.neural_labs.models import NeuraCreateConversationRequest
 from onyx.server.features.neural_labs.models import PathResponse
 from onyx.server.features.neural_labs.models import RenamePathRequest
+from onyx.server.features.neural_labs.models import SetBackgroundFromFileRequest
 from onyx.server.features.neural_labs.models import TerminalDescriptor
 from onyx.server.features.neural_labs.models import TerminalInputRequest
 from onyx.server.features.neural_labs.models import TerminalListResponse
@@ -110,6 +112,8 @@ NEURAL_LABS_MCP_PAT_NAME = "neural-labs-mcp"
 NEURAL_LABS_MCP_PAT_FILE_RELATIVE_PATH = ".neural-labs/mcp_pat.token"
 NEURA_ASSISTANT_NAME = "Neura"
 NEURA_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+NEURAL_LABS_BACKGROUND_DIRECTORY = ".neural-labs/backgrounds"
+NEURAL_LABS_BACKGROUND_BASENAME = "custom-background"
 
 
 def require_neural_labs_enabled(user: User = Depends(current_user)) -> User:
@@ -424,6 +428,19 @@ def _build_neura_messages_payload(
 
 def _sse_event(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
+
+
+def _background_extension_for_file(*, filename: str, mime_type: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    if suffix and suffix.replace(".", "").isalnum():
+        return suffix
+
+    guessed_extension = (mimetypes.guess_extension(mime_type) or "").lower()
+    if guessed_extension == ".jpe":
+        return ".jpg"
+    if guessed_extension and guessed_extension.replace(".", "").isalnum():
+        return guessed_extension
+    return ".png"
 
 
 def _encode_neura_attachment_as_data_url(
@@ -986,6 +1003,47 @@ def move_path(
             path=request.path,
             destination_parent_path=request.destination_parent_path,
             new_name=sanitize_filename(request.new_name) if request.new_name else None,
+        )
+    except ValueError as e:
+        _raise_files_http_error(e)
+
+    return PathResponse(path=relative_path)
+
+
+@router.post("/files/background/from-file", response_model=PathResponse)
+def set_background_from_file(
+    request: SetBackgroundFromFileRequest,
+    user: User = Depends(current_user),
+    db_session: Session = Depends(get_session),
+) -> PathResponse:
+    manager = _get_manager(db_session)
+    _tenant_id, workspace_root = _workspace_for_user(manager, user)
+
+    try:
+        content, mime_type, filename = manager.read_file(
+            workspace_root=workspace_root,
+            path=request.path,
+        )
+    except ValueError as e:
+        _raise_files_http_error(e)
+
+    if not mime_type.lower().startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only image files can be set as desktop backgrounds",
+        )
+
+    target_filename = sanitize_filename(
+        f"{NEURAL_LABS_BACKGROUND_BASENAME}"
+        f"{_background_extension_for_file(filename=filename, mime_type=mime_type)}"
+    )
+
+    try:
+        relative_path, _size = manager.upload_file(
+            workspace_root=workspace_root,
+            filename=target_filename,
+            content=content,
+            parent_path=NEURAL_LABS_BACKGROUND_DIRECTORY,
         )
     except ValueError as e:
         _raise_files_http_error(e)

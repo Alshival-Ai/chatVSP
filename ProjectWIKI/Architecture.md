@@ -69,6 +69,7 @@
   - XLSX preview tables now use explicit theme-aware cell/header colors rather than relying on generic token classes that could collapse to white-on-white in light mode
   - desktop presentation preferences such as the selected preset/custom background choice persist in browser storage on the client
   - uploaded custom desktop background images are stored in the user Neural Labs workspace under `~/.neural-labs/backgrounds/` and served back through the existing file-content API
+  - desktop file explorer image context menus can set a selected image as the active desktop background by copying it into the managed `~/.neural-labs/backgrounds/` location and reusing the same settings-managed custom background path flow
   - Neura uses separate Neural Labs endpoints under `/api/neural-labs/neura/*` and a local SQLite store at `~/.neural-labs/neura/neura.db`; it does not create Onyx chat sessions/messages or use the `query_and_chat` persistence model
   - Neura image uploads are stored in `~/.neural-labs/neura/uploads/`, attached to user messages in the local SQLite metadata, and translated into multimodal message parts for the configured default chat model
   - default model selection for new Neura conversations resolves from the same CHAT default model flow used by `Admin -> Language Models`, rather than a Neural Labs-only hardcoded Sonnet default

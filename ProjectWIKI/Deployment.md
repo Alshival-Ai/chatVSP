@@ -120,6 +120,7 @@ Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept 
   - Neural Labs hover helper text now uses the themed white tooltip only; native browser duplicate tooltips are removed and tooltip positioning is clamped within the viewport above floating windows
   - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls; standalone terminal and group delete actions are red while in-group terminal delete actions stay neutral
   - desktop settings now default the desktop shell to `Sunset Grid`, keep preset selection persisted in browser storage, and allow uploading a custom background image into the user Neural Labs workspace at `~/.neural-labs/backgrounds/`
+  - desktop file explorer image entries now expose a right-click `Set as Background` action that copies that image into `~/.neural-labs/backgrounds/` and switches the active desktop background to it
   - desktop app windows support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snap zones, and minimize-to-taskbar behavior
   - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open into the focused desktop editor window as tabs instead of a separate text preview mode
   - floating preview windows with snap/resize remain for image, PDF, HTML, KMZ, and XLSX files; text editing is handled by the desktop editor app

@@ -65,6 +65,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - Neura image uploads are stored alongside that history inside the user Neural Labs workspace at `~/.neural-labs/neura/uploads/`
     - new Neura conversations now default to the same default chat model configured in `Admin -> Language Models` (CHAT flow default), with managed Neural Labs env defaults used only as a backend fallback when no default model is configured
     - desktop settings now include a color-mode selector for `Auto` / `Light` / `Dark`, default to `Sunset Grid`, allow preset switching without extra per-card helper copy, and support uploading or deleting one custom desktop background image in the persisted Neural Labs workspace
+    - image files in the desktop file explorer now include a right-click `Set as Background` action that copies the selected image into `~/.neural-labs/backgrounds/`, applies it immediately as the active desktop background, and keeps it manageable from Desktop Settings
     - desktop mode now opens on a blank workspace without the bordered onboarding card when no windows are open
     - desktop app windows now support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snapping (`N/NE/E/SE/S/SW/W/NW`), and minimize-to-taskbar behavior
     - Terminal Navigator now shows a lone terminal as `Terminal 1` without wrapping it in a group; grouped views only appear when a tab actually has multiple panes

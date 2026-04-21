@@ -82,6 +82,10 @@ class MovePathRequest(BaseModel):
     new_name: str | None = None
 
 
+class SetBackgroundFromFileRequest(BaseModel):
+    path: str
+
+
 class UpdateFileContentRequest(BaseModel):
     path: str
     content: str
