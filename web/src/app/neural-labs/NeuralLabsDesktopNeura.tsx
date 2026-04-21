@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useTheme } from "next-themes";
+import NeuralLabsTooltip from "@/app/neural-labs/NeuralLabsTooltip";
 import Text from "@/refresh-components/texts/Text";
 import type {
   DesktopNeuraWindowState,
@@ -19,6 +20,7 @@ import type {
 import {
   SvgArrowUp,
   SvgImage,
+  SvgMicrophone,
   SvgPaperclip,
   SvgPlus,
   SvgSidebar,
@@ -605,19 +607,52 @@ export default function NeuralLabsDesktopNeura({
               ) : null}
 
               <div className="flex items-end gap-3">
-                <button
-                  type="button"
-                  aria-label="Attach image"
-                  disabled={!activeConversation || windowState.is_streaming}
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                    isDarkMode
-                      ? "bg-white/8 text-white hover:bg-white/12"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <SvgPaperclip className="h-4 w-4 stroke-current" />
-                </button>
+                <div className="flex shrink-0 items-center gap-2 pb-2">
+                  <NeuralLabsTooltip label="Voice Input">
+                    <button
+                      type="button"
+                      aria-label="Voice input"
+                      disabled
+                      className={`flex h-11 w-11 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isDarkMode
+                          ? "bg-white/8 text-white"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      <SvgMicrophone className="h-4 w-4 stroke-current" />
+                    </button>
+                  </NeuralLabsTooltip>
+                  <NeuralLabsTooltip label="Attach File">
+                    <button
+                      type="button"
+                      aria-label="Attach file"
+                      disabled={!activeConversation || windowState.is_streaming}
+                      className={`flex h-11 w-11 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isDarkMode
+                          ? "bg-white/8 text-white hover:bg-white/12"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <SvgPaperclip className="h-4 w-4 stroke-current" />
+                    </button>
+                  </NeuralLabsTooltip>
+                  <NeuralLabsTooltip label="Upload Image">
+                    <button
+                      type="button"
+                      aria-label="Upload image"
+                      disabled={!activeConversation || windowState.is_streaming}
+                      className={`flex h-11 w-11 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isDarkMode
+                          ? "bg-white/8 text-white hover:bg-white/12"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <SvgImage className="h-4 w-4 stroke-current" />
+                    </button>
+                  </NeuralLabsTooltip>
+                </div>
 
                 <div className="min-w-0 flex-1">
                   <textarea
@@ -638,47 +673,38 @@ export default function NeuralLabsDesktopNeura({
                     }}
                     onKeyDown={handleComposerKeyDown}
                   />
-                  <div className="flex items-center gap-2 px-1 pb-1">
-                    <div
-                      className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] ${
-                        isDarkMode
-                          ? "bg-white/6 text-white/65"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      <SvgImage className="h-3.5 w-3.5 stroke-current" />
-                      Image understanding enabled
-                    </div>
-                    <Text className={`text-[11px] ${mutedClassName}`}>
-                      Enter sends. Shift+Enter adds a new line.
-                    </Text>
-                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  aria-label="Send message"
-                  disabled={
-                    !activeConversation ||
-                    windowState.is_streaming ||
-                    (!activeDraft.trim() && pendingAttachments.length === 0)
-                  }
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                    isDarkMode
-                      ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300"
-                      : "bg-slate-900 text-white hover:bg-slate-700"
-                  }`}
-                  onClick={() => {
-                    if (!activeConversation) {
-                      return;
+                <NeuralLabsTooltip label="Send Message">
+                  <button
+                    type="button"
+                    aria-label="Send message"
+                    disabled={
+                      !activeConversation ||
+                      windowState.is_streaming ||
+                      (!activeDraft.trim() && pendingAttachments.length === 0)
                     }
-                    void onSendMessage(activeConversation.id);
-                  }}
-                >
-                  <SvgArrowUp className="h-4 w-4 stroke-current" />
-                </button>
+                    className={`mb-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      isDarkMode
+                        ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+                        : "bg-slate-900 text-white hover:bg-slate-700"
+                    }`}
+                    onClick={() => {
+                      if (!activeConversation) {
+                        return;
+                      }
+                      void onSendMessage(activeConversation.id);
+                    }}
+                  >
+                    <SvgArrowUp className="h-4 w-4 stroke-current" />
+                  </button>
+                </NeuralLabsTooltip>
               </div>
             </div>
+
+            <Text className={`px-1 text-[11px] ${mutedClassName}`}>
+              Enter sends. Shift+Enter adds a new line.
+            </Text>
           </div>
         </div>
       </div>

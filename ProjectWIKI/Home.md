@@ -58,6 +58,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - spreadsheet preview now uses explicit light/dark table colors so XLSX text remains readable in light mode
     - desktop `Neura` is now a dedicated Neural Labs chat app: multi-conversation sidebar, message timeline, streaming replies, and taskbar multi-window behavior using the same desktop shell as the other apps
     - Neura now uses a modern pill-shaped composer with inline image attachments for Sonnet vision; users can attach images directly from the composer and those uploads render back into the chat timeline
+    - the Neura composer now uses icon-only voice/attach/image controls with hover labels, leaves the voice button as an inert placeholder for now, and moves the keyboard hint below the composer shell
     - a fresh Neura window now auto-creates its first conversation and focuses the composer so the app is ready to type immediately instead of waiting for a manual `+` click
     - Neura chat history is not stored in Onyx chat tables; it persists inside the user Neural Labs home at `~/.neural-labs/neura/neura.db`
     - Neura image uploads are stored alongside that history inside the user Neural Labs workspace at `~/.neural-labs/neura/uploads/`

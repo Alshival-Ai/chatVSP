@@ -57,6 +57,7 @@
   - desktop editor surface chrome now normalizes its sidebar, compact toolbar, tab strip, editor canvas, and save modal around the active light/dark theme instead of mixing palette treatments
   - desktop Neura windows keep separate per-window chat view state (`selected_conversation_id`, drafts, sidebar visibility, streaming state, pending image attachments`) while the persisted conversation/message history lives under the user Neural Labs home
   - selected sidebar rows in the desktop editor and Neura now set their own active-state foreground colors explicitly instead of relying on inherited text tokens from the shared `Text` component
+  - the Neura composer now renders icon-only action affordances with tooltip labels and keeps a non-functional voice button in the layout as a placeholder, while the keyboard shortcut hint lives below the composer shell
   - a newly opened Neura window auto-bootstraps its first conversation client-side once the conversation list is confirmed empty, then focuses the composer for immediate typing
   - text-like files now route into the desktop editor window model instead of the preview-window model
   - previewability and text-editability are now treated separately in the file explorer/tree: HTML can be previewed as a rendered page while editable text-like files expose an explicit `Open in Text Editor` action
