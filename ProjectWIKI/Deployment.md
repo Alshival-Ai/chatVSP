@@ -290,3 +290,42 @@ free -h
 docker stats --no-stream
 docker compose -p onyx -f deployment/docker_compose/docker-compose.prod.yml ps
 ```
+
+## Neural Labs: Neura Crash + Monaco CSP Fix (Applied 2026-04-21)
+
+Symptoms observed in browser console:
+
+- `Application error: a client-side exception has occurred`
+- CSP blocks against Monaco CDN stylesheet:
+  - `https://cdn.jsdelivr.net/npm/monaco-editor@.../editor.main.css`
+- CSP blocks against `data:font/ttf;base64,...`
+- Runtime crash in Neura render path:
+  - `TypeError: Cannot read properties of undefined (reading 'length')`
+
+Root causes:
+
+1. Monaco loader defaulted to CDN assets in the browser when not explicitly configured.
+2. Neura message render path assumed `message.attachments` was always present, but some payloads can omit it.
+
+Applied fix in `web/src/app/neural-labs`:
+
+- `NeuralLabsDesktopTextEditor.tsx`
+  - Configure `@monaco-editor/react` loader to use local bundled `monaco-editor`:
+    - `loader.config({ monaco: monacoEditor })`
+  - This prevents jsDelivr stylesheet fetches and aligns with strict CSP (`style-src 'self'`).
+- `page.tsx`
+  - Normalize Neura message payloads so missing fields do not crash UI.
+  - Ensure `attachments` defaults to `[]` and `content` defaults to `""`.
+- `NeuralLabsDesktopNeura.tsx`
+  - Defensive handling for potentially missing arrays/maps in window state.
+  - Render uses safe attachment arrays instead of direct `message.attachments.length`.
+
+Validation run:
+
+```bash
+cd web
+npm run types:check
+npm run build
+```
+
+Both commands complete successfully after the fix.

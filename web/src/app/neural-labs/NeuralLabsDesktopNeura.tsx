@@ -163,27 +163,33 @@ export default function NeuralLabsDesktopNeura({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const hasBootstrappedConversationRef = useRef(false);
   const isDarkMode = resolvedTheme !== "light";
+  const conversations = Array.isArray(windowState.conversations)
+    ? windowState.conversations
+    : [];
+  const messagesByConversationId =
+    windowState.messages_by_conversation_id ?? {};
+  const draftsByConversationId = windowState.draft_by_conversation_id ?? {};
+  const pendingAttachmentsByConversationId =
+    windowState.pending_attachments_by_conversation_id ?? {};
 
   const activeConversation =
-    windowState.conversations.find(
+    conversations.find(
       (conversation) => conversation.id === windowState.selected_conversation_id
     ) ??
-    windowState.conversations[0] ??
+    conversations[0] ??
     null;
   const activeMessages = useMemo<NeuraMessage[]>(
     () =>
       activeConversation
-        ? windowState.messages_by_conversation_id[activeConversation.id] ?? []
+        ? messagesByConversationId[activeConversation.id] ?? []
         : [],
-    [activeConversation, windowState.messages_by_conversation_id]
+    [activeConversation, messagesByConversationId]
   );
   const activeDraft = activeConversation
-    ? windowState.draft_by_conversation_id[activeConversation.id] ?? ""
+    ? draftsByConversationId[activeConversation.id] ?? ""
     : "";
   const pendingAttachments = activeConversation
-    ? windowState.pending_attachments_by_conversation_id[
-        activeConversation.id
-      ] ?? []
+    ? pendingAttachmentsByConversationId[activeConversation.id] ?? []
     : [];
 
   useEffect(() => {
@@ -204,7 +210,7 @@ export default function NeuralLabsDesktopNeura({
     if (
       hasBootstrappedConversationRef.current ||
       windowState.is_loading_conversations ||
-      windowState.conversations.length > 0
+      conversations.length > 0
     ) {
       return;
     }
@@ -212,8 +218,8 @@ export default function NeuralLabsDesktopNeura({
     hasBootstrappedConversationRef.current = true;
     void onCreateConversation();
   }, [
+    conversations.length,
     onCreateConversation,
-    windowState.conversations.length,
     windowState.is_loading_conversations,
   ]);
 
@@ -303,12 +309,12 @@ export default function NeuralLabsDesktopNeura({
               <div className={`px-3 py-4 text-sm ${mutedClassName}`}>
                 Loading conversations...
               </div>
-            ) : windowState.conversations.length === 0 ? (
+            ) : conversations.length === 0 ? (
               <div className={`px-3 py-4 text-sm ${mutedClassName}`}>
                 No conversations yet.
               </div>
             ) : (
-              windowState.conversations.map((conversation) => {
+              conversations.map((conversation) => {
                 const isActive = conversation.id === activeConversation?.id;
                 return (
                   <button
@@ -491,6 +497,9 @@ export default function NeuralLabsDesktopNeura({
             <div className="mx-auto flex max-w-4xl flex-col gap-4">
               {activeMessages.map((message) => {
                 const isAssistant = message.role === "assistant";
+                const attachments = Array.isArray(message.attachments)
+                  ? message.attachments
+                  : [];
                 return (
                   <div
                     key={message.id}
@@ -514,9 +523,9 @@ export default function NeuralLabsDesktopNeura({
                       >
                         {isAssistant ? windowState.assistant_name : "You"}
                       </div>
-                      {message.attachments.length > 0 ? (
+                      {attachments.length > 0 ? (
                         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {message.attachments.map((attachment) => (
+                          {attachments.map((attachment) => (
                             <PersistedAttachmentPreview
                               key={attachment.id}
                               attachment={attachment}

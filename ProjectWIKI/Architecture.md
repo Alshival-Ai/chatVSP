@@ -56,7 +56,9 @@
   - desktop editor windows keep separate per-window editor state (`tabs`, `active_tab_id`, sidebar visibility) while text-file loads/saves continue to use the existing file-content API
   - desktop editor surface chrome now normalizes its sidebar, compact toolbar, tab strip, editor canvas, and save modal around the active light/dark theme instead of mixing palette treatments
   - the desktop text editor now relies on Monaco's official stylesheet (imported at app root) and runs Monaco in the normal document styling path (`useShadowDOM: false`) for Neural Labs, so cursor/input behavior stays aligned with Monaco defaults instead of custom host-level CSS overrides
+  - Monaco loader initialization in the desktop editor is now pinned to the locally bundled `monaco-editor` instance (`loader.config({ monaco })`) so strict CSP environments do not attempt jsDelivr stylesheet/script fetches
   - desktop Neura windows keep separate per-window chat view state (`selected_conversation_id`, drafts, sidebar visibility, streaming state, pending image attachments`) while the persisted conversation/message history lives under the user Neural Labs home
+  - Neura client-state hydration now normalizes message payloads and attachment arrays so missing optional fields from stream/history responses do not trigger render-time `undefined.length` crashes
   - selected sidebar rows in the desktop editor and Neura now set their own active-state foreground colors explicitly instead of relying on inherited text tokens from the shared `Text` component
   - the Neura composer now renders icon-only action affordances with tooltip labels and keeps a non-functional voice button in the layout as a placeholder, while the keyboard shortcut hint lives below the composer shell
   - a newly opened Neura window auto-bootstraps its first conversation client-side once the conversation list is confirmed empty, then focuses the composer for immediate typing

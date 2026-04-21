@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Editor, { type OnMount } from "@monaco-editor/react";
+import Editor, { loader, type OnMount } from "@monaco-editor/react";
+import * as monacoEditor from "monaco-editor";
 import { useTheme } from "next-themes";
 import CommandMenu from "@/refresh-components/commandmenu/CommandMenu";
 import Text from "@/refresh-components/texts/Text";
@@ -24,6 +25,10 @@ import {
   SvgSidebar,
   SvgX,
 } from "@opal/icons";
+
+if (typeof window !== "undefined") {
+  loader.config({ monaco: monacoEditor });
+}
 
 interface NeuralLabsDesktopTextEditorProps {
   windowState: DesktopEditorWindowState;

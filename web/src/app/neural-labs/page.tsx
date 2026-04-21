@@ -546,6 +546,32 @@ function sortNeuraConversations(
   });
 }
 
+function normalizeNeuraMessage(
+  message: NeuraMessage | null | undefined
+): NeuraMessage | null {
+  if (!message) {
+    return null;
+  }
+
+  return {
+    ...message,
+    content: typeof message.content === "string" ? message.content : "",
+    attachments: Array.isArray(message.attachments) ? message.attachments : [],
+  };
+}
+
+function normalizeNeuraMessages(
+  messages: NeuraMessage[] | null | undefined
+): NeuraMessage[] {
+  if (!Array.isArray(messages)) {
+    return [];
+  }
+
+  return messages
+    .map((message) => normalizeNeuraMessage(message))
+    .filter((message): message is NeuraMessage => message !== null);
+}
+
 async function readNeuraSseStream(
   response: Response,
   onEvent: (event: string, payload: Record<string, unknown>) => void
@@ -3553,6 +3579,7 @@ export default function NeuralLabsPage() {
         }
 
         const payload = (await response.json()) as NeuraConversationResponse;
+        const normalizedMessages = normalizeNeuraMessages(payload.messages);
         updateDesktopNeuraState(windowId, (currentState) => ({
           ...currentState,
           selected_conversation_id: payload.conversation.id,
@@ -3569,7 +3596,7 @@ export default function NeuralLabsPage() {
           ),
           messages_by_conversation_id: {
             ...currentState.messages_by_conversation_id,
-            [payload.conversation.id]: payload.messages,
+            [payload.conversation.id]: normalizedMessages,
           },
           is_loading_messages: false,
           error_message: null,
@@ -3685,6 +3712,7 @@ export default function NeuralLabsPage() {
         }
 
         const payload = (await response.json()) as NeuraConversationResponse;
+        const normalizedMessages = normalizeNeuraMessages(payload.messages);
         updateDesktopNeuraState(windowId, (currentState) => ({
           ...currentState,
           conversations: sortNeuraConversations([
@@ -3696,7 +3724,7 @@ export default function NeuralLabsPage() {
           selected_conversation_id: payload.conversation.id,
           messages_by_conversation_id: {
             ...currentState.messages_by_conversation_id,
-            [payload.conversation.id]: payload.messages,
+            [payload.conversation.id]: normalizedMessages,
           },
           draft_by_conversation_id: {
             ...currentState.draft_by_conversation_id,
@@ -3857,12 +3885,12 @@ export default function NeuralLabsPage() {
             const conversation = payload.conversation as
               | NeuraConversationSummary
               | undefined;
-            const userMessage = payload.user_message as
-              | NeuraMessage
-              | undefined;
-            const assistantMessage = payload.assistant_message as
-              | NeuraMessage
-              | undefined;
+            const userMessage = normalizeNeuraMessage(
+              payload.user_message as NeuraMessage | undefined
+            );
+            const assistantMessage = normalizeNeuraMessage(
+              payload.assistant_message as NeuraMessage | undefined
+            );
 
             updateDesktopNeuraState(windowId, (state) => {
               const existingMessages =
@@ -3939,9 +3967,9 @@ export default function NeuralLabsPage() {
             const conversation = payload.conversation as
               | NeuraConversationSummary
               | undefined;
-            const assistantMessage = payload.assistant_message as
-              | NeuraMessage
-              | undefined;
+            const assistantMessage = normalizeNeuraMessage(
+              payload.assistant_message as NeuraMessage | undefined
+            );
             updateDesktopNeuraState(windowId, (state) => {
               const nextMessages = [
                 ...(state.messages_by_conversation_id[conversationId] ?? []),
