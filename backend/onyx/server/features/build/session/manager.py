@@ -324,7 +324,7 @@ class SessionManager:
         requested_provider_type: str | None,
         requested_model_name: str | None,
     ) -> LLMProviderConfig:
-        """Get Bedrock Claude config for sandbox provisioning.
+        """Get Bedrock model config for sandbox provisioning.
 
         Args:
             requested_provider_type: Provider type from user's cookie
@@ -340,7 +340,7 @@ class SessionManager:
             LlmProviderNames.BEDROCK
         ):
             logger.warning(
-                "Ignoring non-Bedrock build provider request '%s'; Build uses Bedrock Claude only.",
+                "Ignoring non-Bedrock build provider request '%s'; Build uses Bedrock models only.",
                 requested_provider_type,
             )
 
@@ -349,7 +349,7 @@ class SessionManager:
         )
         if not bedrock_provider:
             raise ValueError(
-                "Build requires a Bedrock provider. Configure Claude on Bedrock in Admin > LLM Providers."
+                "Build requires a Bedrock provider. Configure a Bedrock model in Admin > LLM Providers."
             )
 
         model_name = self._resolve_bedrock_model_name(
@@ -402,7 +402,7 @@ class SessionManager:
             return provider_models[0].name
 
         raise ValueError(
-            "Build requires at least one visible Bedrock Claude model in Admin > LLM Providers."
+            "Build requires at least one visible Bedrock model in Admin > LLM Providers."
         )
 
     def _get_bedrock_region(self, bedrock_provider: LLMProviderView) -> str:

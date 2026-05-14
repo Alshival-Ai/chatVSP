@@ -67,10 +67,13 @@ def build_opencode_config(
         options["thinking_budget"] = 16000
         options["thinking_level"] = "high"
     elif provider == "bedrock":
-        options["thinking"] = {
-            "type": "enabled",
-            "budgetTokens": 16000,
-        }
+        # Bedrock routes multiple model families; Anthropic-style thinking
+        # options should only be applied to Claude models.
+        if "claude" in model_name.lower():
+            options["thinking"] = {
+                "type": "enabled",
+                "budgetTokens": 16000,
+            }
     elif provider == "azure":
         options["reasoningEffort"] = "high"
 

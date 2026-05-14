@@ -48,6 +48,10 @@ export const PROVIDERS: ProviderConfig[] = [
         name: "us.anthropic.claude-haiku-4-5-20251001-v1:0",
         label: "Claude Haiku 4.5",
       },
+      {
+        name: "openai.gpt-oss-safeguard-20b",
+        label: "GPT-OSS Safeguard 20B",
+      },
     ],
     requiresApiKey: false,
   },

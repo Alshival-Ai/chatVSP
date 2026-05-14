@@ -3127,6 +3127,11 @@
     "model_vendor": "openai",
     "model_version": "v1:0"
   },
+  "openai.gpt-oss-safeguard-20b": {
+    "display_name": "GPT-OSS Safeguard 20B",
+    "model_vendor": "openai",
+    "model_version": "latest"
+  },
   "openai/container": {
     "display_name": "Container",
     "model_vendor": "openai",

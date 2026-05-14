@@ -38,6 +38,10 @@
           "display_name": "Claude Opus 4.6 (global)"
         },
         {
+          "name": "openai.gpt-oss-safeguard-20b",
+          "display_name": "GPT-OSS Safeguard 20B"
+        },
+        {
           "name": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
           "display_name": "Claude Haiku 4.5 (us-east-1)"
         },

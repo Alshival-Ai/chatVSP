@@ -215,6 +215,28 @@ class TestSetupOpencodeConfig:
         assert model_options["thinking"]["type"] == "enabled"
         assert model_options["thinking"]["budgetTokens"] == 16000
 
+    def test_bedrock_non_claude_config_without_thinking(
+        self,
+        directory_manager: DirectoryManager,
+        temp_base_path: Path,  # noqa: ARG002
+    ) -> None:
+        """Test that non-Claude Bedrock models do not get Claude thinking options."""
+        session_id = "test_bedrock_openai_session"
+        sandbox_path = directory_manager.create_sandbox_directory(session_id)
+
+        model_name = "openai.gpt-oss-safeguard-20b"
+        directory_manager.setup_opencode_config(
+            sandbox_path=sandbox_path,
+            provider="bedrock",
+            model_name=model_name,
+            api_key="test-api-key",
+        )
+
+        config = json.loads((sandbox_path / "opencode.json").read_text())
+        assert config["model"] == f"bedrock/{model_name}"
+        assert config["provider"]["bedrock"]["options"]["apiKey"] == "test-api-key"
+        assert "models" not in config["provider"]["bedrock"]
+
     def test_azure_config_with_thinking(
         self,
         directory_manager: DirectoryManager,

@@ -118,6 +118,7 @@ AGGREGATOR_PROVIDERS: set[str] = {
 # Used by Bedrock display name generator
 BEDROCK_MODEL_NAME_MAPPINGS: dict[str, str] = {
     "claude": "Claude",
+    "gpt oss": "GPT-OSS",
     "llama": "Llama",
     "mistral": "Mistral",
     "mixtral": "Mixtral",

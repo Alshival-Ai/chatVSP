@@ -12,6 +12,8 @@ const BEDROCK_CLAUDE_SONNET_MODEL = "us.anthropic.claude-sonnet-4-6";
 const BEDROCK_CLAUDE_OPUS_MODEL = "global.anthropic.claude-opus-4-6-v1";
 const BEDROCK_CLAUDE_HAIKU_MODEL =
   "us.anthropic.claude-haiku-4-5-20251001-v1:0";
+const BEDROCK_OPENAI_GPT_OSS_SAFEGUARD_20B_MODEL =
+  "openai.gpt-oss-safeguard-20b";
 
 // Priority order for smart default LLM selection
 const LLM_SELECTION_PRIORITY = [
@@ -70,6 +72,10 @@ export const RECOMMENDED_BUILD_MODELS = {
     displayName: "Claude Opus 4.6 (Bedrock)",
   },
   alternatives: [
+    {
+      provider: "bedrock",
+      modelName: BEDROCK_OPENAI_GPT_OSS_SAFEGUARD_20B_MODEL,
+    },
     {
       provider: "bedrock",
       modelName: BEDROCK_CLAUDE_SONNET_MODEL,
@@ -168,6 +174,10 @@ export const BUILD_MODE_PROVIDERS: BuildModeProvider[] = [
       {
         name: BEDROCK_CLAUDE_HAIKU_MODEL,
         label: "Claude Haiku 4.5",
+      },
+      {
+        name: BEDROCK_OPENAI_GPT_OSS_SAFEGUARD_20B_MODEL,
+        label: "GPT-OSS Safeguard 20B",
       },
     ],
     requiresApiKey: false,

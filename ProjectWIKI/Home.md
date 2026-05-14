@@ -104,7 +104,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - fallback path only: `ANTHROPIC_API_KEY` remains supported when neither Foundry nor Bedrock is configured
   - Claude defaults now prefer AWS Bedrock provider models over direct Anthropic when a Bedrock provider is configured
   - Neural Labs no longer provisions OpenAI/Codex credentials or config; the managed shell is Claude-only
-  - Build/Craft sandbox sessions now resolve Bedrock Claude only and pass the selected Bedrock region into the local `opencode` subprocess
+  - Build/Craft sandbox sessions now resolve Bedrock models only and pass the selected Bedrock region into the local `opencode` subprocess
 - Important behavior:
   - managed Claude shell env is persisted into `~/.neural_labs_env` and sourced from `~/.bashrc`
   - Neural Labs recreates existing terminal sessions when managed env overrides change, so stale Claude provider/model state is not reused across launches
@@ -116,7 +116,7 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
   - current Neural Labs Bedrock Opus default is `global.anthropic.claude-opus-4-6-v1`
     - this account currently rejects Opus 4.7 with AWS Marketplace entitlement errors, while Opus 4.6 invokes successfully
   - current Onyx app Bedrock default chat model is also `global.anthropic.claude-opus-4-6-v1`
-    - live Bedrock Claude visibility is restricted to Opus 4.6 plus Haiku 4.5 so the app does not keep surfacing failing Sonnet 4.6 / Opus 4.7 entries
+    - live Bedrock visibility is pinned to Opus 4.6 by default, with additional visible options currently including Haiku 4.5 and `openai.gpt-oss-safeguard-20b`
   - ensure the runtime EC2 role includes Bedrock Claude access:
     - `bedrock:ListFoundationModels`
       - required for Admin > LLM > Bedrock model discovery (`/api/admin/llm/bedrock/available-models`)
@@ -126,4 +126,4 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - `bedrock:GetInferenceProfile`
   - for `us.anthropic.*` cross-region inference profiles, invoke permissions must cover the routed Bedrock foundation-model ARNs in all destination regions, not only `us-east-1`
 - Note:
-  - Craft onboarding and recommended model selection are now Bedrock Claude only; legacy OpenAI/OpenRouter onboarding choices were removed from the curated flow.
+  - Craft onboarding and recommended model selection are Bedrock-only; Claude Opus 4.6 remains preferred and `openai.gpt-oss-safeguard-20b` is also available as a selectable Bedrock option.
