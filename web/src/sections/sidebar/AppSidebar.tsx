@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, memo, useMemo, useState, useEffect, useRef } from "react";
-import useSWR from "swr";
-import { useRouter } from "next/navigation";
 import { useSettingsContext } from "@/providers/SettingsProvider";
 import { MinimalPersonaSnapshot } from "@/app/admin/agents/interfaces";
 import Text from "@/refresh-components/texts/Text";
@@ -46,7 +44,6 @@ import { cn } from "@/lib/utils";
 import {
   DRAG_TYPES,
   DEFAULT_PERSONA_ID,
-  FEATURE_FLAGS,
   LOCAL_STORAGE_KEYS,
 } from "@/sections/sidebar/constants";
 import { showErrorNotification, handleMoveOperation } from "./sidebarUtils";
@@ -56,7 +53,6 @@ import SidebarBody from "@/sections/sidebar/SidebarBody";
 import { useUser } from "@/providers/UserProvider";
 import useAppFocus from "@/hooks/useAppFocus";
 import { useCreateModal } from "@/refresh-components/contexts/ModalContext";
-import { useModalContext } from "@/components/context/ModalContext";
 import useScreenSize from "@/hooks/useScreenSize";
 import {
   SvgDevKit,
@@ -68,14 +64,8 @@ import {
   SvgSettings,
 } from "@opal/icons";
 import SidebarTabSkeleton from "@/refresh-components/skeletons/SidebarTabSkeleton";
-import BuildModeIntroBackground from "@/app/craft/components/IntroBackground";
-import BuildModeIntroContent from "@/app/craft/components/IntroContent";
 import { CRAFT_PATH } from "@/app/craft/v1/constants";
-import { usePostHog } from "posthog-js/react";
 import { track, AnalyticsEvent } from "@/lib/analytics";
-import { motion, AnimatePresence } from "motion/react";
-import { Notification, NotificationType } from "@/interfaces/settings";
-import { errorHandlingFetcher } from "@/lib/fetcher";
 import UserAvatarPopover from "@/sections/sidebar/UserAvatarPopover";
 import ChatSearchCommandMenu from "@/sections/sidebar/ChatSearchCommandMenu";
 import { useQueryController } from "@/providers/QueryControllerProvider";
@@ -202,10 +192,7 @@ interface AppSidebarInnerProps {
 
 const MemoizedAppSidebarInner = memo(
   ({ folded, onFoldClick }: AppSidebarInnerProps) => {
-    const router = useRouter();
     const combinedSettings = useSettingsContext();
-    const posthog = usePostHog();
-    const { newTenantInfo, invitationInfo } = useModalContext();
     const { setAppMode, reset } = useQueryController();
 
     // Use SWR hooks for data fetching
@@ -250,70 +237,12 @@ const MemoizedAppSidebarInner = memo(
     const [showMoveCustomAgentModal, setShowMoveCustomAgentModal] =
       useState(false);
 
-    // Fetch notifications for build mode intro
-    const { data: notifications, mutate: mutateNotifications } = useSWR<
-      Notification[]
-    >("/api/notifications", errorHandlingFetcher);
-
     // Check if chatVSP Craft is enabled via settings (backed by PostHog feature flag)
     // Only explicit true enables the feature; false or undefined = disabled
     const isOnyxCraftEnabled =
       combinedSettings?.settings?.onyx_craft_enabled === true;
     const isNeuralLabsEnabled =
       combinedSettings?.settings?.neural_labs_enabled === true;
-
-    // Find build_mode feature announcement notification (only if chatVSP Craft is enabled)
-    const buildModeNotification = isOnyxCraftEnabled
-      ? notifications?.find(
-          (n) =>
-            n.notif_type === NotificationType.FEATURE_ANNOUNCEMENT &&
-            n.additional_data?.feature === "build_mode" &&
-            !n.dismissed
-        )
-      : undefined;
-
-    // State for intro animation overlay
-    const [showIntroAnimation, setShowIntroAnimation] = useState(false);
-    // Track if auto-trigger has fired (prevents race condition during dismiss)
-    const hasAutoTriggeredRef = useRef(false);
-
-    // Auto-show intro once when there's an undismissed notification
-    // Don't show if tenant/invitation modal is open (e.g., "join existing team" modal)
-    // Gated by PostHog feature flag: if `craft-animation-disabled` is true (or
-    // PostHog is unavailable), skip the auto-show entirely.
-    const isCraftAnimationDisabled =
-      posthog?.isFeatureEnabled(FEATURE_FLAGS.CRAFT_ANIMATION_DISABLED) ?? true;
-    const hasTenantModal = !!(newTenantInfo || invitationInfo);
-    useEffect(() => {
-      if (
-        isOnyxCraftEnabled &&
-        buildModeNotification &&
-        !hasAutoTriggeredRef.current &&
-        !hasTenantModal &&
-        !isCraftAnimationDisabled
-      ) {
-        hasAutoTriggeredRef.current = true;
-        setShowIntroAnimation(true);
-      }
-    }, [
-      buildModeNotification,
-      isOnyxCraftEnabled,
-      hasTenantModal,
-      isCraftAnimationDisabled,
-    ]);
-
-    // Dismiss the build mode notification
-    const dismissBuildModeNotification = useCallback(async () => {
-      if (!buildModeNotification) return;
-      try {
-        await fetch(`/api/notifications/${buildModeNotification.id}/dismiss`, {
-          method: "POST",
-        });
-        mutateNotifications();
-      } catch (error) {
-        console.error("Error dismissing notification:", error);
-      }
-    }, [buildModeNotification, mutateNotifications]);
 
     const [visibleAgents, currentAgentIsPinned] = useMemo(
       () => buildVisibleAgents(pinnedAgents, currentAgent),
@@ -536,7 +465,7 @@ const MemoizedAppSidebarInner = memo(
           </SidebarTab>
         </div>
       ),
-      [folded, posthog]
+      [folded]
     );
 
     const neuralLabsButton = useMemo(
@@ -613,10 +542,6 @@ const MemoizedAppSidebarInner = memo(
       ),
       [folded, createProjectModal.toggle, createProjectModal.isOpen]
     );
-    const handleShowBuildIntro = useCallback(() => {
-      setShowIntroAnimation(true);
-    }, []);
-
     const settingsButton = useMemo(
       () => (
         <div>
@@ -629,15 +554,10 @@ const MemoizedAppSidebarInner = memo(
               {isAdmin ? "Admin Panel" : "Curator Panel"}
             </SidebarTab>
           )}
-          <UserAvatarPopover
-            folded={folded}
-            onShowBuildIntro={
-              isOnyxCraftEnabled ? handleShowBuildIntro : undefined
-            }
-          />
+          <UserAvatarPopover folded={folded} />
         </div>
       ),
-      [folded, isAdmin, isCurator, handleShowBuildIntro, isOnyxCraftEnabled]
+      [folded, isAdmin, isCurator]
     );
 
     return (
@@ -677,32 +597,6 @@ const MemoizedAppSidebarInner = memo(
             }}
           />
         )}
-
-        {/* Intro animation overlay */}
-        <AnimatePresence>
-          {showIntroAnimation && (
-            <motion.div
-              className="fixed inset-0 z-[9999]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <BuildModeIntroBackground />
-              <BuildModeIntroContent
-                onClose={() => {
-                  setShowIntroAnimation(false);
-                  dismissBuildModeNotification();
-                }}
-                onTryBuildMode={() => {
-                  setShowIntroAnimation(false);
-                  dismissBuildModeNotification();
-                  router.push(CRAFT_PATH);
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <SidebarWrapper folded={folded} onFoldClick={onFoldClick}>
           <SidebarBody

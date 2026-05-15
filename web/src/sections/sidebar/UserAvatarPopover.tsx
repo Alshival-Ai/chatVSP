@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { LOGOUT_DISABLED } from "@/lib/constants";
-import { Notification } from "@/interfaces/settings";
-import useSWR, { preload } from "swr";
+import { preload } from "swr";
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import { checkUserIsNoAuthUser, getUserDisplayName, logout } from "@/lib/user";
 import { useUser } from "@/providers/UserProvider";
@@ -14,39 +13,23 @@ import Popover, { PopoverMenu } from "@/refresh-components/Popover";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import SidebarTab from "@/refresh-components/buttons/SidebarTab";
-import NotificationsPopover from "@/sections/sidebar/NotificationsPopover";
 import {
-  SvgBell,
-  SvgExternalLink,
   SvgLogOut,
   SvgUser,
-  SvgNotificationBubble,
 } from "@opal/icons";
-import { Section } from "@/layouts/general-layouts";
 import { toast } from "@/hooks/useToast";
 import useAppFocus from "@/hooks/useAppFocus";
 import { useVectorDbEnabled } from "@/providers/SettingsProvider";
 
 interface SettingsPopoverProps {
   onUserSettingsClick: () => void;
-  onOpenNotifications: () => void;
 }
 
-function SettingsPopover({
-  onUserSettingsClick,
-  onOpenNotifications,
-}: SettingsPopoverProps) {
+function SettingsPopover({ onUserSettingsClick }: SettingsPopoverProps) {
   const { user } = useUser();
-  const { data: notifications } = useSWR<Notification[]>(
-    "/api/notifications",
-    errorHandlingFetcher,
-    { revalidateOnFocus: false }
-  );
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const undismissedCount =
-    notifications?.filter((n) => !n.dismissed).length ?? 0;
   const isAnonymousUser =
     user?.is_anonymous_user || checkUserIsNoAuthUser(user?.id ?? "");
   const showLogout = user && !isAnonymousUser && !LOGOUT_DISABLED;
@@ -97,24 +80,6 @@ function SettingsPopover({
               User Settings
             </LineItem>
           </div>,
-          <LineItem
-            key="notifications"
-            icon={SvgBell}
-            onClick={onOpenNotifications}
-          >
-            {`Notifications${
-              undismissedCount > 0 ? ` (${undismissedCount})` : ""
-            }`}
-          </LineItem>,
-          <LineItem
-            key="help-faq"
-            icon={SvgExternalLink}
-            href="https://docs.onyx.app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Help & FAQ
-          </LineItem>,
           null,
           showLogin && (
             <LineItem key="log-in" icon={SvgUser} onClick={handleLogin}>
@@ -139,32 +104,19 @@ function SettingsPopover({
 
 export interface SettingsProps {
   folded?: boolean;
-  onShowBuildIntro?: () => void;
 }
 
 export default function UserAvatarPopover({
   folded,
-  onShowBuildIntro,
 }: SettingsProps) {
-  const [popupState, setPopupState] = useState<
-    "Settings" | "Notifications" | undefined
-  >(undefined);
+  const [popupState, setPopupState] = useState<"Settings" | undefined>(
+    undefined
+  );
   const { user } = useUser();
-  const router = useRouter();
   const appFocus = useAppFocus();
   const vectorDbEnabled = useVectorDbEnabled();
 
-  // Fetch notifications for display
-  // The GET endpoint also triggers a refresh if release notes are stale
-  const { data: notifications } = useSWR<Notification[]>(
-    "/api/notifications",
-    errorHandlingFetcher
-  );
-
   const userDisplayName = getUserDisplayName(user);
-  const undismissedCount =
-    notifications?.filter((n) => !n.dismissed).length ?? 0;
-  const hasNotifications = undismissedCount > 0;
 
   const handlePopoverOpen = (state: boolean) => {
     if (state) {
@@ -199,13 +151,6 @@ export default function UserAvatarPopover({
                 </Text>
               </InputAvatar>
             )}
-            rightChildren={
-              hasNotifications ? (
-                <Section padding={0.5}>
-                  <SvgNotificationBubble size={6} />
-                </Section>
-              ) : undefined
-            }
             selected={!!popupState || appFocus.isUserSettings()}
             folded={folded}
             // TODO (@raunakab)
@@ -225,21 +170,13 @@ export default function UserAvatarPopover({
       <Popover.Content
         align="end"
         side="right"
-        width={popupState === "Notifications" ? "xl" : "md"}
+        width="md"
       >
         {popupState === "Settings" && (
           <SettingsPopover
             onUserSettingsClick={() => {
               setPopupState(undefined);
             }}
-            onOpenNotifications={() => setPopupState("Notifications")}
-          />
-        )}
-        {popupState === "Notifications" && (
-          <NotificationsPopover
-            onClose={() => setPopupState("Settings")}
-            onNavigate={() => setPopupState(undefined)}
-            onShowBuildIntro={onShowBuildIntro}
           />
         )}
       </Popover.Content>

@@ -21,6 +21,11 @@ This folder is the local copy of operational documentation for chatVSP.
 
 If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*` images. Build from this repository for `web_server` and backend services.
 
+## chatVSP UI Customizations
+
+- The user avatar menu intentionally hides upstream `Notifications` and `Help & FAQ` entries.
+- The sidebar no longer fetches `/api/notifications` for release-note or build-mode announcement popups.
+
 ## Neural Labs Status
 
 - Neural Labs is now launcher-based from chatVSP:

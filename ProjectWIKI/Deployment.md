@@ -70,6 +70,11 @@ This default is intended to include Neural Labs frontend/backend code updates wi
 
 For prod profiles, `tools/bake.sh` now runs the recreate step with `--no-deps` when specific services are targeted. This avoids dependency-healthcheck blocks (for example `relational_db` healthcheck gating) during app-only deploys.
 
+## chatVSP UI customizations
+
+- The user avatar menu hides upstream `Notifications` and `Help & FAQ`.
+- The sidebar does not fetch `/api/notifications`, so upstream release-note notifications are not surfaced through the user menu.
+
 ## Neural Labs rollout
 
 Neural Labs is behind both a global runtime flag and a per-user access flag.
