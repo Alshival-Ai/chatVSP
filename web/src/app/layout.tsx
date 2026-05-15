@@ -45,6 +45,10 @@ const hankenGrotesk = Hanken_Grotesk({
   display: "swap",
 });
 
+const initialBackgroundStyle = {
+  backgroundColor: "var(--background-tint-01, #f7fbff)",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   let logoLocation = "/logo.png";
   let enterpriseSettings: EnterpriseSettings | null = null;
@@ -87,6 +91,7 @@ export default async function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${hankenGrotesk.variable}`}
+      style={initialBackgroundStyle}
       suppressHydrationWarning
     >
       <head>
@@ -121,7 +126,10 @@ export default async function RootLayout({
         )}
       </head>
 
-      <body className={`relative ${inter.variable} font-hanken`}>
+      <body
+        className={`relative ${inter.variable} font-hanken`}
+        style={initialBackgroundStyle}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
