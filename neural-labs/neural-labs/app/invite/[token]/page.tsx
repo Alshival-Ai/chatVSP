@@ -20,7 +20,7 @@ export default async function InvitePage({
   const cookieStore = await cookies();
   const viewer = getViewerFromCookieHeader(cookieHeaderFromStore(cookieStore));
   if (viewer) {
-    redirect(withBasePath("/desktop"));
+    redirect("/desktop");
   }
 
   try {

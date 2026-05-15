@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { NeuralLabsWorkspace } from "@/components/desktop/workspace";
 import { getViewerFromCookieHeader } from "@/lib/server/auth";
-import { withBasePath } from "@/lib/shared/base-path";
 import { readSettingsSnapshot } from "@/lib/server/store";
 
 function cookieHeaderFromStore(store: Awaited<ReturnType<typeof cookies>>) {
@@ -17,7 +16,7 @@ export default async function DesktopPage() {
   const cookieStore = await cookies();
   const viewer = getViewerFromCookieHeader(cookieHeaderFromStore(cookieStore));
   if (!viewer) {
-    redirect(withBasePath("/login"));
+    redirect("/login");
   }
 
   let initialSettings = null;

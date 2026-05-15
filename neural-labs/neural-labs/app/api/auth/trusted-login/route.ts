@@ -76,9 +76,12 @@ export async function GET(request: Request) {
     );
 
     return applySessionCookie(
-      NextResponse.redirect(
-        new URL(normalizeNextPath(url.searchParams.get("next")), url),
-      ),
+      new NextResponse(null, {
+        status: 307,
+        headers: {
+          Location: normalizeNextPath(url.searchParams.get("next")),
+        },
+      }),
       result.sessionToken,
     );
   } catch (error) {

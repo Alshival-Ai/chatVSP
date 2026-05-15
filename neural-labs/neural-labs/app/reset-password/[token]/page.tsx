@@ -23,7 +23,7 @@ export default async function PasswordResetPage({
   const cookieStore = await cookies();
   const viewer = getViewerFromCookieHeader(cookieHeaderFromStore(cookieStore));
   if (viewer) {
-    redirect(withBasePath("/desktop"));
+    redirect("/desktop");
   }
 
   const { token } = await params;

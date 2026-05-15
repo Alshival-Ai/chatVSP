@@ -88,6 +88,7 @@ cd /home/ubuntu/chatVSP
 - Runtime note:
   - `/neural-labs` remains the Onyx-authenticated launcher
   - `/neural-labs-app/*` is proxied by nginx to the bundled `neural_labs` service
+  - direct unauthenticated `/neural-labs-app/desktop` requests redirect to `/neural-labs-app/login`; authenticated users should enter through `/neural-labs` so the trusted-login handoff sets the Neural Labs session cookie
   - the vendored workspace image installs Claude Code and receives Claude/Bedrock env
   - `./tools/bake.sh --profile prod --down-first` is also supported for the production compose file
 
