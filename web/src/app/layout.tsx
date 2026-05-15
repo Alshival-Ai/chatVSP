@@ -58,11 +58,9 @@ function getInitialThemeScript(themePreference?: string | null) {
     (function() {
       try {
         var serverTheme = ${JSON.stringify(themePreference ?? null)};
-        var theme = serverTheme || localStorage.getItem("theme") || "system";
+        var theme = serverTheme || "system";
 
-        if (serverTheme) {
-          localStorage.setItem("theme", serverTheme);
-        }
+        localStorage.setItem("theme", theme);
 
         var isDark =
           theme === "dark" ||
