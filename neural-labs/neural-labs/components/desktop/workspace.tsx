@@ -1538,8 +1538,8 @@ export function NeuralLabsWorkspace({
         <header className="nl-topbar">
           <div className="nl-topbar__brand">
             <img
-              src={withBasePath("/brand/alshival-brain-256.png")}
-              alt="Alshival.Ai"
+              src={withBasePath("/brand/chatvsp-logo.png")}
+              alt="chatVSP"
               className="nl-topbar__brand-logo"
             />
             <h1>Neural Labs</h1>

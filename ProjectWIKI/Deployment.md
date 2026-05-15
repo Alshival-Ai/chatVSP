@@ -90,7 +90,8 @@ cd /home/ubuntu/chatVSP
   - the chatVSP sidebar opens Neural Labs in a new tab so the main chat tab remains available
   - `/neural-labs-app/*` is proxied by nginx to the bundled `neural_labs` service
   - direct unauthenticated `/neural-labs-app/desktop` requests redirect to `/neural-labs-app/login`; authenticated users should enter through `/neural-labs` so the trusted-login handoff sets the Neural Labs session cookie
-  - nginx redacts `/neural-labs-app/api/auth/trusted-login` query strings from access logs
+  - nginx redacts Neural Labs trusted-login and terminal websocket token query strings from access logs
+  - the Neural Labs browser tab icon and desktop top-left mark reuse the chatVSP logo
   - the vendored workspace image installs Claude Code and receives Claude/Bedrock env
   - `./tools/bake.sh --profile prod --down-first` is also supported for the production compose file
 

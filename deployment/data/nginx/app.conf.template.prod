@@ -2,6 +2,7 @@
 map $uri $safe_request {
     default $request;
     /neural-labs-app/api/auth/trusted-login "$request_method /neural-labs-app/api/auth/trusted-login?[redacted] $server_protocol";
+    /neural-labs-app/api/neural-labs/terminal/ws "$request_method /neural-labs-app/api/neural-labs/terminal/ws?[redacted] $server_protocol";
 }
 
 # Log format to include request latency

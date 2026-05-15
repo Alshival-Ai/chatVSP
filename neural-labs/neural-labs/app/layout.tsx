@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   description:
     "A standalone browser-based desktop environment for Neural Labs.",
   icons: {
-    icon: withBasePath("/brand/alshival-brain-256.png"),
-    apple: withBasePath("/brand/alshival-brain-256.png"),
+    icon: withBasePath("/brand/chatvsp-logo.png"),
+    apple: withBasePath("/brand/chatvsp-logo.png"),
   },
 };
 
