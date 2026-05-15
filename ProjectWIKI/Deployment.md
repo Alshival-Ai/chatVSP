@@ -226,6 +226,10 @@ Bedrock rollout notes:
   - `global.anthropic.claude-opus-4-6-v1` invokes successfully from the runtime role
   - `global.anthropic.claude-opus-4-7` and `us.anthropic.claude-opus-4-7` currently fail with AWS Marketplace entitlement errors
   - the live `clauddemo` Bedrock provider is pinned to `global.anthropic.claude-opus-4-6-v1` for chat defaults and currently exposes Opus 4.6, Haiku 4.5, and `openai.gpt-oss-safeguard-20b` in the app UI
+  - Bedrock Meta Llama models currently reject tool use in streaming chat (`ConverseStream`) with:
+    - `"This model doesn't support tool use in streaming mode."`
+  - provisioned `llamademo` as a separate Bedrock provider path with `us.meta.llama4-maverick-17b-instruct-v1:0` visible
+    - chat runtime forces no-tools mode for Bedrock Llama models to avoid the streaming tool-use failure path
 - Bedrock Claude model access must be enabled in the AWS account before rollout
 
 Neural Labs also persists managed shell env into `~/.neural_labs_env` and sources it from

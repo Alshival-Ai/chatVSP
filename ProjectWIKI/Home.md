@@ -117,6 +117,10 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
     - this account currently rejects Opus 4.7 with AWS Marketplace entitlement errors, while Opus 4.6 invokes successfully
   - current Onyx app Bedrock default chat model is also `global.anthropic.claude-opus-4-6-v1`
     - live Bedrock visibility is pinned to Opus 4.6 by default, with additional visible options currently including Haiku 4.5 and `openai.gpt-oss-safeguard-20b`
+    - Bedrock Meta Llama models currently fail when tool use is enabled with streaming (`ConverseStream`)
+      - `"This model doesn't support tool use in streaming mode."`
+    - use the dedicated `llamademo` Bedrock provider path for Llama (`us.meta.llama4-maverick-17b-instruct-v1:0`)
+      - chat runtime now forces no-tools mode for Bedrock Llama models to avoid streaming tool-use failures
   - ensure the runtime EC2 role includes Bedrock Claude access:
     - `bedrock:ListFoundationModels`
       - required for Admin > LLM > Bedrock model discovery (`/api/admin/llm/bedrock/available-models`)

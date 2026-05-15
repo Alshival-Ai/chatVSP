@@ -74,6 +74,20 @@ from shared_configs.contextvars import get_current_tenant_id
 logger = setup_logger()
 
 
+def _should_force_no_tools_for_model(llm: LLM) -> bool:
+    """Return True for models that can't do tool use in streaming chat."""
+    provider = llm.config.model_provider
+    model_name = (llm.config.model_name or "").lower()
+
+    # Bedrock Meta Llama models currently reject tool use with ConverseStream:
+    # "This model doesn't support tool use in streaming mode."
+    if provider in {LlmProviderNames.BEDROCK, LlmProviderNames.BEDROCK_CONVERSE}:
+        if ".llama" in model_name:
+            return True
+
+    return False
+
+
 class EmptyLLMResponseError(RuntimeError):
     """Raised when the streamed LLM response completes without a usable answer."""
 
@@ -707,6 +721,14 @@ def run_llm_loop(
         code_interpreter_file_generated: bool = False
         fallback_extraction_attempted: bool = False
         citation_mapping: dict[int, str] = {}  # Maps citation_num -> document_id/URL
+        force_no_tools_for_model = _should_force_no_tools_for_model(llm)
+
+        if force_no_tools_for_model:
+            logger.info(
+                "Forcing no-tools LLM path for provider=%s model=%s due to Bedrock streaming tool-use limits.",
+                llm.config.model_provider,
+                llm.config.model_name,
+            )
 
         # Fetch this in a short-lived session so the long-running stream loop does
         # not pin a connection just to keep read state alive.
@@ -735,6 +757,10 @@ def run_llm_loop(
             else:
                 tool_choice = ToolChoiceOptions.AUTO
                 final_tools = tools
+
+            if force_no_tools_for_model and final_tools:
+                tool_choice = ToolChoiceOptions.NONE
+                final_tools = []
 
             # Handling the system prompt and custom agent prompt
             # The section below calculates the available tokens for history a bit more accurately
@@ -767,7 +793,7 @@ def run_llm_loop(
                         base_system_prompt=default_base_system_prompt,
                         datetime_aware=persona.datetime_aware if persona else True,
                         user_memory_context=prompt_memory_context,
-                        tools=tools,
+                        tools=([] if force_no_tools_for_model else tools),
                         should_cite_documents=should_cite_documents
                         or always_cite_documents,
                     )
