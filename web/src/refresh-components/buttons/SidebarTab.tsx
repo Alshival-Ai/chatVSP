@@ -18,6 +18,8 @@ export interface SidebarTabProps {
   // Button properties:
   onClick?: React.MouseEventHandler<HTMLElement>;
   href?: string;
+  target?: React.HTMLAttributeAnchorTarget;
+  rel?: string;
   icon?: React.FunctionComponent<IconProps>;
   children?: React.ReactNode;
   rightChildren?: React.ReactNode;
@@ -31,6 +33,8 @@ export default function SidebarTab({
 
   onClick,
   href,
+  target,
+  rel,
   icon,
   rightChildren,
   children,
@@ -69,6 +73,8 @@ export default function SidebarTab({
             <Link
               href={href as Route}
               scroll={false}
+              target={target}
+              rel={rel}
               className="absolute z-[99] inset-0 rounded-08"
               tabIndex={-1}
             />

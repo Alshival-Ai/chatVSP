@@ -1,5 +1,11 @@
+# Redact short-lived Neural Labs handoff tokens from access logs.
+map $uri $safe_request {
+    default $request;
+    /neural-labs-app/api/auth/trusted-login "$request_method /neural-labs-app/api/auth/trusted-login?[redacted] $server_protocol";
+}
+
 # Log format to include request latency
-log_format custom_main '$remote_addr - $remote_user [$time_local] "$request" '
+log_format custom_main '$remote_addr - $remote_user [$time_local] "$safe_request" '
                 '$status $body_bytes_sent "$http_referer" '
                 '"$http_user_agent" "$http_x_forwarded_for" '
                 'rt=$request_time';

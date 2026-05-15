@@ -542,7 +542,13 @@ const MemoizedAppSidebarInner = memo(
     const neuralLabsButton = useMemo(
       () => (
         <div data-testid="AppSidebar/neural-labs">
-          <SidebarTab icon={SvgDevKit} folded={folded} href="/neural-labs">
+          <SidebarTab
+            icon={SvgDevKit}
+            folded={folded}
+            href="/neural-labs"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Neural Labs
           </SidebarTab>
         </div>
