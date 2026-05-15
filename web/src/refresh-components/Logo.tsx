@@ -2,12 +2,8 @@
 
 import { useSettingsContext } from "@/providers/SettingsProvider";
 import Image from "next/image";
-import {
-  LOGO_FOLDED_SIZE_PX,
-  NEXT_PUBLIC_DO_NOT_USE_TOGGLE_OFF_DANSWER_POWERED,
-} from "@/lib/constants";
+import { LOGO_FOLDED_SIZE_PX } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import Text from "@/refresh-components/texts/Text";
 import Truncated from "@/refresh-components/texts/Truncated";
 import { useMemo } from "react";
 
@@ -61,29 +57,16 @@ export default function Logo({ folded, size, className }: LogoProps) {
     ]
   );
 
-  const renderNameAndPoweredBy = (opts: {
+  const renderLogoContent = (opts: {
     includeLogo: boolean;
     includeName: boolean;
   }) => {
     return (
-      <div className="flex min-w-0 gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {opts.includeLogo && logo}
-        {!folded && (
-          /* H3 text is 4px larger (28px) than the Logo icon (24px), so negative margin hack. */
-          <div className="flex flex-1 flex-col -mt-0.5">
-            {opts.includeName && (
-              <Truncated headingH3>{applicationName}</Truncated>
-            )}
-            {!NEXT_PUBLIC_DO_NOT_USE_TOGGLE_OFF_DANSWER_POWERED && (
-              <Text
-                secondaryBody
-                text03
-                className={"line-clamp-1 truncate"}
-                nowrap
-              >
-                Powered by chatVSP
-              </Text>
-            )}
+        {!folded && opts.includeName && (
+          <div className="flex min-w-0 flex-1">
+            <Truncated headingH3>{applicationName}</Truncated>
           </div>
         )}
       </div>
@@ -92,14 +75,14 @@ export default function Logo({ folded, size, className }: LogoProps) {
 
   // Handle "logo_only" display style
   if (logoDisplayStyle === "logo_only") {
-    return renderNameAndPoweredBy({ includeLogo: true, includeName: false });
+    return renderLogoContent({ includeLogo: true, includeName: false });
   }
 
   // Handle "name_only" display style
   if (logoDisplayStyle === "name_only") {
-    return renderNameAndPoweredBy({ includeLogo: false, includeName: true });
+    return renderLogoContent({ includeLogo: false, includeName: true });
   }
 
   // Handle "logo_and_name" or default behavior
-  return renderNameAndPoweredBy({ includeLogo: true, includeName: true });
+  return renderLogoContent({ includeLogo: true, includeName: true });
 }
