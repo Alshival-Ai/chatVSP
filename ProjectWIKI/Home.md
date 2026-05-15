@@ -36,3 +36,9 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
 - Claude Code:
   - the bundled workspace image installs the `claude` CLI
   - runtime Claude/Bedrock env is passed into Neural Labs workspace containers
+- Neura model setup:
+  - trusted-login imports the current user's accessible Onyx Bedrock chat models into Neural Labs Desktop Settings as managed providers
+  - the managed Bedrock providers use the same runtime AWS/IAM configuration as the bundled service, so users do not need a second model setup step inside Neural Labs
+- Neura chat UX:
+  - submitted user messages render immediately in the desktop chat window
+  - Neura shows a thinking indicator while the model response is pending, then replaces the optimistic state with the saved conversation

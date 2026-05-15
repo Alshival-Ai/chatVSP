@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1047.0",
     "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-select": "^2.2.6",

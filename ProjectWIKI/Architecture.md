@@ -38,6 +38,10 @@
   - desktop UX/runtime lives in the vendored `neural-labs/` app and `neural_labs` Compose service
   - nginx proxies `/neural-labs-app/*` to the local `neural_labs` service
   - workspace containers are created from the bundled `neural-labs-workspace` image
+- Provider sync:
+  - trusted login triggers a signed service-to-service call from `neural_labs` to `api_server` at `/neural-labs/provider-sync`
+  - `api_server` returns the current user's accessible Bedrock chat models from Onyx provider configuration
+  - Neural Labs stores those as managed providers and Neura invokes them through Bedrock directly
 
 ## SSH Path
 

@@ -110,6 +110,13 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     apiVersion: "2024-10-21",
   },
   {
+    id: "bedrock",
+    label: "Amazon Bedrock",
+    kind: "bedrock",
+    baseUrl: "",
+    modelPlaceholder: "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  },
+  {
     id: "custom-openai",
     label: "Custom OpenAI-Compatible",
     kind: "openai-compatible",
@@ -132,6 +139,7 @@ export function buildProviderDraft(templateId: string): ProviderDraft {
     apiVersion: template.apiVersion,
     deployment:
       template.kind === "azure-openai" ? template.modelPlaceholder : "",
+    region: template.kind === "bedrock" ? "us-east-1" : "",
     isDefault: false,
   };
 }

@@ -275,8 +275,14 @@ services:
       - ANTHROPIC_DEFAULT_MODEL=${ANTHROPIC_DEFAULT_MODEL:-claude-sonnet-4-20250514}
       - ANTHROPIC_DEFAULT_NAME=${ANTHROPIC_DEFAULT_NAME:-Claude}
       - ANTHROPIC_DEFAULT_BASE_URL=${ANTHROPIC_DEFAULT_BASE_URL:-https://api.anthropic.com/v1}
+      - ONYX_INTERNAL_URL=${ONYX_INTERNAL_URL:-http://api_server:8080}
+      - NEURAL_LABS_ONYX_PROVIDER_SYNC=${NEURAL_LABS_ONYX_PROVIDER_SYNC:-true}
       - CLAUDE_CODE_USE_BEDROCK=${CLAUDE_CODE_USE_BEDROCK:-1}
       - AWS_REGION=${AWS_REGION:-${AWS_REGION_NAME:-us-east-1}}
+      - AWS_REGION_NAME=${AWS_REGION_NAME:-${AWS_REGION:-us-east-1}}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN-}
     volumes:
       - neural_labs_auth_data:/app/data/auth
       - /var/run/docker.sock:/var/run/docker.sock

@@ -35,6 +35,18 @@ interface EnvProviderConfig {
   apiKey: string;
   apiVersion?: string;
   deployment?: string;
+  region?: string;
+}
+
+export interface OnyxProviderConfig {
+  managedKey: ProviderManagedKey;
+  name: string;
+  kind: ProviderKind;
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+  region?: string;
+  isDefault?: boolean;
 }
 
 const reconciledUsers = new Set<string>();
@@ -129,7 +141,8 @@ function getValidatedProviderKind(
     kind === "openai" ||
     kind === "anthropic" ||
     kind === "openai-compatible" ||
-    kind === "azure-openai"
+    kind === "azure-openai" ||
+    kind === "bedrock"
   ) {
     return kind;
   }
@@ -155,6 +168,7 @@ function createProviderRecord(
     apiKey: config.apiKey,
     apiVersion: config.apiVersion,
     deployment: config.deployment,
+    region: config.region,
     isDefault,
     managedBy: "env",
     managedKey: config.managedKey,
@@ -328,6 +342,7 @@ function reconcileStateWithEnvProviders(state: PersistedState): PersistedState {
       apiKey: config.apiKey,
       apiVersion: config.apiVersion,
       deployment: config.deployment,
+      region: config.region,
       managedBy: "env",
       managedKey: config.managedKey,
       updatedAt: now,
@@ -470,6 +485,7 @@ export async function saveProvider(
       ...draft,
       apiVersion: draft.apiVersion?.trim() || undefined,
       deployment: draft.deployment?.trim() || undefined,
+      region: draft.region?.trim() || undefined,
       isDefault: draft.isDefault ?? provider.isDefault,
       updatedAt: now,
     };
@@ -486,6 +502,7 @@ export async function saveProvider(
       apiKey: draft.apiKey.trim(),
       apiVersion: draft.apiVersion?.trim() || undefined,
       deployment: draft.deployment?.trim() || undefined,
+      region: draft.region?.trim() || undefined,
       isDefault: Boolean(draft.isDefault),
       createdAt: now,
       updatedAt: now,
@@ -508,6 +525,91 @@ export async function saveProvider(
 
   await writeState(userId, state);
   return savedProvider;
+}
+
+function createOnyxProviderRecord(
+  config: OnyxProviderConfig,
+  now: string,
+  isDefault: boolean
+): ProviderRecord {
+  return {
+    id: randomUUID(),
+    name: config.name,
+    kind: config.kind,
+    model: config.model,
+    baseUrl: config.baseUrl || "",
+    apiKey: config.apiKey || "",
+    region: config.region,
+    isDefault,
+    managedBy: "onyx",
+    managedKey: config.managedKey,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function syncManagedOnyxProviders(
+  userId: string,
+  configs: OnyxProviderConfig[]
+): Promise<void> {
+  const state = await readState(userId);
+  const managedKeys = new Set(configs.map((config) => config.managedKey));
+  let nextProviders = state.providers.filter(
+    (provider) =>
+      provider.managedBy !== "onyx" ||
+      (provider.managedKey ? managedKeys.has(provider.managedKey) : false)
+  );
+
+  const now = new Date().toISOString();
+  configs.forEach((config) => {
+    const existingIndex = nextProviders.findIndex(
+      (provider) =>
+        provider.managedBy === "onyx" && provider.managedKey === config.managedKey
+    );
+
+    if (existingIndex === -1) {
+      nextProviders.push(createOnyxProviderRecord(config, now, false));
+      return;
+    }
+
+    const existing = nextProviders[existingIndex]!;
+    nextProviders[existingIndex] = {
+      ...existing,
+      name: config.name,
+      kind: config.kind,
+      model: config.model,
+      baseUrl: config.baseUrl || "",
+      apiKey: config.apiKey || "",
+      region: config.region,
+      managedBy: "onyx",
+      managedKey: config.managedKey,
+      updatedAt: now,
+    };
+  });
+
+  const defaultConfig =
+    configs.find((config) => config.isDefault) ?? configs[0] ?? null;
+  if (defaultConfig) {
+    nextProviders = nextProviders.map((provider) => ({
+      ...provider,
+      isDefault:
+        provider.managedBy === "onyx" &&
+        provider.managedKey === defaultConfig.managedKey,
+    }));
+  }
+
+  if (nextProviders.length === 0) {
+    nextProviders.push(createFallbackProvider());
+  }
+
+  if (!nextProviders.some((provider) => provider.isDefault)) {
+    nextProviders[0] = { ...nextProviders[0]!, isDefault: true };
+  }
+
+  await writeState(userId, {
+    ...state,
+    providers: nextProviders,
+  });
 }
 
 export async function deleteProvider(userId: string, providerId: string): Promise<void> {

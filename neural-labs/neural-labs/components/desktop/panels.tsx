@@ -25,6 +25,7 @@ import type {
   AuthPasswordResetRecord,
   AuthRole,
   AuthViewer,
+  ConversationMessage,
   ConversationRecord,
   ConversationSummary,
   DesktopBackgroundId,
@@ -404,6 +405,10 @@ function formatConversationTime(value: string): string {
   });
 }
 
+interface PendingUserMessage extends ConversationMessage {
+  conversationId: string;
+}
+
 export function NeuraPanel({
   conversations,
   activeConversation,
@@ -427,7 +432,11 @@ export function NeuraPanel({
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [pendingUserMessage, setPendingUserMessage] =
+    useState<PendingUserMessage | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
   const hasBootstrappedConversation = useRef(false);
 
   useEffect(() => {
@@ -448,16 +457,48 @@ export function NeuraPanel({
   const providerLabel = defaultProviderName
     ? `${defaultModel} via ${defaultProviderName}`
     : defaultModel;
+  const visibleMessages =
+    activeConversation &&
+    pendingUserMessage?.conversationId === activeConversation.summary.id
+      ? [...activeConversation.messages, pendingUserMessage]
+      : activeConversation?.messages ?? [];
+
+  useEffect(() => {
+    const container = messagesRef.current;
+    if (!container) {
+      return;
+    }
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [visibleMessages.length, sending]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!draft.trim() || sending) {
+    const content = draft.trim();
+    if (!content || sending || !activeConversationId) {
       return;
     }
+    setDraft("");
+    setSendError("");
+    setPendingUserMessage({
+      id: `pending-${Date.now()}`,
+      role: "user",
+      content,
+      createdAt: new Date().toISOString(),
+      conversationId: activeConversationId,
+    });
     setSending(true);
     try {
-      await onSendMessage(draft);
-      setDraft("");
+      await onSendMessage(content);
+      setPendingUserMessage(null);
+    } catch (error) {
+      setSendError(
+        error instanceof Error ? error.message : "Unable to send message",
+      );
+      setDraft(content);
+      setPendingUserMessage(null);
     } finally {
       setSending(false);
     }
@@ -569,9 +610,12 @@ export function NeuraPanel({
             </button>
           </header>
 
-          <div className="nl-chat__messages nl-chat__messages--neura">
-            {activeConversation?.messages.length ? (
-              activeConversation.messages.map((message) => {
+          <div
+            ref={messagesRef}
+            className="nl-chat__messages nl-chat__messages--neura"
+          >
+            {visibleMessages.length ? (
+              visibleMessages.map((message) => {
                 const isAssistant = message.role === "assistant";
                 return (
                   <article
@@ -609,6 +653,23 @@ export function NeuraPanel({
                 </span>
               </div>
             )}
+            {sending && pendingUserMessage?.conversationId === activeConversationId ? (
+              <article
+                className="nl-message nl-message--assistant nl-message--thinking"
+                aria-live="polite"
+              >
+                <header>
+                  <strong>{assistantName}</strong>
+                  <span>Thinking</span>
+                </header>
+                <div className="nl-thinking-indicator">
+                  <span />
+                  <span />
+                  <span />
+                  <em>Thinking...</em>
+                </div>
+              </article>
+            ) : null}
           </div>
 
           <form
@@ -649,6 +710,9 @@ export function NeuraPanel({
             />
             <div className="nl-neura-composer__meta">
               <Badge accent="neutral">{defaultModel}</Badge>
+              {sendError ? (
+                <span className="nl-neura-composer__error">{sendError}</span>
+              ) : null}
               <button
                 type="submit"
                 className="nl-neura-send-button"
@@ -759,6 +823,7 @@ export function SettingsPanel({
         apiKey: selected.apiKey,
         apiVersion: selected.apiVersion,
         deployment: selected.deployment,
+        region: selected.region,
         isDefault: selected.isDefault,
       });
     }
@@ -1321,6 +1386,7 @@ export function SettingsPanel({
                                 apiKey: provider.apiKey,
                                 apiVersion: provider.apiVersion,
                                 deployment: provider.deployment,
+                                region: provider.region,
                                 isDefault: provider.isDefault,
                               });
                               setStatus("");
@@ -1407,20 +1473,36 @@ export function SettingsPanel({
                           OpenAI-Compatible
                         </option>
                         <option value="azure-openai">Azure OpenAI</option>
+                        <option value="bedrock">Amazon Bedrock</option>
                       </Select>
                     </Field>
 
-                    <Field label="Base URL">
-                      <TextInput
-                        value={draft.baseUrl}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            baseUrl: event.target.value,
-                          }))
-                        }
-                      />
-                    </Field>
+                    {draft.kind === "bedrock" ? (
+                      <Field label="AWS Region">
+                        <TextInput
+                          value={draft.region ?? ""}
+                          placeholder="us-east-1"
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              region: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                    ) : (
+                      <Field label="Base URL">
+                        <TextInput
+                          value={draft.baseUrl}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              baseUrl: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                    )}
 
                     <Field
                       label="Model"
@@ -1464,18 +1546,20 @@ export function SettingsPanel({
                       </>
                     ) : null}
 
-                    <Field label="API Key">
-                      <TextInput
-                        type="password"
-                        value={draft.apiKey}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            apiKey: event.target.value,
-                          }))
-                        }
-                      />
-                    </Field>
+                    {draft.kind !== "bedrock" ? (
+                      <Field label="API Key">
+                        <TextInput
+                          type="password"
+                          value={draft.apiKey}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              apiKey: event.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+                    ) : null}
 
                     <label className="nl-inline-checkbox">
                       <input

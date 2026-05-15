@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { applySessionCookie, loginWithTrustedUser } from "@/lib/server/auth";
 import { jsonErrorFromUnknown } from "@/lib/server/http";
+import { syncOnyxProvidersForUser } from "@/lib/server/onyx-provider-sync";
 import { withBasePath } from "@/lib/shared/base-path";
 
 export const runtime = "nodejs";
@@ -74,6 +75,11 @@ export async function GET(request: Request) {
       payload.email || "",
       payload.role === "admin" ? "admin" : "user",
     );
+    try {
+      await syncOnyxProvidersForUser(result.viewer.id, payload.email || "");
+    } catch (error) {
+      console.warn("Unable to sync Onyx providers for Neural Labs", error);
+    }
 
     return applySessionCookie(
       new NextResponse(null, {

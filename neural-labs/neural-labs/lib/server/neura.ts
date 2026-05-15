@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 
 import type {
   ConversationMessage,
@@ -58,6 +59,57 @@ function buildOpenAiMessages(messages: ConversationMessage[]) {
     role: message.role,
     content: message.content,
   }));
+}
+
+const bedrockClients = new Map<string, BedrockRuntimeClient>();
+
+function getBedrockRegion(provider: ProviderRecord): string {
+  return (
+    provider.region?.trim() ||
+    provider.baseUrl?.trim() ||
+    process.env.AWS_REGION?.trim() ||
+    process.env.AWS_REGION_NAME?.trim() ||
+    "us-east-1"
+  );
+}
+
+function getBedrockClient(region: string): BedrockRuntimeClient {
+  const existing = bedrockClients.get(region);
+  if (existing) {
+    return existing;
+  }
+
+  const client = new BedrockRuntimeClient({ region });
+  bedrockClients.set(region, client);
+  return client;
+}
+
+async function requestBedrock(
+  provider: ProviderRecord,
+  messages: ConversationMessage[]
+) {
+  const client = getBedrockClient(getBedrockRegion(provider));
+  const response = await client.send(
+    new ConverseCommand({
+      modelId: provider.model,
+      messages: messages.map((message) => ({
+        role: message.role,
+        content: [{ text: message.content }],
+      })),
+      inferenceConfig: {
+        maxTokens: 1024,
+        temperature: 0.7,
+      },
+    })
+  );
+
+  return (
+    response.output?.message?.content
+      ?.map((entry) => ("text" in entry ? entry.text : ""))
+      .filter(Boolean)
+      .join("\n")
+      .trim() || ""
+  );
 }
 
 async function requestOpenAiCompatible(provider: ProviderRecord, messages: ConversationMessage[]) {
@@ -151,6 +203,10 @@ export async function generateAssistantReply(
   provider: ProviderRecord,
   messages: ConversationMessage[]
 ): Promise<string> {
+  if (provider.kind === "bedrock") {
+    return requestBedrock(provider, messages);
+  }
+
   if (!provider.apiKey) {
     return "Add an API key in Desktop Settings to enable Neura replies.";
   }
@@ -219,6 +275,18 @@ export async function appendConversationMessage(
 export async function testProviderConnection(
   provider: ProviderRecord
 ): Promise<{ ok: true; message: string }> {
+  if (provider.kind === "bedrock") {
+    await requestBedrock(provider, [
+      {
+        id: randomUUID(),
+        role: "user",
+        content: "Reply with the word ready.",
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    return { ok: true, message: "Bedrock connection looks healthy." };
+  }
+
   if (!provider.apiKey) {
     throw new Error("API key is required.");
   }

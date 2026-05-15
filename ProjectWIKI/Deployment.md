@@ -93,6 +93,8 @@ cd /home/ubuntu/chatVSP
   - nginx redacts Neural Labs trusted-login and terminal websocket token query strings from access logs
   - the Neural Labs browser tab icon and desktop top-left mark reuse the chatVSP logo
   - the vendored workspace image installs Claude Code and receives Claude/Bedrock env
+  - trusted-login also syncs the current user's accessible Onyx Bedrock chat models into the vendored Neural Labs Desktop Settings as managed `onyx:*` providers
+  - the bundled Neura chat agent can invoke those managed providers directly through Amazon Bedrock; no second Neural Labs model setup is required for IAM-auth Bedrock providers
   - `./tools/bake.sh --profile prod --down-first` is also supported for the production compose file
 
 ## Dependency Vulnerability Investigation (April 21, 2026)
@@ -150,6 +152,12 @@ Bedrock rollout notes:
 
 - preferred admin/provider setup for Claude is `Bedrock` with `IAM` auth and region `us-east-1`
 - runtime Claude defaults now prefer a configured Bedrock provider over direct Anthropic for chat defaults
+- Neural Labs provider sync:
+  - `neural_labs` calls the internal `api_server` endpoint `/neural-labs/provider-sync` during trusted login
+  - the endpoint is HMAC-protected with `NEURAL_LABS_AUTH_SHARED_SECRET`, falling back to `USER_AUTH_SECRET`
+  - sync is enabled by default with `NEURAL_LABS_ONYX_PROVIDER_SYNC=true`; set it to `false` to preserve only manually configured Neural Labs providers
+  - synced providers are reconciled by managed key, so stale Onyx-managed Bedrock models are removed while user-created Neural Labs providers are preserved
+  - `ONYX_INTERNAL_URL` defaults to `http://api_server:8080` for the bundled Compose network
 - the EC2/runtime role must include at least:
   - `bedrock:ListFoundationModels`
     - required for the admin Bedrock "available models" endpoint and provider setup validation

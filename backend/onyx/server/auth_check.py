@@ -63,6 +63,8 @@ PUBLIC_ENDPOINT_SPECS = [
     # craft webapp proxy — access enforced per-session via sharing_scope in handler
     ("/build/sessions/{session_id}/webapp", {"GET"}),
     ("/build/sessions/{session_id}/webapp/{path:path}", {"GET"}),
+    # HMAC-protected service-to-service endpoint used by the vendored Neural Labs app.
+    ("/neural-labs/provider-sync", {"GET"}),
 ]
 
 

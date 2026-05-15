@@ -2,10 +2,14 @@ import asyncio
 import base64
 from datetime import datetime
 from datetime import timezone
+import hashlib
+import hmac
 import json
 import mimetypes
+import os
 from pathlib import Path
 import secrets
+import time
 from typing import Any
 from typing import AsyncGenerator
 from uuid import uuid4
@@ -27,11 +31,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
 
 from onyx.auth.pat import hash_pat
+from onyx.auth.schemas import UserRole
 from onyx.auth.users import current_user
 from onyx.auth.users import current_user_from_websocket
+from onyx.configs.app_configs import USER_AUTH_SECRET
 from onyx.db.enums import LLMModelFlowType
 from onyx.db.engine.sql_engine import get_session
+from onyx.db.llm import can_user_access_llm_provider
 from onyx.db.llm import fetch_default_llm_model
+from onyx.db.llm import fetch_existing_llm_providers
+from onyx.db.llm import fetch_user_group_ids
 from onyx.db.models import LLMModelFlow
 from onyx.db.models import ModelConfiguration
 from onyx.db.models import PersonalAccessToken
@@ -100,6 +109,7 @@ from onyx.server.features.neural_labs.provisioning import (
     WARDGPT_MCP_BEARER_TOKEN_ENV_VAR,
 )
 from onyx.server.features.neural_labs.provisioning import provision_neural_labs_home
+from onyx.llm.well_known_providers.constants import AWS_REGION_NAME_KWARG
 from onyx.llm.litellm_singleton import litellm
 from onyx.llm.model_response import from_litellm_model_response_stream
 from onyx.llm.multi_llm import temporary_env_and_lock
@@ -114,6 +124,7 @@ NEURA_ASSISTANT_NAME = "Neura"
 NEURA_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 NEURAL_LABS_BACKGROUND_DIRECTORY = ".neural-labs/backgrounds"
 NEURAL_LABS_BACKGROUND_BASENAME = "custom-background"
+NEURAL_LABS_PROVIDER_SYNC_MAX_CLOCK_SKEW_SECONDS = 300
 
 
 def require_neural_labs_enabled(user: User = Depends(current_user)) -> User:
@@ -132,6 +143,111 @@ ws_router = APIRouter(prefix="/neural-labs")
 
 def _get_manager(db_session: Session) -> NeuralLabsSessionManager:
     return NeuralLabsSessionManager(db_session)
+
+
+def _get_provider_sync_secret() -> str:
+    return os.environ.get("NEURAL_LABS_AUTH_SHARED_SECRET", "").strip() or USER_AUTH_SECRET
+
+
+def _require_valid_provider_sync_signature(request: Request) -> None:
+    secret = _get_provider_sync_secret()
+    timestamp = request.headers.get("x-neural-labs-sync-timestamp", "").strip()
+    signature = request.headers.get("x-neural-labs-sync-signature", "").strip()
+
+    if not secret or not timestamp or not signature:
+        raise HTTPException(status_code=401, detail="Provider sync is not authorized")
+
+    try:
+        timestamp_int = int(timestamp)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid provider sync timestamp")
+
+    if (
+        abs(int(time.time()) - timestamp_int)
+        > NEURAL_LABS_PROVIDER_SYNC_MAX_CLOCK_SKEW_SECONDS
+    ):
+        raise HTTPException(status_code=401, detail="Expired provider sync timestamp")
+
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        f"{timestamp}:provider-sync".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not secrets.compare_digest(signature, expected):
+        raise HTTPException(status_code=401, detail="Invalid provider sync signature")
+
+
+def _get_bedrock_region(custom_config: dict[str, str] | None) -> str:
+    if custom_config:
+        region = custom_config.get(AWS_REGION_NAME_KWARG)
+        if region:
+            return region
+    return (
+        os.environ.get("AWS_REGION_NAME", "").strip()
+        or os.environ.get("AWS_REGION", "").strip()
+        or "us-east-1"
+    )
+
+
+@ws_router.get("/provider-sync")
+def sync_neural_labs_provider_inventory(
+    request: Request,
+    email: str,
+    db_session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    _require_valid_provider_sync_signature(request)
+    if not ENABLE_NEURAL_LABS:
+        raise HTTPException(status_code=403, detail="Neural Labs is not available")
+
+    user = db_session.scalar(select(User).where(User.email == email))
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_group_ids = fetch_user_group_ids(db_session, user)
+    is_admin = user.role == UserRole.ADMIN
+    default_model = fetch_default_llm_model(db_session)
+    default_provider_id = (
+        default_model.llm_provider.id
+        if default_model and default_model.llm_provider
+        else None
+    )
+    default_model_name = default_model.name if default_model else None
+    synced_providers: list[dict[str, Any]] = []
+
+    for provider in fetch_existing_llm_providers(db_session, [LLMModelFlowType.CHAT]):
+        if provider.provider not in {
+            LlmProviderNames.BEDROCK,
+            LlmProviderNames.BEDROCK_CONVERSE,
+        }:
+            continue
+        if not can_user_access_llm_provider(
+            provider,
+            user_group_ids,
+            persona=None,
+            is_admin=is_admin,
+        ):
+            continue
+
+        region = _get_bedrock_region(provider.custom_config)
+        for model_config in provider.model_configurations:
+            if not model_config.is_visible:
+                continue
+            display_name = model_config.display_name or model_config.name
+            synced_providers.append(
+                {
+                    "managedKey": f"onyx:{provider.id}:{model_config.name}",
+                    "name": f"{provider.name} / {display_name}",
+                    "kind": "bedrock",
+                    "model": model_config.name,
+                    "region": region,
+                    "isDefault": (
+                        provider.id == default_provider_id
+                        and model_config.name == default_model_name
+                    ),
+                }
+            )
+
+    return {"providers": synced_providers}
 
 
 def _workspace_for_user(

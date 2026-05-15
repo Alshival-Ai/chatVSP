@@ -14,12 +14,14 @@ export type ProviderKind =
   | "openai"
   | "anthropic"
   | "openai-compatible"
-  | "azure-openai";
+  | "azure-openai"
+  | "bedrock";
 
 export type ProviderManagedKey =
   | "openai-default"
   | "anthropic-default"
-  | "legacy-default";
+  | "legacy-default"
+  | `onyx:${string}`;
 
 export interface ProviderRecord {
   id: string;
@@ -30,8 +32,9 @@ export interface ProviderRecord {
   apiKey: string;
   apiVersion?: string;
   deployment?: string;
+  region?: string;
   isDefault: boolean;
-  managedBy?: "env";
+  managedBy?: "env" | "onyx";
   managedKey?: ProviderManagedKey;
   createdAt: string;
   updatedAt: string;
@@ -45,6 +48,7 @@ export interface ProviderDraft {
   apiKey: string;
   apiVersion?: string;
   deployment?: string;
+  region?: string;
   isDefault?: boolean;
 }
 
