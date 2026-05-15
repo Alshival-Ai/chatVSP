@@ -76,22 +76,20 @@ Neural Labs is behind both a global runtime flag and a per-user access flag.
 
 - Global flag: set `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
 - User flag: enable Neural Labs access for the target user from `Admin -> Users -> Edit user -> Neural Labs Access`
-- Launcher target: set `NEURAL_LABS_DESKTOP_URL` in `deployment/docker_compose/.env`
-  - Example: `NEURAL_LABS_DESKTOP_URL=https://neural-labs.example.com/desktop`
-  - If the URL is set to a bare origin/root, `/neural-labs` normalizes it to `/desktop`
-  - If unset/invalid, `/neural-labs` falls back to `/app`
+- Launcher target defaults to the bundled local path: `NEURAL_LABS_DESKTOP_URL=/neural-labs-app/desktop`
+- The trusted-login handoff secret defaults to `USER_AUTH_SECRET`; override with `NEURAL_LABS_AUTH_SHARED_SECRET` if needed
 - Rebuild/restart the app services after code changes:
 
 ```bash
-cd deployment/docker_compose
-sudo docker compose -f docker-compose.prod.yml build api_server background web_server
-sudo docker compose -f docker-compose.prod.yml up -d --no-deps api_server background web_server nginx
+cd /home/ubuntu/chatVSP
+./tools/bake.sh --down-first
 ```
 
 - Runtime note:
-  - `/neural-labs` is now a redirect launcher, not the in-repo desktop implementation
-  - use the dedicated Neural Labs repo/container for the actual desktop runtime
-  - keep Claude Code preconfiguration in that runtime image/config (same expectation as current behavior)
+  - `/neural-labs` remains the Onyx-authenticated launcher
+  - `/neural-labs-app/*` is proxied by nginx to the bundled `neural_labs` service
+  - the vendored workspace image installs Claude Code and receives Claude/Bedrock env
+  - `./tools/bake.sh --profile prod --down-first` is also supported for the production compose file
 
 ## Dependency Vulnerability Investigation (April 21, 2026)
 
@@ -194,7 +192,8 @@ sudo docker compose -f docker-compose.prod.yml exec api_server bash -lc 'echo "$
   - `which claude` resolves to `/root/.local/bin/claude`
   - `claude --version` prints the installed version
 
-Neural Labs parity currently focuses on application/backend behavior. Deployment-level service topology changes (compose/nginx/runtime restructuring) remain a separate rollout decision.
+Neural Labs deployment topology now includes the bundled `neural_labs` service, the
+`neural_labs_workspace` image, and nginx routing for `/neural-labs-app/*`.
 
 ## Enterprise Feature Toggle (Applied 2026-03-24)
 
@@ -232,7 +231,11 @@ docker stats --no-stream
 docker compose -p onyx -f deployment/docker_compose/docker-compose.prod.yml ps
 ```
 
-## Neural Labs: Neura Crash + Monaco CSP Fix (Applied 2026-04-21)
+## Legacy Embedded Neural Labs: Neura Crash + Monaco CSP Fix (Applied 2026-04-21)
+
+This historical note applies to the old embedded `web/src/app/neural-labs` desktop
+implementation. The active desktop runtime is now the vendored `neural-labs/` app
+served at `/neural-labs-app/*`; `/neural-labs` is only the Onyx-authenticated launcher.
 
 Symptoms observed in browser console:
 

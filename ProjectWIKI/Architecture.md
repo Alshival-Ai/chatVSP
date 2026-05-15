@@ -28,15 +28,16 @@
 - Web route: `/neural-labs`
 - Routing behavior:
   - `/neural-labs` now acts as an authenticated launcher route in `web_server`
-  - if `NEURAL_LABS_DESKTOP_URL` is unset/invalid, the launcher falls back to `/app`
-  - if `NEURAL_LABS_DESKTOP_URL` is a bare origin/path root, launcher appends `/desktop`
+  - the default target is the bundled local app at `/neural-labs-app/desktop`
+  - the launcher signs a short-lived trusted-login token for the current Onyx user
 - Access controls:
   - existing Onyx auth and feature gates remain in place before redirect
   - global gate: `ENABLE_NEURAL_LABS=true`
   - per-user gate: `enable_neural_labs` toggle in Admin Users
 - Runtime ownership:
-  - desktop UX/runtime now lives in the external Neural Labs container/repo target
-  - legacy embedded `/api/neural-labs/*` details in this wiki are stale unless re-enabled in code
+  - desktop UX/runtime lives in the vendored `neural-labs/` app and `neural_labs` Compose service
+  - nginx proxies `/neural-labs-app/*` to the local `neural_labs` service
+  - workspace containers are created from the bundled `neural-labs-workspace` image
 
 ## SSH Path
 

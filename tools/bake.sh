@@ -107,7 +107,10 @@ esac
 # This includes Neural Labs web/backend changes while avoiding full-stack rebuild pressure.
 if ((${#services[@]} == 0)); then
   case "$profile" in
-    prod|prod-cloud|prod-no-letsencrypt)
+    prod)
+      services=(web_server api_server background neural_labs_workspace neural_labs nginx)
+      ;;
+    prod-cloud|prod-no-letsencrypt)
       services=(web_server api_server background)
       ;;
   esac
@@ -138,7 +141,7 @@ if ((!no_wait)); then
 fi
 # For production partial refreshes, avoid dependency restarts/healthcheck gating.
 # This keeps app-only deploys (web/api/background) stable on constrained hosts.
-if ((${#services[@]} > 0)); then
+if ((${#services[@]} > 0)) && ((!down_first)); then
   case "$profile" in
     prod|prod-cloud|prod-no-letsencrypt)
       up_args+=(--no-deps)
@@ -157,7 +160,7 @@ if ((${#services[@]} > 0)); then
   summary_services=("${services[@]}")
 else
   # Fallback summary when no explicit service list is provided.
-  summary_services=(web_server api_server background nginx)
+  summary_services=(web_server api_server background neural_labs_workspace neural_labs nginx)
 fi
 
 for svc in "${summary_services[@]}"; do

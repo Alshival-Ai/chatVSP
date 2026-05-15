@@ -169,6 +169,61 @@ services:
         max-size: "50m"
         max-file: "6"
 
+  neural_labs_workspace:
+    image: ${NEURAL_LABS_WORKSPACE_IMAGE:-neural-labs-workspace:latest}
+    build:
+      context: ../../neural-labs
+      dockerfile: workspace.Dockerfile
+    command: ["tail", "-f", "/dev/null"]
+    restart: unless-stopped
+    networks:
+      - neural_labs_workspaces
+
+  neural_labs:
+    image: ${NEURAL_LABS_IMAGE:-chatvsp-neural-labs:latest}
+    build:
+      context: ../../neural-labs
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_NEURAL_LABS_BASE_PATH=${NEXT_PUBLIC_NEURAL_LABS_BASE_PATH:-/neural-labs-app}
+    depends_on:
+      - neural_labs_workspace
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - PORT=3000
+      - AUTH_SECRET=${NEURAL_LABS_AUTH_SECRET:-${USER_AUTH_SECRET}}
+      - AUTH_DB_PATH=/app/data/auth/auth.db
+      - AUTH_COOKIE_SECURE=${NEURAL_LABS_AUTH_COOKIE_SECURE:-false}
+      - NEURAL_LABS_AUTH_SHARED_SECRET=${NEURAL_LABS_AUTH_SHARED_SECRET:-${USER_AUTH_SECRET}}
+      - NEXT_PUBLIC_NEURAL_LABS_BASE_PATH=${NEXT_PUBLIC_NEURAL_LABS_BASE_PATH:-/neural-labs-app}
+      - NEURAL_LABS_WORKSPACE_BACKEND=docker
+      - NEURAL_LABS_WORKSPACE_IMAGE=${NEURAL_LABS_WORKSPACE_IMAGE:-neural-labs-workspace:latest}
+      - NEURAL_LABS_WORKSPACE_NETWORK=${NEURAL_LABS_WORKSPACE_NETWORK:-neural-labs-workspaces}
+      - NEURAL_LABS_VSCODE_ENABLED=${NEURAL_LABS_VSCODE_ENABLED:-true}
+      - NEURAL_LABS_VSCODE_PORT=${NEURAL_LABS_VSCODE_PORT:-13337}
+      - NEURAL_LABS_DEFAULT_PROVIDER=${NEURAL_LABS_DEFAULT_PROVIDER:-anthropic}
+      - ANTHROPIC_DEFAULT_MODEL=${ANTHROPIC_DEFAULT_MODEL:-claude-sonnet-4-20250514}
+      - ANTHROPIC_DEFAULT_NAME=${ANTHROPIC_DEFAULT_NAME:-Claude}
+      - ANTHROPIC_DEFAULT_BASE_URL=${ANTHROPIC_DEFAULT_BASE_URL:-https://api.anthropic.com/v1}
+      - CLAUDE_CODE_USE_BEDROCK=${CLAUDE_CODE_USE_BEDROCK:-1}
+      - AWS_REGION=${AWS_REGION:-${AWS_REGION_NAME:-us-east-1}}
+    volumes:
+      - neural_labs_auth_data:/app/data/auth
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    networks:
+      - default
+      - neural_labs_workspaces
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
   # Uncomment the block below to enable the MCP server for Onyx.
   # mcp_server:
   #   image: onyxdotapp/onyx-backend:${IMAGE_TAG:-latest}
@@ -370,6 +425,7 @@ services:
     depends_on:
       - api_server
       - web_server
+      - neural_labs
     ports:
       - "${HOST_PORT_80:-80}:80"
       - "${HOST_PORT_443:-443}:443"
@@ -398,6 +454,7 @@ services:
       - .env.nginx
     environment:
       # Nginx proxy timeout settings (in seconds)
+      - NEURAL_LABS_HOST=${NEURAL_LABS_HOST:-neural_labs}
       - NGINX_PROXY_CONNECT_TIMEOUT=${NGINX_PROXY_CONNECT_TIMEOUT:-300}
       - NGINX_PROXY_SEND_TIMEOUT=${NGINX_PROXY_SEND_TIMEOUT:-300}
       - NGINX_PROXY_READ_TIMEOUT=${NGINX_PROXY_READ_TIMEOUT:-300}
@@ -475,3 +532,8 @@ volumes:
   file-system:
   # Persistent data for OpenSearch.
   opensearch-data:
+  neural_labs_auth_data:
+
+networks:
+  neural_labs_workspaces:
+    name: ${NEURAL_LABS_WORKSPACE_NETWORK:-neural-labs-workspaces}

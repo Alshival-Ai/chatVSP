@@ -10,10 +10,10 @@ export enum AuthType {
 
 export const HOST_URL = process.env.WEB_DOMAIN || "http://localhost:3000";
 
-// External Neural Labs desktop container URL. If set to a bare host/root URL,
-// `/desktop` will be appended by the Neural Labs launcher route.
+// Neural Labs desktop target. Defaults to the bundled local container path.
+// External targets are still supported when they expose the trusted-login route.
 export const NEURAL_LABS_DESKTOP_URL =
-  process.env.NEURAL_LABS_DESKTOP_URL || "";
+  process.env.NEURAL_LABS_DESKTOP_URL || "/neural-labs-app/desktop";
 
 export const INTERNAL_URL = process.env.INTERNAL_URL || "http://localhost:8080";
 

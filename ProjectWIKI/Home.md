@@ -25,14 +25,14 @@ If you want ChatVSP custom UI/behavior, do not rely only on pulled `onyxdotapp/*
 
 - Neural Labs is now launcher-based from chatVSP:
   - `/neural-labs` keeps primary Onyx auth + feature gating
-  - after auth/gate checks, it redirects to `NEURAL_LABS_DESKTOP_URL`
-  - if the configured URL is a bare root, launcher normalizes it to `/desktop`
-  - if `NEURAL_LABS_DESKTOP_URL` is missing/invalid, launcher redirects to `/app`
+  - after auth/gate checks, it signs a short-lived trusted-login token
+  - the default target is the bundled local desktop at `/neural-labs-app/desktop`
 - Required flags remain:
   - global: `ENABLE_NEURAL_LABS=true`
   - per-user: `Admin -> Users -> Edit user -> Neural Labs Access`
 - Runtime ownership:
-  - desktop implementation should come from the dedicated Neural Labs repo/container
-  - this wiki previously documented an embedded in-repo Neural Labs runtime; those details are now stale and intentionally superseded by the launcher flow
-- Claude Code expectation:
-  - keep Claude provisioning in the Neural Labs runtime/container image, matching current deployment behavior
+  - desktop implementation is vendored under `neural-labs/`
+  - Docker Compose builds `neural_labs` and `neural_labs_workspace` with the normal prod bake flow
+- Claude Code:
+  - the bundled workspace image installs the `claude` CLI
+  - runtime Claude/Bedrock env is passed into Neural Labs workspace containers
