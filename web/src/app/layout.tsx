@@ -46,8 +46,49 @@ const hankenGrotesk = Hanken_Grotesk({
 });
 
 const initialBackgroundStyle = {
-  backgroundColor: "var(--background-tint-01, #f7fbff)",
+  backgroundColor:
+    "var(--background-tint-01, var(--initial-app-background, #f7fbff))",
 };
+
+const LIGHT_APP_BACKGROUND = "#f7fbff";
+const DARK_APP_BACKGROUND = "#0d1b2d";
+
+function getInitialThemeScript(themePreference?: string | null) {
+  return `
+    (function() {
+      try {
+        var serverTheme = ${JSON.stringify(themePreference ?? null)};
+        var theme = serverTheme || localStorage.getItem("theme") || "system";
+
+        if (serverTheme) {
+          localStorage.setItem("theme", serverTheme);
+        }
+
+        var isDark =
+          theme === "dark" ||
+          (theme === "system" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+        var backgroundFallback = isDark ? "${DARK_APP_BACKGROUND}" : "${LIGHT_APP_BACKGROUND}";
+        var backgroundColor =
+          "var(--background-tint-01, var(--initial-app-background, " +
+          backgroundFallback +
+          "))";
+
+        document.documentElement.classList.toggle("dark", isDark);
+        document.documentElement.style.setProperty(
+          "--initial-app-background",
+          backgroundFallback
+        );
+        document.documentElement.style.backgroundColor = backgroundColor;
+
+        var style = document.createElement("style");
+        style.setAttribute("data-initial-theme-background", "true");
+        style.textContent = "html, body { background-color: " + backgroundColor + "; }";
+        document.head.appendChild(style);
+      } catch (error) {}
+    })();
+  `;
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   let logoLocation = "/logo.png";
@@ -90,7 +131,9 @@ export default async function RootLayout({
   const getPageContent = async (content: React.ReactNode) => (
     <html
       lang="en"
-      className={`${inter.variable} ${hankenGrotesk.variable}`}
+      className={`${inter.variable} ${hankenGrotesk.variable} ${
+        user?.preferences?.theme_preference === "dark" ? "dark" : ""
+      }`}
       style={initialBackgroundStyle}
       suppressHydrationWarning
     >
@@ -98,6 +141,12 @@ export default async function RootLayout({
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=resizes-content"
+        />
+        <script
+          id="initial-theme"
+          dangerouslySetInnerHTML={{
+            __html: getInitialThemeScript(user?.preferences?.theme_preference),
+          }}
         />
         {CUSTOM_ANALYTICS_ENABLED &&
           combinedSettings?.customAnalyticsScript && (
@@ -132,7 +181,7 @@ export default async function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme={user?.preferences?.theme_preference ?? "system"}
           enableSystem
           disableTransitionOnChange
         >
