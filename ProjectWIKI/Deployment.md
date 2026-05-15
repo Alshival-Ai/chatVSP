@@ -57,10 +57,10 @@ You can run the same flow with the helper script:
 
 ```bash
 cd /home/ubuntu/chatVSP
-./tools/bake.sh --profile prod
+./tools/bake.sh --profile prod --down-first
 ```
 
-`tools/bake.sh --profile prod` now defaults to rebuilding and recreating:
+`tools/bake.sh --profile prod --down-first` rebuilds and recreates:
 
 - `web_server`
 - `api_server`
@@ -76,6 +76,10 @@ Neural Labs is behind both a global runtime flag and a per-user access flag.
 
 - Global flag: set `ENABLE_NEURAL_LABS=true` in `deployment/docker_compose/.env`
 - User flag: enable Neural Labs access for the target user from `Admin -> Users -> Edit user -> Neural Labs Access`
+- Launcher target: set `NEURAL_LABS_DESKTOP_URL` in `deployment/docker_compose/.env`
+  - Example: `NEURAL_LABS_DESKTOP_URL=https://neural-labs.example.com/desktop`
+  - If the URL is set to a bare origin/root, `/neural-labs` normalizes it to `/desktop`
+  - If unset/invalid, `/neural-labs` falls back to `/app`
 - Rebuild/restart the app services after code changes:
 
 ```bash
@@ -84,79 +88,10 @@ sudo docker compose -f docker-compose.prod.yml build api_server background web_s
 sudo docker compose -f docker-compose.prod.yml up -d --no-deps api_server background web_server nginx
 ```
 
-Current live scope is Neural Labs parity with WardGPT Codex Labs behavior (kept under Neural Labs route/branding):
-
-- gated `/neural-labs` access
-- per-user persistent workspaces on the shared `file-system` volume
-- backend APIs for:
-  - warmup/session/status/list/create/close terminals
-  - websocket + SSE terminal streams
-  - file list/content/download/upload/folder create/rename/move/text save/delete
-- browser UI for:
-  - legacy tree navigator with context actions and drag/drop move
-  - `/neural-labs` now opens directly into the desktop Neural Labs experience; the route-level legacy UI switch and return link were removed
-  - desktop layout replaces fixed sidebars with a pill taskbar using icon launchers plus windowed `File Explorer`, `Terminal`, `Text Editor`, `Neura`, and `Desktop Settings` apps
-  - desktop windows now use the full workspace height under the pinned header overlay, and that header renders behind the window stack so maximized and snapped windows can extend into the top strip without header chrome sitting above them
-  - the bottom taskbar now uses theme-aware glass/background contrast and icon colors so light mode stays legible even when light windows are maximized behind it
-  - desktop `File Explorer` now uses a Finder-style hybrid explorer instead of the legacy tree: sidebar locations, breadcrumb path navigation, per-window history/state, icon/list views, and drag/drop move or OS-file upload
-  - desktop `Terminal` now uses a dedicated Windows Terminal-style app surface rather than the legacy terminal panel: independent terminal windows, top tabs, right-click tab actions, drag-reorder, move-tab-to-new-window, and in-window split controls
-  - desktop `Text Editor` is now a dedicated Monaco-based app window instead of the former preview-window editor: per-window document tabs, open-files sidebar, command menu, manual save/save-as, and dirty-state tracking
-  - desktop `Text Editor` now keeps its internal surfaces theme-consistent in both light and dark mode and uses a more compact top toolbar so the editor surface starts sooner
-  - the desktop text editor now ships Monaco's official editor CSS from app root and runs with `useShadowDOM: false` in Neural Labs so Monaco's built-in input/caret styling is applied consistently without ad-hoc host CSS that can leak visible browser input elements
-  - desktop `Neura` is now a dedicated Neural Labs chat app with a conversation sidebar, streaming replies, and taskbar `New Window` support; it is separate from the main Onyx assistant UI
-  - selected rows in the `Text Editor` and `Neura` sidebars now use explicit active-state text colors so light mode keeps those labels readable against the dark selected background treatment
-  - Neura now uses a modern pill-style composer with inline image uploads for multimodal vision-capable models instead of a text-only chat bar
-  - the Neura composer now keeps icon-only voice/attach/image controls with hover labels; the voice button is present as a placeholder only and the keyboard shortcut hint sits below the composer
-  - a new Neura window now auto-creates its first conversation and focuses the composer once the workspace has no existing Neura chats
-  - file explorer/tree actions now distinguish rendered preview from editing: HTML keeps a real `Preview`, while editable text files expose `Open in Text Editor`
-  - spreadsheet preview now uses explicit light/dark table colors so XLSX text remains readable in light mode
-  - desktop explorer and terminal visuals now follow the app light/dark theme, including explicit theme-safe file/folder icon colors and xterm foreground/background switching
-  - taskbar icons expose app names on hover through the same themed Neural Labs tooltip treatment
-  - taskbar left click restores minimized windows or focuses the front-most running app instance; right click exposes `New Window` for multi-window desktop apps including `Neura`
-  - taskbar icon foreground colors now consistently revert after close/minimize transitions, so dark mode no longer leaves closed-app icons in a dark/low-contrast state
-  - split terminal tabs/panes
-  - Terminal Navigator shows a single terminal as `Terminal 1` without a group wrapper; group cards only render when a tab contains multiple panes
-  - file action icons expose hover helper text for create/upload/refresh
-  - Neural Labs hover helper text now uses the themed white tooltip only; native browser duplicate tooltips are removed and tooltip positioning is clamped within the viewport above floating windows
-  - terminal/group deletion is handled from the Terminal Navigator with trash actions rather than top-bar close controls; standalone terminal and group delete actions are red while in-group terminal delete actions stay neutral
-  - desktop settings now default the desktop shell to `Sunset Grid`, keep preset selection persisted in browser storage, and allow uploading a custom background image into the user Neural Labs workspace at `~/.neural-labs/backgrounds/`
-  - desktop file explorer image entries now expose a right-click `Set as Background` action that copies that image into `~/.neural-labs/backgrounds/` and switches the active desktop background to it
-  - desktop app windows support macOS-style close/minimize/maximize controls, double-click title-bar maximize/restore, edge snap zones, and minimize-to-taskbar behavior
-  - text files such as `.txt`, `.json`, `.md`, `.py`, and similar now open into the focused desktop editor window as tabs instead of a separate text preview mode
-  - floating preview windows with snap/resize remain for image, PDF, HTML, KMZ, and XLSX files; text editing is handled by the desktop editor app
-  - preview windows now use the same compact desktop window chrome as app windows, including matching macOS-style controls and double-click maximize/restore behavior
-  - desktop app windows share focus / z-index behavior with existing preview windows so app windows and file previews layer together cleanly
-  - HTML previews use a path-based `/api/neural-labs/files/content/<path>` route so relative assets load from the previewed workspace folder
-  - HTML preview sandbox keeps scripts enabled but drops `allow-same-origin` to avoid the browser escape warning on generated sites
-  - the web app `Permissions-Policy` header is restricted to currently supported directives so Chromium no longer logs unsupported-feature warnings
-  - refresh/focus restores terminal layout by reconciling browser-saved tabs with live backend terminal IDs to reduce stale or ghost panes after reload
-  - KMZ preview uses a client-only Leaflet bundle to avoid server-side `window is not defined` crashes on the Neural Labs page
-- websocket terminal stream using dual-token auth (`token` + `terminal_token`) to keep browser WS auth and terminal session binding aligned
-- managed shell startup files (`~/.bash_profile`, `~/.bashrc`) with Neural Labs banner
-- Neura workspace-local persistence:
-  - conversation history is stored in the user Neural Labs home at `~/.neural-labs/neura/neura.db`
-  - image uploads for Neura vision chats are stored in the same workspace at `~/.neural-labs/neura/uploads/`
-  - Neura traffic stays on the dedicated `/api/neural-labs/neura/*` endpoints and does not write into Onyx chat-session/message tables
-- backend image now installs terminal CLIs for Neural Labs when `ENABLE_NEURAL_LABS=true`:
-  - `claude` via Anthropic native installer (`curl -fsSL https://claude.ai/install.sh | bash`)
-  - `/etc/profile.d` restores `/root/.local/bin` and `/root/.opencode/bin` for login shells so `bash -lc 'claude ...'` still works after `/etc/profile` rewrites `PATH`
-- Neural Labs shell sessions inject provider credentials/config:
-  - preferred Claude Code path is Microsoft Foundry when the configured `azure` provider points at a Foundry Claude endpoint:
-    - `CLAUDE_CODE_USE_FOUNDRY=1`
-    - `ANTHROPIC_FOUNDRY_BASE_URL=https://{resource}.services.ai.azure.com/anthropic`
-    - optional: `ANTHROPIC_FOUNDRY_API_KEY` from the Azure provider API key
-    - pinned defaults:
-      - `ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6`
-      - `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-7`
-      - `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4-5`
-  - otherwise Claude Code falls back to AWS Bedrock via IAM role:
-    - `CLAUDE_CODE_USE_BEDROCK=1`
-    - `AWS_REGION=us-east-1` unless the configured Bedrock provider overrides it
-    - `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`
-    - `ANTHROPIC_DEFAULT_OPUS_MODEL=global.anthropic.claude-opus-4-6-v1`
-    - `ANTHROPIC_DEFAULT_HAIKU_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`
-  - direct Anthropic fallback remains supported via `ANTHROPIC_API_KEY` only when neither Foundry nor Bedrock is configured
-- Neural Labs no longer provisions OpenAI/Codex credentials or config; the managed shell is Claude-only
+- Runtime note:
+  - `/neural-labs` is now a redirect launcher, not the in-repo desktop implementation
+  - use the dedicated Neural Labs repo/container for the actual desktop runtime
+  - keep Claude Code preconfiguration in that runtime image/config (same expectation as current behavior)
 
 ## Dependency Vulnerability Investigation (April 21, 2026)
 
